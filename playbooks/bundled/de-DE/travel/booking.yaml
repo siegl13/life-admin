@@ -1,0 +1,120 @@
+schemaVersion: 1
+id: de.travel.booking
+version: 1.0.0
+name: Travel booking
+label_i18n:
+  de: Reisebuchung
+description: Track important dates, payments, cancellation deadlines and documents for a booked trip.
+locale: de-DE
+category: travel
+
+fields:
+  - key: destination
+    type: text
+    label: Destination
+    label_i18n:
+      de: Reiseziel
+    recommended: true
+    carryForward: false
+  - key: provider
+    type: text
+    label: Tour operator / provider
+    label_i18n:
+      de: Veranstalter / Anbieter
+    carryForward: false
+  - key: booking_number
+    type: text
+    label: Booking number
+    label_i18n:
+      de: Buchungsnummer
+    recommended: true
+    carryForward: false
+  - key: trip_start
+    type: date
+    label: Trip start
+    label_i18n:
+      de: Reisebeginn
+    recommended: true
+    carryForward: false
+  - key: trip_end
+    type: date
+    label: Trip end
+    label_i18n:
+      de: Reiseende
+    carryForward: false
+  - key: balance_due_date
+    type: date
+    label: Balance payment due
+    label_i18n:
+      de: Restzahlung fällig
+    carryForward: false
+  - key: balance_amount
+    type: currency
+    label: Balance payment
+    label_i18n:
+      de: Restzahlung
+    carryForward: false
+  - key: free_cancellation_until
+    type: date
+    label: Free cancellation until
+    label_i18n:
+      de: Kostenfreie Stornierung bis
+    carryForward: false
+  - key: total_price
+    type: currency
+    label: Total price
+    label_i18n:
+      de: Gesamtpreis
+    carryForward: false
+  - key: insurance_number
+    type: text
+    label: Insurance number
+    label_i18n:
+      de: Versicherungsnummer
+    carryForward: false
+
+events:
+  - key: cancellation_deadline
+    label: Free cancellation deadline
+    label_i18n:
+      de: Frist für kostenfreie Stornierung
+    sourceField: free_cancellation_until
+  - key: balance_due
+    label: Balance payment due
+    label_i18n:
+      de: Restzahlung fällig
+    sourceField: balance_due_date
+  - key: trip_starts
+    label: Trip starts
+    label_i18n:
+      de: Reise beginnt
+    sourceField: trip_start
+
+actions:
+  - key: check_cancellation_deadline
+    label: Review cancellation deadline
+    label_i18n:
+      de: Stornofrist prüfen
+    due:
+      event: cancellation_deadline
+  - key: pay_balance
+    label: Make balance payment
+    label_i18n:
+      de: Restzahlung durchführen
+    due:
+      event: balance_due
+  - key: check_travel_documents
+    label: Check travel documents
+    label_i18n:
+      de: Reisedokumente prüfen
+    due:
+      event: trip_starts
+      offset: { weeks: -4 }
+  - key: prepare_check_in
+    label: Prepare check-in and travel
+    label_i18n:
+      de: Check-in / Anreise vorbereiten
+    due:
+      event: trip_starts
+      offset: { weeks: -1 }
+    dependsOn: [check_travel_documents]

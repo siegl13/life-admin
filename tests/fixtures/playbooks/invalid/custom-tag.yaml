@@ -1,0 +1,4 @@
+schemaVersion: 1
+id: de.test.customtag
+version: 1.0.0
+name: !!js/function 'function(){return 1}'

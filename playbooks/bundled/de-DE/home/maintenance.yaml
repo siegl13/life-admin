@@ -1,0 +1,116 @@
+schemaVersion: 1
+id: de.home.maintenance
+version: 1.0.0
+name: Maintenance and inspection
+label_i18n:
+  de: Wartung & Prüfung
+description: Track recurring maintenance or inspection of household equipment or property.
+locale: de-DE
+category: home
+
+fields:
+  - key: equipment
+    type: text
+    label: Equipment / device
+    label_i18n:
+      de: Anlage / Gerät
+    carryForward: true
+  - key: manufacturer
+    type: text
+    label: Manufacturer
+    label_i18n:
+      de: Hersteller
+    carryForward: true
+  - key: model
+    type: text
+    label: Model
+    label_i18n:
+      de: Modell
+    carryForward: true
+  - key: serial_number
+    type: text
+    label: Serial number
+    label_i18n:
+      de: Seriennummer
+    carryForward: true
+  - key: location
+    type: text
+    label: Location
+    label_i18n:
+      de: Standort
+    carryForward: true
+  - key: service_provider
+    type: text
+    label: Service provider
+    label_i18n:
+      de: Dienstleister
+    carryForward: true
+  - key: customer_contract_number
+    type: text
+    label: Customer number / contract number
+    label_i18n:
+      de: Kundennummer / Vertragsnummer
+    carryForward: true
+  - key: last_maintenance
+    type: date
+    label: Last maintenance / inspection
+    label_i18n:
+      de: Letzte Wartung / Prüfung
+    carryForward: false
+  - key: next_maintenance
+    type: date
+    label: Next maintenance / inspection
+    label_i18n:
+      de: Nächste Wartung / Prüfung
+    recommended: true
+    carryForward: false
+  - key: maintenance_interval
+    type: text
+    label: Maintenance interval
+    label_i18n:
+      de: Wartungsintervall
+    carryForward: true
+  - key: cost
+    type: currency
+    label: Cost
+    label_i18n:
+      de: Kosten
+    carryForward: false
+
+events:
+  - key: maintenance_due
+    label: Maintenance / inspection due
+    label_i18n:
+      de: Wartung / Prüfung fällig
+    sourceField: next_maintenance
+
+actions:
+  - key: plan_maintenance
+    label: Plan maintenance / inspection
+    label_i18n:
+      de: Wartung / Prüfung planen
+    due:
+      event: maintenance_due
+      offset: { months: -1 }
+  - key: arrange_appointment
+    label: Arrange appointment
+    label_i18n:
+      de: Termin vereinbaren
+    dependsOn: [plan_maintenance]
+  - key: complete_maintenance
+    label: Complete maintenance / inspection
+    label_i18n:
+      de: Wartung / Prüfung durchführen
+    due:
+      event: maintenance_due
+    dependsOn: [arrange_appointment]
+  - key: file_results
+    label: File results and documents
+    label_i18n:
+      de: Ergebnis / Dokumente ablegen
+    dependsOn: [complete_maintenance]
+  - key: record_next_maintenance
+    label: Record next maintenance / inspection
+    label_i18n:
+      de: Nächste Wartung / Prüfung eintragen
+    dependsOn: [file_results]

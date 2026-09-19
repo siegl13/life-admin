@@ -1,0 +1,25 @@
+node_modules/
+.svelte-kit/
+build/
+.env
+.env.*
+!.env.example
+.data/
+.data-e2e/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Internal AI-agent working docs (roadmap, implementation status, reviews,
+# ADRs, design handoffs) — not part of the public release.
+docs/
+
+# Local agent/editor state, never meant to be tracked.
+.claude/
+.agent/
+.data-manual/

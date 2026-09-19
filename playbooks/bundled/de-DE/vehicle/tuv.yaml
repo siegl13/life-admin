@@ -1,0 +1,79 @@
+schemaVersion: 1
+id: de.vehicle.tuv
+version: 1.1.0
+name: Vehicle inspection (TÜV / HU)
+label_i18n:
+  de: TÜV / Hauptuntersuchung
+description: Track the next vehicle inspection and prepare the inspection cycle.
+locale: de-DE
+category: vehicle
+
+fields:
+  - key: license_plate
+    type: text
+    label: License plate
+    label_i18n:
+      de: Kennzeichen
+    recommended: true
+    carryForward: true
+  - key: vehicle
+    type: text
+    label: Vehicle
+    label_i18n:
+      de: Fahrzeug
+    carryForward: true
+  - key: vin
+    type: text
+    label: Vehicle identification number (VIN)
+    label_i18n:
+      de: FIN
+    carryForward: true
+  - key: next_inspection
+    type: date
+    label: Next vehicle inspection
+    label_i18n:
+      de: Nächste HU
+    recommended: true
+    carryForward: false
+  - key: inspection_organization
+    type: text
+    label: Inspection organization / station
+    label_i18n:
+      de: Prüforganisation / Prüfstelle
+    carryForward: true
+
+events:
+  - key: inspection_due
+    label: Vehicle inspection due
+    label_i18n:
+      de: Hauptuntersuchung fällig
+    sourceField: next_inspection
+
+actions:
+  - key: plan_inspection
+    label: Plan vehicle inspection
+    label_i18n:
+      de: HU-Termin planen
+    due:
+      event: inspection_due
+      offset: { months: -1 }
+  - key: prepare_vehicle
+    label: Prepare vehicle and documents
+    label_i18n:
+      de: Fahrzeug / Unterlagen vorbereiten
+    due:
+      event: inspection_due
+      offset: { weeks: -2 }
+    dependsOn: [plan_inspection]
+  - key: complete_inspection
+    label: Complete vehicle inspection
+    label_i18n:
+      de: Hauptuntersuchung durchführen
+    due:
+      event: inspection_due
+    dependsOn: [prepare_vehicle]
+  - key: record_next_inspection
+    label: Record the next vehicle inspection
+    label_i18n:
+      de: Neue HU eintragen
+    dependsOn: [complete_inspection]

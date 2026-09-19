@@ -1,0 +1,49 @@
+schemaVersion: 1
+id: de.finance.nv-certificate
+version: 1.0.0
+name: Non-assessment certificate (NV-Bescheinigung)
+label_i18n:
+  de: NV-Bescheinigung
+description: Certificate confirming no capital gains tax assessment, submitted to banks.
+locale: de-DE
+category: finance
+
+fields:
+  - key: person
+    type: text
+    label: Person
+    label_i18n:
+      de: Person
+    recommended: true
+  - key: valid_until
+    type: date
+    label: Valid until
+    label_i18n:
+      de: Gültig bis
+    recommended: true
+
+events:
+  - key: expiry
+    label: Certificate expires
+    label_i18n:
+      de: Bescheinigung läuft ab
+    sourceField: valid_until
+
+actions:
+  - key: request_new
+    label: Request new certificate
+    label_i18n:
+      de: Neue NV-Bescheinigung beantragen
+    due:
+      event: expiry
+      offset: { months: -2 }
+  - key: check_receipt
+    label: Check receipt
+    label_i18n:
+      de: Eingang prüfen
+    dependsOn: [request_new]
+  - key: forward_to_banks
+    label: Forward to banks
+    label_i18n:
+      de: An Banken weiterleiten
+    dependsOn: [check_receipt]
