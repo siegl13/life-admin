@@ -1,0 +1,20 @@
+schemaVersion: 1
+id: de.test.minimal
+version: 1.0.0
+name: Minimal test playbook
+description: Bootstrap fixture used only to prove the loader/catalog path.
+fields:
+  - key: some_date
+    type: date
+    label: Some date
+    recommended: true
+events:
+  - key: some_event
+    label: Some event
+    sourceField: some_date
+actions:
+  - key: do_something
+    label: Do something
+    due:
+      event: some_event
+      offset: { days: -7 }
