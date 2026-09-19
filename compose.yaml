@@ -1,0 +1,50 @@
+services:
+  lifeadmin:
+    build: .
+    image: lifeadmin:local
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    # Uncomment and create a `.env` file (copy `.env.example`) to set
+    # LIFEADMIN_OPENAI_API_KEY (and, only if needed, LIFEADMIN_AI_MODEL)
+    # without editing this file or the `environment:` map below. Without
+    # this, AI extraction has no way to receive a key through the
+    # documented Compose deployment path (review round-02 finding 9).
+    # env_file: .env
+    environment:
+      TZ: Europe/Berlin
+      LIFEADMIN_DATA_DIR: /data
+      BODY_SIZE_LIMIT: 280M
+      # Required by @sveltejs/adapter-node's CSRF origin check, which
+      # otherwise assumes HTTPS and rejects every form submission (POST)
+      # with 403 on a plain-HTTP deployment like this one. Must match
+      # exactly how you access the app in your browser (scheme + host +
+      # port). Override this if you reach the app via a LAN IP, a custom
+      # hostname, or through a reverse proxy on a different origin.
+      ORIGIN: http://localhost:3000
+      # LIFEADMIN_COOKIE_SECURE: 'true'
+      # LIFEADMIN_RESET_OWNER_PASSWORD: replace-with-a-new-long-password
+      # PROTOCOL_HEADER: x-forwarded-proto
+      # HOST_HEADER: x-forwarded-host
+      # AI document extraction (optional, off until also enabled with
+      # consent in /settings) — set via `.env`/`env_file` above, not here,
+      # so the key never ends up in this checked-in file:
+      # LIFEADMIN_OPENAI_API_KEY: sk-...
+      # LIFEADMIN_AI_MODEL: gpt-5.6-terra
+    volumes:
+      - lifeadmin-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  lifeadmin-data:

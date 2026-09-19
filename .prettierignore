@@ -1,0 +1,14 @@
+.svelte-kit/
+build/
+node_modules/
+.agent/
+.claude/
+package-lock.json
+playbooks/**/*.yaml
+tests/fixtures/playbooks/**/*.yaml
+*.sqlite
+# Approved handoff/specification artifacts are preserved verbatim.
+docs/roadmap-v1.md
+docs/IMPLEMENTATION-BRIEF.md
+docs/design_handoff_slice_14_documents/
+docs/design_handoff_slice_15_related_items/

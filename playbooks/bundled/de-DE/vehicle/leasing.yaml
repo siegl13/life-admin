@@ -1,0 +1,153 @@
+schemaVersion: 1
+id: de.vehicle.leasing
+version: 1.1.0
+name: Vehicle leasing
+label_i18n:
+  de: Kfz-Leasing
+description: Track a vehicle leasing contract and prepare for the end of its term.
+locale: de-DE
+category: vehicle
+
+fields:
+  - key: lessor
+    type: text
+    label: Lessor
+    label_i18n:
+      de: Leasinggeber
+    recommended: true
+    carryForward: true
+  - key: contract_number
+    type: text
+    label: Contract number
+    label_i18n:
+      de: Vertragsnummer
+    recommended: true
+    carryForward: true
+  - key: vehicle
+    type: text
+    label: Vehicle
+    label_i18n:
+      de: Fahrzeug
+    recommended: true
+    carryForward: true
+  - key: license_plate
+    type: text
+    label: License plate
+    label_i18n:
+      de: Kennzeichen
+    carryForward: true
+  - key: lease_end
+    type: date
+    label: Lease end date
+    label_i18n:
+      de: Leasingende
+    recommended: true
+    carryForward: false
+  - key: contract_term
+    type: text
+    label: Contract term
+    label_i18n:
+      de: Vertragsdauer
+    carryForward: false
+  - key: annual_mileage
+    type: text
+    label: Annual mileage
+    label_i18n:
+      de: Jahreskilometer
+    carryForward: false
+  - key: mileage
+    type: text
+    label: Current mileage
+    label_i18n:
+      de: Kilometerstand
+    carryForward: false
+  - key: monthly_rate
+    type: currency
+    label: Monthly leasing rate
+    label_i18n:
+      de: Monatliche Leasingrate
+    carryForward: false
+  - key: special_payment
+    type: currency
+    label: Leasing special payment
+    label_i18n:
+      de: Leasingsonderzahlung
+    carryForward: false
+  - key: excess_mileage_rate
+    type: text
+    label: Excess mileage rate
+    label_i18n:
+      de: Mehrkilometersatz
+    carryForward: false
+  - key: unused_mileage_rate
+    type: text
+    label: Unused mileage rate
+    label_i18n:
+      de: Minderkilometersatz
+    carryForward: false
+  - key: dealer_return_location
+    type: text
+    label: Dealer / return location
+    label_i18n:
+      de: Händler / Rückgabeort
+    carryForward: true
+
+events:
+  - key: lease_ends
+    label: Lease ends
+    label_i18n:
+      de: Leasing endet
+    sourceField: lease_end
+
+actions:
+  - key: plan_replacement
+    label: Plan follow-up solution
+    label_i18n:
+      de: Anschlusslösung planen
+    due:
+      event: lease_ends
+      offset: { months: -9 }
+  - key: check_mileage
+    label: Check mileage and contracted mileage
+    label_i18n:
+      de: Kilometerstand / Vertragskilometer prüfen
+    due:
+      event: lease_ends
+      offset: { months: -6 }
+    dependsOn: [plan_replacement]
+  - key: check_return_condition
+    label: Check return condition
+    label_i18n:
+      de: Rückgabezustand prüfen
+    due:
+      event: lease_ends
+      offset: { months: -2 }
+    dependsOn: [check_mileage]
+  - key: arrange_return
+    label: Arrange return appointment
+    label_i18n:
+      de: Rückgabetermin vereinbaren
+    due:
+      event: lease_ends
+      offset: { months: -1 }
+    dependsOn: [check_return_condition]
+  - key: prepare_return
+    label: Prepare vehicle documents and accessories
+    label_i18n:
+      de: Fahrzeugunterlagen / Zubehör vorbereiten
+    due:
+      event: lease_ends
+      offset: { weeks: -1 }
+    dependsOn: [arrange_return]
+  - key: return_vehicle
+    label: Return the vehicle
+    label_i18n:
+      de: Fahrzeug zurückgeben
+    due:
+      event: lease_ends
+    dependsOn: [prepare_return]
+  - key: review_return_documents
+    label: Review return protocol and invoice
+    label_i18n:
+      de: Rückgabeprotokoll / Abrechnung prüfen
+    dependsOn: [return_vehicle]
