@@ -4,7 +4,7 @@
 # addon for the target platform. python3/make/g++ are a fallback for
 # platforms without a prebuilt better-sqlite3 binary (e.g. new arm64
 # Node ABIs) — a slower source build here is fine; it must not fail.
-FROM node:24-bookworm-slim AS build
+FROM node:25-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		python3 make g++ \
@@ -23,7 +23,7 @@ RUN npm prune --omit=dev
 # upload is never rejected at the transport layer before our own archive-size
 # check even runs; 10 MB attachment uploads are far under this, so it does
 # not weaken that limit.
-FROM node:24-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 ENV NODE_ENV=production \
 	PORT=3000 \
 	LIFEADMIN_DATA_DIR=/data \
