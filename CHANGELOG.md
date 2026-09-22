@@ -30,6 +30,7 @@ First public beta.
 - Related Items and an Item overview page.
 - Human-readable history of what changed on an Item, and when.
 - Reopen a completed or skipped action to put it back to open.
+- Test a notification channel before saving it, not only after.
 
 ### Known limitations
 

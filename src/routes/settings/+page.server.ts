@@ -10,7 +10,6 @@ import {
 	clock,
 	passwordHasherPort,
 	playbookInstallPort,
-	notificationChannelsPort,
 	notificationDeliveriesPort,
 	sessionsPort,
 	tokensPort
@@ -26,12 +25,15 @@ import { getDb } from '$lib/server/db/database';
 import {
 	getNotificationLastTick,
 	getNotificationSettings,
+	getSecret,
 	saveNotificationSettings
 } from '$lib/server/notify/notificationSettingsRepository';
 import {
 	InvalidNotificationSettingsError,
+	NOTIFY_KEYS,
 	validateNotificationSettings
 } from '$lib/application/notify/notifySettings';
+import { selectChannel } from '$lib/server/notify/selectChannel';
 import { setSessionCookie } from '$lib/server/auth/cookies';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -258,13 +260,56 @@ export const actions: Actions = {
 		redirect(303, '/settings?notificationsSaved=1');
 	},
 
-	testNotification: async ({ locals }) => {
+	// Tests the form's current draft, not the saved settings, so a channel
+	// can be verified before it is stored. A blank secret field (webhook
+	// URL / ntfy token) mirrors saveNotifications' own semantics: it means
+	// "keep the already-saved one", not "no secret at all", so the test
+	// falls back to the persisted secret exactly like a save would.
+	testNotification: async ({ request, locals }) => {
 		if (!locals.user) return fail(403);
-		const settings = getNotificationSettings(getDb());
-		if (!settings.selectedChannelConfigured)
-			return fail(400, { notificationTestError: 'not_configured' });
+		const data = await request.formData();
+		const notificationChannel = String(data.get('channel') ?? '');
+
+		let values: ReturnType<typeof validateNotificationSettings>;
 		try {
-			const channel = notificationChannelsPort.get(settings.channel);
+			values = validateNotificationSettings({
+				channel: notificationChannel,
+				baseUrl: String(data.get('baseUrl') ?? ''),
+				topic: String(data.get('topic') ?? ''),
+				webhookUrl: String(data.get('webhookUrl') ?? ''),
+				leadDays: String(data.get('leadDays') ?? '0')
+			});
+		} catch (error) {
+			if (error instanceof InvalidNotificationSettingsError) {
+				return fail(400, {
+					notificationChannel: notificationChannel === 'SLACK' ? 'SLACK' : 'NTFY',
+					notificationError:
+						`settings.notify.invalid${error.key[0].toUpperCase()}${error.key.slice(1)}` as const
+				});
+			}
+			throw error;
+		}
+
+		const db = getDb();
+		const removeToken = data.get('removeToken') === 'yes';
+		const removeWebhook = data.get('removeWebhook') === 'yes';
+		const rawToken = String(data.get('token') ?? '');
+		const token = removeToken ? null : rawToken || getSecret(db, NOTIFY_KEYS.ntfyToken);
+		const webhookUrl = removeWebhook
+			? ''
+			: values.webhookUrl || getSecret(db, NOTIFY_KEYS.slackWebhook) || '';
+
+		const configured = values.channel === 'NTFY' ? Boolean(values.topic) : Boolean(webhookUrl);
+		if (!configured) return fail(400, { notificationTestError: 'not_configured' });
+
+		try {
+			const channel = selectChannel(process.env, {
+				channel: values.channel,
+				baseUrl: values.baseUrl,
+				topic: values.topic,
+				token,
+				webhookUrl
+			});
 			if (!channel) return fail(400, { notificationTestError: 'not_configured' });
 			await channel.send({
 				title: t('notify.message.minimalTitle'),

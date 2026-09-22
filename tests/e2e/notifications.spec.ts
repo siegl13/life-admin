@@ -73,3 +73,29 @@ test('notification settings validate input, keep secrets hidden, and support tes
 	await slackForm.getByRole('button', { name: 'Speichern' }).click();
 	await expect(page.getByText('Eine Webhook-Adresse ist hinterlegt.')).toHaveCount(0);
 });
+
+test('testing a channel checks the current draft, not the saved settings', async ({ page }) => {
+	await page.goto('/settings');
+	await page.locator('#notify-channel-slack > summary').click();
+	const slackForm = page.locator('#notify-channel-slack form');
+
+	// Nothing saved for this channel yet: testing an unsaved draft webhook
+	// still works, without ever clicking "Speichern".
+	await slackForm
+		.getByLabel('Slack Webhook-Adresse')
+		.fill('https://hooks.slack.com/services/draft/only/webhook');
+	await slackForm.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
+	await expect(page.getByText('Testbenachrichtigung gesendet.')).toBeVisible();
+
+	// Nothing was persisted by the test — the channel still shows as not
+	// configured after a reload.
+	await page.reload();
+	await expect(page.getByText('Nicht eingerichtet', { exact: true }).first()).toBeVisible();
+
+	// An invalid draft is rejected the same way "Speichern" would reject
+	// it, before any send is attempted.
+	await page.locator('#notify-channel-slack > summary').click();
+	await slackForm.getByLabel('Slack Webhook-Adresse').fill('https://not-slack.example.com/hook');
+	await slackForm.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
+	await expect(page.getByText('Die Slack Webhook-Adresse ist ungültig.')).toBeVisible();
+});
