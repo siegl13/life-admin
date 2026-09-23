@@ -6,11 +6,22 @@ export type Locale = 'de' | 'en';
 const catalogs: Record<Locale, Record<TranslationKey, string>> = { de, en };
 
 /**
- * V1 ships a single, fixed UI locale (German). This constant is the only
- * place that would need to change to read from a user setting later —
- * every call site already goes through {@link t} / {@link resolveLabel}.
+ * The active locale is supplied by the runtime: request-scoped storage on
+ * the server (`$lib/server/i18n/requestLocale`, wired once by
+ * `hooks.server.ts`), and a reactive client-side value wired once by the
+ * root layout after hydration. Falls back to German — the prior fixed V1
+ * locale — when nothing has wired a provider yet (e.g. a unit test that
+ * imports `t`/`resolveLabel` directly without going through a request).
  */
-export const currentLocale: Locale = 'de';
+let localeProvider: () => Locale = () => 'de';
+
+export function setLocaleProvider(provider: () => Locale): void {
+	localeProvider = provider;
+}
+
+export function getCurrentLocale(): Locale {
+	return localeProvider();
+}
 
 /**
  * `params` substitutes `{name}` placeholders with plain data (e.g. an
@@ -19,7 +30,7 @@ export const currentLocale: Locale = 'de';
  * the surrounding sentence structure does not leak into TypeScript.
  */
 export function t(key: TranslationKey, params?: Record<string, string>): string {
-	const template = catalogs[currentLocale][key];
+	const template = catalogs[getCurrentLocale()][key];
 	if (!params) return template;
 	return Object.entries(params).reduce(
 		(text, [name, value]) => text.replaceAll(`{${name}}`, value),
@@ -35,5 +46,5 @@ export function t(key: TranslationKey, params?: Record<string, string>): string 
  * for the current locale, never to an empty string.
  */
 export function resolveLabel(base: string, labelI18n: Record<string, string>): string {
-	return labelI18n[currentLocale] || base;
+	return labelI18n[getCurrentLocale()] || base;
 }
