@@ -1,11 +1,15 @@
 import { dispatchDueReminders } from '$lib/application/notify/dispatchDueReminders';
 import {
+	appSettingsPort,
 	clock,
 	notificationChannelsPort,
 	notificationDeliveriesPort,
 	notificationSettingsPort,
 	whatsNextPort
 } from '$lib/server/appPorts';
+import { getLanguagePreference } from '$lib/application/settings/language';
+import { resolveEffectiveLocale } from '$lib/domain/i18n/resolveLocale';
+import { runWithLocale } from '$lib/server/i18n/requestLocale';
 import { config } from '$lib/server/config';
 import { getDb } from '$lib/server/db/database';
 import { log } from '$lib/server/log';
@@ -29,7 +33,14 @@ export function createNotificationTick(
 		void (async () => {
 			try {
 				if (isRestorePending()) return;
-				const result = await dispatch();
+				// No HTTP request (and so no Accept-Language) exists for a
+				// background tick — "browser" mode falls back to English here,
+				// the same bootstrap rule the restore-pending page uses.
+				const locale = resolveEffectiveLocale(
+					getLanguagePreference({ settings: appSettingsPort }),
+					null
+				);
+				const result = await runWithLocale(locale, () => dispatch());
 				recordTick(result);
 				if (result.sent || result.failed) log.info('notifications: tick', { ...result });
 			} catch {

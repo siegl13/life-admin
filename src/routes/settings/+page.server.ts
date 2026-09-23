@@ -66,6 +66,11 @@ import {
 	getThemePreference,
 	setThemePreference
 } from '$lib/application/settings/theme';
+import {
+	InvalidLanguagePreferenceError,
+	getLanguagePreference,
+	setLanguagePreference
+} from '$lib/application/settings/language';
 import { catalogErrorsForPage } from '$lib/server/playbooks/pageErrors';
 
 // One user-facing message per category, never the raw internal reason: see
@@ -89,6 +94,7 @@ export const load: PageServerLoad = ({ url }) => {
 	const notificationSettings = getNotificationSettings(getDb());
 	return {
 		theme: getThemePreference({ settings: appSettingsPort }),
+		language: getLanguagePreference({ settings: appSettingsPort }),
 		playbooks: catalog.entries.map((e) => ({
 			id: e.playbook.id,
 			name: e.playbook.name,
@@ -333,6 +339,18 @@ export const actions: Actions = {
 			setThemePreference({ settings: appSettingsPort }, String(data.get('theme') ?? ''));
 		} catch (err) {
 			if (err instanceof InvalidThemePreferenceError) return fail(400);
+			throw err;
+		}
+		redirect(303, '/settings');
+	},
+
+	setLanguage: async ({ request, locals }) => {
+		if (!locals.user) return fail(403);
+		const data = await request.formData();
+		try {
+			setLanguagePreference({ settings: appSettingsPort }, String(data.get('language') ?? ''));
+		} catch (err) {
+			if (err instanceof InvalidLanguagePreferenceError) return fail(400);
 			throw err;
 		}
 		redirect(303, '/settings');

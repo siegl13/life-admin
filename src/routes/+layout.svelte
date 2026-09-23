@@ -1,10 +1,22 @@
 <script lang="ts">
 	import '../app.css';
+	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { t } from '$lib/i18n';
+	import { t, setLocaleProvider, type Locale } from '$lib/i18n';
+	import type { LayoutData } from './$types';
 
-	let { children } = $props();
+	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
+
+	// The server resolves the effective locale per request (setting +
+	// Accept-Language) and hands it down as page data. The client mirrors
+	// it into its own reactive provider once, at hydration, so `t()`
+	// renders the same language after client-side navigation as the server
+	// used for the initial render — no separate client-side detection.
+	let clientLocale: Locale = $derived(data.language);
+	if (browser) {
+		setLocaleProvider(() => clientLocale);
+	}
 
 	function isActive(path: string): boolean {
 		return path === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(path);

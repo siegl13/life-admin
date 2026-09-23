@@ -10,6 +10,10 @@ import {
 	sessionsPort
 } from '$lib/server/appPorts';
 import { getThemePreference } from '$lib/application/settings/theme';
+import { getLanguagePreference } from '$lib/application/settings/language';
+import { resolveEffectiveLocale } from '$lib/domain/i18n/resolveLocale';
+import { setLocaleProvider, t } from '$lib/i18n';
+import { getRequestLocale, runWithLocale } from '$lib/server/i18n/requestLocale';
 import { SESSION_COOKIE } from '$lib/server/auth/cookies';
 import { hashSessionToken } from '$lib/server/auth/sessionToken';
 import { isPublicRoute } from '$lib/server/auth/routeAccess';
@@ -27,6 +31,7 @@ import fs from 'node:fs';
 import { startNotificationScheduler } from '$lib/server/notify/scheduler';
 
 startNotificationScheduler();
+setLocaleProvider(() => getRequestLocale() ?? 'de');
 
 export function addViewerObjectSource(csp: string): string {
 	return /(?:^|;)\s*object-src\s/.test(csp) ? csp : `${csp}; object-src 'self'`;
@@ -76,26 +81,39 @@ export async function init(): Promise<void> {
 export const handle: Handle = async ({ event, resolve }) => {
 	const restore = getRestorePending();
 	if (restore && event.route.id !== '/healthz') {
-		return new Response(
-			`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Neustart erforderlich</title></head><body><main><h1>Neustart erforderlich</h1><p>Die Wiederherstellung ist abgeschlossen.</p><p>Sicherheitskopie: ${restore.safetyBackup}</p><code>docker compose restart lifeadmin</code></main></body></html>`,
-			{
-				status: 503,
-				headers: {
-					'content-type': 'text/html; charset=utf-8',
-					'cache-control': 'no-store',
-					'X-Content-Type-Options': 'nosniff',
-					'Referrer-Policy': 'same-origin',
-					'X-Frame-Options': 'DENY',
-					// This page needs no script, style, image or form of its own,
-					// so it gets the most restrictive policy possible rather than
-					// mirroring svelte.config.js's kit.csp (which allows 'self'
-					// scripts/styles for the app's normal pages).
-					'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
-					...(event.url.protocol === 'https:'
-						? { 'Strict-Transport-Security': 'max-age=15552000; includeSubDomains' }
-						: {})
-				}
-			}
+		// The database is closed while a restore is pending, so this page
+		// cannot read the stored language setting. Browser detection with an
+		// English fallback is the documented bootstrap exception for a
+		// screen this early.
+		const restoreLocale = resolveEffectiveLocale(
+			'browser',
+			event.request.headers.get('accept-language')
+		);
+		return runWithLocale(
+			restoreLocale,
+			() =>
+				new Response(
+					`<!doctype html><html lang="${restoreLocale}"><head><meta charset="utf-8"><title>${t('restore.pending.title')}</title></head><body><main><h1>${t('restore.pending.title')}</h1><p>${t('restore.pending.body')}</p><p>${t('restore.pending.safetyBackupLabel')} ${restore.safetyBackup}</p><code>docker compose restart lifeadmin</code></main></body></html>`,
+					{
+						status: 503,
+						headers: {
+							'content-type': 'text/html; charset=utf-8',
+							'cache-control': 'no-store',
+							'X-Content-Type-Options': 'nosniff',
+							'Referrer-Policy': 'same-origin',
+							'X-Frame-Options': 'DENY',
+							// This page needs no script, style, image or form of its own,
+							// so it gets the most restrictive policy possible rather than
+							// mirroring svelte.config.js's kit.csp (which allows 'self'
+							// scripts/styles for the app's normal pages).
+							'Content-Security-Policy':
+								"default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+							...(event.url.protocol === 'https:'
+								? { 'Strict-Transport-Security': 'max-age=15552000; includeSubDomains' }
+								: {})
+						}
+					}
+				)
 		);
 	}
 	if (restore) {
@@ -128,12 +146,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Same DB-closed constraint as above: only read while a restore isn't
 	// pending, or /healthz would hit the closed database too.
 	const theme = restore ? 'system' : getThemePreference({ settings: appSettingsPort });
-	const response = await resolve(event, {
-		transformPageChunk: ({ html }) =>
-			theme === 'system'
-				? html
-				: html.replace('<html lang="de">', `<html lang="de" data-theme="${theme}">`)
-	});
+	const languagePreference = restore
+		? 'browser'
+		: getLanguagePreference({ settings: appSettingsPort });
+	const locale = resolveEffectiveLocale(
+		languagePreference,
+		event.request.headers.get('accept-language')
+	);
+	event.locals.language = locale;
+	const themeAttr = theme === 'system' ? '' : ` data-theme="${theme}"`;
+	const response = await runWithLocale(locale, () =>
+		resolve(event, {
+			transformPageChunk: ({ html }) =>
+				html.replace('<html lang="de">', `<html lang="${locale}"${themeAttr}>`)
+		})
+	);
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'same-origin');
 	const inlinePdfContent =
@@ -169,5 +196,5 @@ export const handleError: HandleServerError = ({ error: cause, event }) => {
 		method: event.request.method,
 		reason: cause instanceof Error ? cause.stack : String(cause)
 	});
-	return { message: 'Ein Fehler ist aufgetreten.', errorId };
+	return { message: t('errors.generic'), errorId };
 };

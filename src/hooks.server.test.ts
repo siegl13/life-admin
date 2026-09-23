@@ -17,7 +17,7 @@ function fakeEvent(routeId: string, method = 'GET') {
 		route: { id: routeId },
 		url: new URL(`http://localhost${routeId}`),
 		cookies: { get: () => undefined },
-		request: { method },
+		request: { method, headers: new Headers() },
 		locals: {} as App.Locals
 	} as unknown as Parameters<Handle>[0]['event'];
 }

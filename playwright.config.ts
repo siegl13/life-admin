@@ -17,7 +17,12 @@ export default defineConfig({
 	],
 	use: {
 		baseURL: 'http://127.0.0.1:4173',
-		trace: 'retain-on-failure'
+		trace: 'retain-on-failure',
+		// Existing specs assume the pre-language-selection default (German
+		// UI). Language mode defaults to "browser", so the suite must pin a
+		// deterministic Accept-Language; specs covering the language switch
+		// itself override this per-file (see language-selection.spec.ts).
+		locale: 'de-DE'
 	},
 	webServer: {
 		command: 'node build',

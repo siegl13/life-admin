@@ -111,7 +111,7 @@ test('keeps explicit confirmation enforced by the server', async ({ page }) => {
 		const document = inboxDocument(page, 'inbox-confirmation.pdf');
 		const documentId = await document.locator('input[name="documentId"]').inputValue();
 		const response = await page.request.post('/inbox?/route', {
-			headers: { Origin: new URL(page.url()).origin },
+			headers: { Origin: new URL(page.url()).origin, 'Accept-Language': 'de-DE' },
 			form: {
 				documentId,
 				destination: 'new',

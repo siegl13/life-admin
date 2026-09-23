@@ -1,5 +1,6 @@
 import type { IsoDate } from '$lib/domain/date/isoDate';
 import { parseCurrencyStorageValue } from '$lib/domain/field/field';
+import { t } from '$lib/i18n';
 
 /**
  * Presentation-only date helpers. No domain rules live here: the What's
@@ -49,8 +50,8 @@ export function formatCurrencyDisplay(raw: string): string {
 }
 
 export function formatDue(bucket: 0 | 1 | 2, dueDate: IsoDate | null): string {
-	if (bucket === 0 && dueDate) return `Überfällig seit ${formatDate(dueDate)}`;
-	if (bucket === 1) return 'Ohne Datum — jederzeit möglich';
-	if (dueDate) return `Fällig am ${formatDate(dueDate)}`;
-	return 'Ohne Datum';
+	if (bucket === 0 && dueDate) return t('due.overdueSince', { date: formatDate(dueDate) });
+	if (bucket === 1) return t('due.noDateAnytime');
+	if (dueDate) return t('due.dueOn', { date: formatDate(dueDate) });
+	return t('due.noDate');
 }

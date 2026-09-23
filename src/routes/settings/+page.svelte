@@ -31,6 +31,7 @@
 <div class="settings-layout">
 	<nav class="settings-nav" aria-label={t('settings.sections')}>
 		<a href="#g-theme">{t('settings.appearance')}</a>
+		<a href="#g-language">{t('settings.language')}</a>
 		<a href="#g-account">{t('settings.account')}</a>
 		<a href="#g-data">{t('settings.data')}</a>
 		<a href="#g-playbooks">{t('settings.playbooks')}</a>
@@ -82,6 +83,52 @@
 					</button>
 				</form>
 				<span class="hint">{t('settings.appearance.appliedHint')}</span>
+			</div>
+		</section>
+
+		<!-- ---------- Sprache ---------- -->
+		<section class="settings-group" id="g-language" aria-labelledby="g-language-label">
+			<div class="settings-group__header">
+				<h2 id="g-language-label">{t('settings.language')}</h2>
+				<span class="meta">{t('settings.language.scopeHint')}</span>
+			</div>
+			<div class="settings-group__body">
+				<form
+					method="POST"
+					action="?/setLanguage"
+					class="theme-options"
+					role="group"
+					aria-label={t('settings.language')}
+				>
+					<button
+						type="submit"
+						name="language"
+						value="browser"
+						class="theme-option"
+						aria-pressed={data.language === 'browser'}
+					>
+						{t('settings.language.browser')}
+					</button>
+					<button
+						type="submit"
+						name="language"
+						value="de"
+						class="theme-option"
+						aria-pressed={data.language === 'de'}
+					>
+						{t('settings.language.de')}
+					</button>
+					<button
+						type="submit"
+						name="language"
+						value="en"
+						class="theme-option"
+						aria-pressed={data.language === 'en'}
+					>
+						{t('settings.language.en')}
+					</button>
+				</form>
+				<span class="hint">{t('settings.language.appliedHint')}</span>
 			</div>
 		</section>
 
