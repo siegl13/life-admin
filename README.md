@@ -27,6 +27,7 @@ All data shown is fictional test data, not a real booking or contract.
 - [Backup and restore](#backup-and-restore)
 - [Security](#security)
 - [Support](#support)
+- [Releases](#releases)
 - [Local development](#local-development)
 - [License](#license)
 
@@ -199,6 +200,16 @@ safety copies can be pulled without stopping:
 - Something not working after setup: check
   [Access and HTTPS](#access-and-https) for the `ORIGIN` pitfall first,
   it's the most common cause of failed form submissions.
+
+## Releases
+
+Life Admin follows a build-once, promote-after-validation release process.
+Release candidates are deployed to a private staging environment and validated
+before the exact same artifact is promoted to an official GHCR image and
+GitHub Release.
+
+See [docs/releasing.md](docs/releasing.md) for the full release runbook,
+quality gates, and versioning details.
 
 ## Local development
 
