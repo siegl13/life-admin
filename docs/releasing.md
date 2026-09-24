@@ -43,11 +43,9 @@ Never rebuild an accepted candidate for release.
 
 ## 2. Build candidate
 
-Build the private immutable candidate image once:
-
-```bash
-./scripts/push-test-image.sh
-```
+The candidate is automatically built and pushed to GHCR after every successful
+merge to `main`. The CI workflow (`.github/workflows/ci.yml`) runs the
+`candidate` job after the `verify` quality gate passes.
 
 This produces:
 
@@ -57,6 +55,15 @@ ghcr.io/siegl13/life-admin-dev:git-<12-char-sha>
 
 Only immutable `git-<sha>` tags are used for candidates. No `latest`, no
 semantic version tags, no floating prerelease tags.
+
+The candidate build is idempotent: if the exact tag already exists, the
+workflow skips rebuilding and verifies the existing artifact.
+
+For local or ad-hoc testing, you can also build manually:
+
+```bash
+./scripts/push-test-image.sh
+```
 
 ## 3. Deploy candidate to staging
 
@@ -78,7 +85,7 @@ Verify the candidate in staging:
 
 - [ ] Deployment is healthy (Argo CD shows synced and healthy).
 - [ ] `/healthz` returns `{"status":"ok"}` (or `{"status":"ok"}` with
-  extended info for authenticated owner).
+      extended info for authenticated owner).
 - [ ] Database started cleanly, migrations applied.
 - [ ] Owner login / setup page works as expected.
 - [ ] What's Next page loads with correct overdue/upcoming items.
@@ -91,13 +98,13 @@ Verify the candidate in staging:
 - [ ] Backup download is available and produces a valid ZIP.
 - [ ] Application logs show no obvious failures.
 - [ ] Settings → System shows the expected Version and Build revision
-  (matching `package.json` version and the image's baked-in Git SHA).
+      (matching `package.json` version and the image's baked-in Git SHA).
 
 ## 5. If acceptance fails
 
 1. Fix the issue through a normal PR against `main`.
 2. Merge to `main`.
-3. Build a new candidate with a new SHA (`./scripts/push-test-image.sh`).
+3. A new candidate is automatically built with a new SHA.
 4. Deploy the new candidate to staging.
 5. Run the acceptance gate again.
 
@@ -129,30 +136,35 @@ Pushing a version tag (`v*`) triggers `.github/workflows/release.yml`, which:
    - Tag format matches semantic versioning with optional prerelease suffix.
    - Stripped tag version matches `package.json` version.
 
-2. **Runs verification:**
-   - Full `npm run verify` (lint, typecheck, playbook validation, unit
-     tests, build).
-   - Playwright E2E tests (`npm run test:e2e`).
+2. **Verifies candidate exists:**
+   - Checks that the candidate image exists in GHCR:
+     `ghcr.io/siegl13/life-admin-dev:git-<sha>`
+   - Records the candidate digest.
 
-3. **Builds and pushes the official image:**
-   - Multi-architecture: `linux/amd64,linux/arm64`.
+3. **Promotes the exact candidate (NO rebuild):**
+   - Copies the OCI artifact from the candidate package to the official
+     package using `regctl image copy`.
    - Tags:
      - `ghcr.io/siegl13/life-admin:<version>` (e.g. `0.1.0-beta.1`)
      - `ghcr.io/siegl13/life-admin:git-<sha>`
-   - OCI metadata: source repository, revision, version, license.
-
-4. **Pushes `latest` (stable releases only):**
-   - Stable versions (e.g. `v1.0.0`) additionally push
+   - For stable releases only: additionally creates
      `ghcr.io/siegl13/life-admin:latest`.
-   - Prereleases (e.g. `v0.1.0-beta.1`) do NOT update `latest`.
+   - OCI labels are inherited from the candidate.
+
+4. **Verifies digest equality:**
+   - Confirms that the source candidate digest matches all promoted tags.
+   - If digests differ, the workflow fails and no GitHub Release is created.
 
 5. **Creates GitHub Release:**
-   - Only after image publication succeeds.
+   - Only after promotion and digest verification succeed.
    - Uses generated release notes.
    - Prerelease versions are marked as GitHub Pre-release.
 
-If any step fails, the workflow fails. No GitHub Release is created if image
-publication fails.
+If any step fails, the workflow fails. No GitHub Release is created if
+promotion fails.
+
+**Important:** The release workflow does NOT run `docker build`. It promotes
+the exact tested candidate artifact.
 
 ## 8. Verify release
 
@@ -160,11 +172,11 @@ After the workflow completes:
 
 - [ ] GitHub Actions release workflow succeeded.
 - [ ] Official GHCR image exists:
-  `ghcr.io/siegl13/life-admin:<version>`
+      `ghcr.io/siegl13/life-admin:<version>`
 - [ ] Image version and revision are correct.
 - [ ] GitHub Release exists at the expected URL.
 - [ ] Prerelease flag is set correctly (pre-release for beta, normal for
-  stable).
+      stable).
 - [ ] No unintended `latest` tag for prereleases.
 
 ## 9. Own-production deployment (optional)
@@ -209,6 +221,16 @@ Technical validation before any code reaches `main`:
   main.
 - CODEOWNERS review — `@siegl13` for all files.
 - Required GitHub status checks — PR cannot merge without green CI.
+
+### Candidate publication (automatic on main)
+
+After `verify` passes on `main`:
+
+- Multi-platform build: `linux/amd64,linux/arm64`.
+- Push to private package: `ghcr.io/siegl13/life-admin-dev:git-<sha>`.
+- Idempotent: skips if exact tag already exists.
+- Records OCI digest for traceability.
+- Requires `packages: write` permission.
 
 ### Staging acceptance gate
 
@@ -262,11 +284,13 @@ Do NOT use `latest`, `beta`, or semantic version tags for this package.
 ## GitOps / k3s boundary
 
 The Life Admin repository:
+
 - Builds artifacts and publishes them to GHCR.
 - Does NOT deploy directly to k3s.
 - Does NOT contain k3s or Argo CD credentials.
 
 The private GitOps repository:
+
 - Owns the desired deployment state.
 - References the exact candidate or release image.
 - Is reconciled by Argo CD, which pulls the desired state into k3s.

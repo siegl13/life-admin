@@ -1,0 +1,240 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      is_prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+      git_sha: ${{ steps.sha.outputs.git_sha }}
+      git_sha_short: ${{ steps.sha.outputs.git_sha_short }}
+      candidate_ref: ${{ steps.candidate.outputs.candidate_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Validate tag points to this commit
+        run: |
+          tag_commit="$(git rev-list -n 1 "${{ github.ref_name }}")"
+          head_commit="$(git rev-parse HEAD)"
+          if [[ "$tag_commit" != "$head_commit" ]]; then
+            echo "Tag ${{ github.ref_name }} points to $tag_commit, not HEAD $head_commit" >&2
+            exit 1
+          fi
+
+      - name: Validate tag is reachable from main
+        run: |
+          if ! git merge-base --is-ancestor "${{ github.ref_name }}" origin/main; then
+            echo "Tag ${{ github.ref_name }} is not reachable from origin/main" >&2
+            exit 1
+          fi
+
+      - name: Validate tag format
+        id: extract
+        run: |
+          tag="${{ github.ref_name }}"
+          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?)$ ]]; then
+            echo "Invalid tag format: $tag" >&2
+            exit 1
+          fi
+          echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version matches package.json
+        run: |
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [[ "${{ steps.extract.outputs.version }}" != "$pkg_version" ]]; then
+            echo "Tag version ${{ steps.extract.outputs.version }} does not match package.json $pkg_version" >&2
+            exit 1
+          fi
+
+      - name: Detect prerelease
+        id: prerelease
+        run: |
+          if [[ "${{ steps.extract.outputs.version }}" =~ - ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Record git sha
+        id: sha
+        run: |
+          echo "git_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "git_sha_short=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Determine candidate reference
+        id: candidate
+        run: |
+          echo "candidate_ref=ghcr.io/${{ github.repository_owner }}/life-admin-dev:git-${{ steps.sha.outputs.git_sha_short }}" >> "$GITHUB_OUTPUT"
+
+  verify-candidate:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: regclient/setup-regctl@v1
+        with:
+          version: latest
+
+      - name: Verify candidate image exists
+        run: |
+          regctl image inspect "${{ needs.validate.outputs.candidate_ref }}" >/dev/null 2>&1
+          echo "Candidate image exists: ${{ needs.validate.outputs.candidate_ref }}"
+
+      - name: Record candidate digest
+        id: digest
+        run: |
+          DIGEST="$(regctl image digest "${{ needs.validate.outputs.candidate_ref }}")"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Candidate digest: ${DIGEST}"
+
+      - name: Print candidate summary
+        run: |
+          echo "### Verified candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Candidate:** \`${{ needs.validate.outputs.candidate_ref }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Digest:** \`${{ steps.digest.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`${{ needs.validate.outputs.git_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version:** \`${{ needs.validate.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: [validate, verify-candidate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      official_ref_version: ${{ steps.meta.outputs.official_ref_version }}
+      official_ref_sha: ${{ steps.meta.outputs.official_ref_sha }}
+      official_ref_latest: ${{ steps.meta.outputs.official_ref_latest }}
+      promoted_digest: ${{ steps.promote_version.outputs.digest }}
+    steps:
+      - uses: regclient/setup-regctl@v1
+        with:
+          version: latest
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set official image references
+        id: meta
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          VERSION="${{ needs.validate.outputs.version }}"
+          SHA_SHORT="${{ needs.validate.outputs.git_sha_short }}"
+          echo "official_ref_version=ghcr.io/${OWNER}/life-admin:${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "official_ref_sha=ghcr.io/${OWNER}/life-admin:git-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "official_ref_latest=ghcr.io/${OWNER}/life-admin:latest" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${{ needs.validate.outputs.is_prerelease }}" >> "$GITHUB_OUTPUT"
+
+      - name: Promote candidate to version tag
+        id: promote_version
+        run: |
+          regctl image copy \
+            "${{ needs.validate.outputs.candidate_ref }}" \
+            "${{ steps.meta.outputs.official_ref_version }}"
+          DIGEST="$(regctl image digest "${{ steps.meta.outputs.official_ref_version }}")"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Promoted to version tag: ${{ steps.meta.outputs.official_ref_version }}"
+
+      - name: Promote candidate to git-SHA tag
+        id: promote_sha
+        run: |
+          regctl image copy \
+            "${{ needs.validate.outputs.candidate_ref }}" \
+            "${{ steps.meta.outputs.official_ref_sha }}"
+          echo "Promoted to git-SHA tag: ${{ steps.meta.outputs.official_ref_sha }}"
+
+      - name: Promote candidate to latest (stable only)
+        if: needs.validate.outputs.is_prerelease == 'false'
+        id: promote_latest
+        run: |
+          regctl image copy \
+            "${{ needs.validate.outputs.candidate_ref }}" \
+            "${{ steps.meta.outputs.official_ref_latest }}"
+          echo "Promoted to latest tag: ${{ steps.meta.outputs.official_ref_latest }}"
+
+      - name: Verify digest equality
+        run: |
+          SOURCE_DIGEST="$(regctl image digest "${{ needs.validate.outputs.candidate_ref }}")"
+          VERSION_DIGEST="$(regctl image digest "${{ steps.meta.outputs.official_ref_version }}")"
+          SHA_DIGEST="$(regctl image digest "${{ steps.meta.outputs.official_ref_sha }}")"
+
+          if [[ "$SOURCE_DIGEST" != "$VERSION_DIGEST" ]]; then
+            echo "Digest mismatch! Source: ${SOURCE_DIGEST}, Version: ${VERSION_DIGEST}" >&2
+            exit 1
+          fi
+
+          if [[ "$SOURCE_DIGEST" != "$SHA_DIGEST" ]]; then
+            echo "Digest mismatch! Source: ${SOURCE_DIGEST}, SHA: ${SHA_DIGEST}" >&2
+            exit 1
+          fi
+
+          echo "All digests match: ${SOURCE_DIGEST}"
+
+          if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
+            LATEST_DIGEST="$(regctl image digest "${{ steps.meta.outputs.official_ref_latest }}")"
+            if [[ "$SOURCE_DIGEST" != "$LATEST_DIGEST" ]]; then
+              echo "Digest mismatch! Source: ${SOURCE_DIGEST}, Latest: ${LATEST_DIGEST}" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Print promotion summary
+        run: |
+          echo "### Promotion complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Source candidate:** \`${{ needs.validate.outputs.candidate_ref }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Official version:** \`${{ steps.meta.outputs.official_ref_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Official git-SHA:** \`${{ steps.meta.outputs.official_ref_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
+            echo "- **Official latest:** \`${{ steps.meta.outputs.official_ref_latest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **Official latest:** _not published (prerelease)_" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- **Digest:** \`${{ steps.promote_version.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Type:** ${{ needs.validate.outputs.is_prerelease == 'true' && 'prerelease' || 'stable' }}" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: [validate, verify-candidate, promote]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ needs.validate.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Print release summary
+        run: |
+          echo "### GitHub Release created" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag:** \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version:** \`${{ needs.validate.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Type:** ${{ needs.validate.outputs.is_prerelease == 'true' && 'prerelease' || 'stable' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
