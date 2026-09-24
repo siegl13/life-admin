@@ -23,12 +23,20 @@ RUN npm prune --omit=dev
 # upload is never rejected at the transport layer before our own archive-size
 # check even runs; 10 MB attachment uploads are far under this, so it does
 # not weaken that limit.
+# APP_REVISION identifies the exact commit this image was built from
+# (src/lib/server/buildInfo.ts). It is supplied by the builder — `git
+# rev-parse HEAD` for local test-image builds, `${{ github.sha }}` in CI —
+# never read from `.git` at runtime, so the container needs no Git at all.
+# It is baked in here, not derived from the eventual registry tag, so it
+# stays correct across a later retag/promotion of this same image.
 FROM node:24-bookworm-slim AS runtime
+ARG APP_REVISION=local
 ENV NODE_ENV=production \
 	PORT=3000 \
 	LIFEADMIN_DATA_DIR=/data \
 	TZ=Europe/Berlin \
-	BODY_SIZE_LIMIT=280M
+	BODY_SIZE_LIMIT=280M \
+	APP_REVISION=${APP_REVISION}
 WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
