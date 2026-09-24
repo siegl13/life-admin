@@ -17,7 +17,9 @@ coverage/
 
 # Internal AI-agent working docs (roadmap, implementation status, reviews,
 # ADRs, design handoffs) — not part of the public release.
-docs/
+!docs/
+docs/*
+!docs/releasing.md
 
 # Local agent/editor state, never meant to be tracked.
 .claude/
