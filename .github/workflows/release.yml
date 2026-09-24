@@ -85,9 +85,9 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - uses: regclient/setup-regctl@v1
+      - uses: regclient/actions/regctl-installer@v0
         with:
-          version: latest
+          release: latest
 
       - name: Verify candidate image exists
         run: |
@@ -122,9 +122,9 @@ jobs:
       official_ref_latest: ${{ steps.meta.outputs.official_ref_latest }}
       promoted_digest: ${{ steps.promote_version.outputs.digest }}
     steps:
-      - uses: regclient/setup-regctl@v1
+      - uses: regclient/actions/regctl-installer@v0
         with:
-          version: latest
+          release: latest
 
       - name: Login to GHCR
         uses: docker/login-action@v3
