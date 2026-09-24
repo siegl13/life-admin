@@ -85,7 +85,7 @@ Verify the candidate in staging:
 
 - [ ] Deployment is healthy (Argo CD shows synced and healthy).
 - [ ] `/healthz` returns `{"status":"ok"}` (or `{"status":"ok"}` with
-  extended info for authenticated owner).
+      extended info for authenticated owner).
 - [ ] Database started cleanly, migrations applied.
 - [ ] Owner login / setup page works as expected.
 - [ ] What's Next page loads with correct overdue/upcoming items.
@@ -98,7 +98,7 @@ Verify the candidate in staging:
 - [ ] Backup download is available and produces a valid ZIP.
 - [ ] Application logs show no obvious failures.
 - [ ] Settings → System shows the expected Version and Build revision
-  (matching `package.json` version and the image's baked-in Git SHA).
+      (matching `package.json` version and the image's baked-in Git SHA).
 
 ## 5. If acceptance fails
 
@@ -172,11 +172,11 @@ After the workflow completes:
 
 - [ ] GitHub Actions release workflow succeeded.
 - [ ] Official GHCR image exists:
-  `ghcr.io/siegl13/life-admin:<version>`
+      `ghcr.io/siegl13/life-admin:<version>`
 - [ ] Image version and revision are correct.
 - [ ] GitHub Release exists at the expected URL.
 - [ ] Prerelease flag is set correctly (pre-release for beta, normal for
-  stable).
+      stable).
 - [ ] No unintended `latest` tag for prereleases.
 
 ## 9. Own-production deployment (optional)
@@ -284,11 +284,13 @@ Do NOT use `latest`, `beta`, or semantic version tags for this package.
 ## GitOps / k3s boundary
 
 The Life Admin repository:
+
 - Builds artifacts and publishes them to GHCR.
 - Does NOT deploy directly to k3s.
 - Does NOT contain k3s or Argo CD credentials.
 
 The private GitOps repository:
+
 - Owns the desired deployment state.
 - References the exact candidate or release image.
 - Is reconciled by Argo CD, which pulls the desired state into k3s.
