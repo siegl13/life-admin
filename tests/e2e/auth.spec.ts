@@ -15,6 +15,15 @@ test('anonymous routes require login and correct login keeps the target', async 
 	await expect(page).toHaveURL('/items/new');
 });
 
+test('login page does not render the authenticated top bar or sign-out control', async ({
+	page
+}) => {
+	await page.goto('/login');
+	await expect(page.locator('.app-topbar')).toHaveCount(0);
+	await expect(page.locator('.app-tabbar')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Abmelden' })).toHaveCount(0);
+});
+
 test('anonymous health response exposes only status', async ({ request }) => {
 	const response = await request.get('/healthz');
 	expect(await response.json()).toEqual({ status: 'ok' });
