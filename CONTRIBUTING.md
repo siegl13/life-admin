@@ -34,6 +34,10 @@ Both must pass. CI runs the same commands and needs no external
 credentials: tests use a fake AI provider and a fake notification
 channel by default.
 
+If your PR is a release preparation PR (updating `package.json` version
+and CHANGELOG), see [docs/releasing.md](docs/releasing.md) for the full
+release process, including CHANGELOG finalization requirements.
+
 ## Project principles
 
 - **Smallest complete change.** Prefer a small, correct fix over a larger
