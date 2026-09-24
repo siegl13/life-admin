@@ -72,6 +72,7 @@ import {
 	setLanguagePreference
 } from '$lib/application/settings/language';
 import { catalogErrorsForPage } from '$lib/server/playbooks/pageErrors';
+import { buildInfo } from '$lib/server/buildInfo';
 
 // One user-facing message per category, never the raw internal reason: see
 // categorizeRestoreFailure's own docblock for why several internal codes
@@ -95,6 +96,7 @@ export const load: PageServerLoad = ({ url }) => {
 	return {
 		theme: getThemePreference({ settings: appSettingsPort }),
 		language: getLanguagePreference({ settings: appSettingsPort }),
+		build: { version: buildInfo.version, revision: buildInfo.shortRevision },
 		playbooks: catalog.entries.map((e) => ({
 			id: e.playbook.id,
 			name: e.playbook.name,

@@ -37,6 +37,7 @@
 		<a href="#g-playbooks">{t('settings.playbooks')}</a>
 		<a href="#g-notifications">{t('settings.notify.title')}</a>
 		<a href="#g-ai">{t('settings.ai.title')}</a>
+		<a href="#g-system">{t('settings.system')}</a>
 	</nav>
 
 	<div class="settings-groups">
@@ -631,6 +632,22 @@
 						</div>
 					</form>
 				{/if}
+			</div>
+		</section>
+
+		<!-- ---------- System ---------- -->
+		<section class="settings-group" id="g-system" aria-labelledby="g-system-label">
+			<div class="settings-group__header">
+				<h2 id="g-system-label">{t('settings.system')}</h2>
+			</div>
+			<div class="settings-group__body">
+				<div class="data-row">
+					<span class="meta"
+						>{t('settings.system.version')}
+						{data.build.version} · {t('settings.system.build')}
+						{data.build.revision}</span
+					>
+				</div>
 			</div>
 		</section>
 	</div>

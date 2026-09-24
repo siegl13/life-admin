@@ -4,6 +4,7 @@ import { getDb } from '$lib/server/db/database';
 import { listAppliedMigrations } from '$lib/server/db/migrate';
 import { loadPlaybookCatalog } from '$lib/server/playbooks/catalog';
 import { isRestorePending } from '$lib/server/restoreState';
+import { buildInfo } from '$lib/server/buildInfo';
 
 const startedAt = Date.now();
 
@@ -28,6 +29,8 @@ export function GET({ locals }: { locals: App.Locals }) {
 
 	return json({
 		status: dbOk ? 'ok' : 'degraded',
+		version: buildInfo.version,
+		revision: buildInfo.revision,
 		uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
 		db: {
 			ok: dbOk,

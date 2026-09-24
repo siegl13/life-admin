@@ -94,6 +94,7 @@ printf '\nBuild und Push gestartet ...\n\n'
 
 if docker buildx build \
   --platform "$PLATFORMS" \
+  --build-arg "APP_REVISION=${GIT_SHA_FULL}" \
   --tag "$TAG" \
   --tag "$TAG_GIT_SHA" \
   --tag "$TAG_LATEST" \
