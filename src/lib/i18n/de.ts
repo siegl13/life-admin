@@ -10,6 +10,7 @@
  */
 export const de = {
 	'nav.whatsNext': 'Was steht an',
+	'nav.upcoming': 'Demnächst',
 	'nav.items': 'Elemente',
 	'nav.inbox': 'Eingang',
 	'inbox.title': 'Eingang',
@@ -77,6 +78,14 @@ export const de = {
 	'whatsNext.section.now': 'Jetzt möglich',
 	'whatsNext.section.later': 'Später',
 	'whatsNext.dueOn': 'Fällig am',
+	'upcoming.title': 'Demnächst',
+	'upcoming.lead': 'Ein Überblick über kommende Aufgaben.',
+	'upcoming.thisWeek': 'Diese Woche',
+	'upcoming.next30Days': 'Nächste 30 Tage',
+	'upcoming.later': 'Später',
+	'upcoming.available': 'Jetzt möglich',
+	'upcoming.blocked': 'Wartet auf vorherigen Schritt',
+	'upcoming.empty': 'Keine kommenden Aufgaben.',
 
 	'items.title': 'Elemente',
 	'items.empty': 'Lege ein Element an, um Termine und Aufgaben zu verfolgen.',

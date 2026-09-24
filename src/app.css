@@ -1626,6 +1626,110 @@ mark {
 	color: var(--color-text-muted);
 }
 
+/* ------------------------------------------------------------- upcoming */
+
+.upcoming-ranges {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.upcoming-range {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+
+.upcoming-range > summary {
+	min-height: var(--control-h);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-4) var(--space-5);
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.upcoming-range[open] > summary {
+	border-bottom: 1px solid var(--color-hairline);
+}
+
+.upcoming-range__count {
+	min-width: 2rem;
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-pill);
+	background: var(--color-hairline);
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.upcoming-range__empty {
+	margin: 0;
+	padding: var(--space-4) var(--space-5);
+	font-size: var(--text-meta);
+	color: var(--color-text-muted);
+}
+
+.upcoming-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.upcoming-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-4);
+	padding: var(--space-4) var(--space-5);
+	border-bottom: 1px solid var(--color-hairline);
+}
+
+.upcoming-row:last-child {
+	border-bottom: 0;
+}
+
+.upcoming-row__copy {
+	min-width: 0;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+	color: var(--color-text);
+	overflow-wrap: anywhere;
+}
+
+.upcoming-row__copy:hover {
+	color: var(--color-accent-hover);
+}
+
+.upcoming-row__copy span,
+.upcoming-row__meta {
+	font-size: var(--text-meta);
+	color: var(--color-text-muted);
+}
+
+.upcoming-row__meta {
+	display: flex;
+	flex: 0 1 auto;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+	text-align: right;
+}
+
+.upcoming-row__state {
+	font-weight: 600;
+	color: var(--color-success);
+}
+
+.upcoming-row--blocked .upcoming-row__state {
+	color: var(--color-warning);
+}
+
 /* ------------------------------------------------------ states & notes */
 
 .status {
@@ -2029,6 +2133,20 @@ mark {
 	.data-list {
 		padding-left: var(--space-4);
 		padding-right: var(--space-4);
+	}
+
+	.upcoming-row {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding-left: var(--space-4);
+		padding-right: var(--space-4);
+	}
+
+	.upcoming-row__meta {
+		width: 100%;
+		align-items: flex-start;
+		text-align: left;
 	}
 
 	.document-row,
