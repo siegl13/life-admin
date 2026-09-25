@@ -20,6 +20,7 @@ coverage/
 !docs/
 docs/*
 !docs/releasing.md
+!docs/implementation-status.md
 
 # Local agent/editor state, never meant to be tracked.
 .claude/

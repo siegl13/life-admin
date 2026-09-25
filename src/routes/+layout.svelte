@@ -33,6 +33,9 @@
 				<a href={resolve('/')} aria-current={isActive('/') ? 'page' : undefined}>
 					{t('nav.whatsNext')}
 				</a>
+				<a href={resolve('/upcoming')} aria-current={isActive('/upcoming') ? 'page' : undefined}>
+					{t('nav.upcoming')}
+				</a>
 				<a href={resolve('/items')} aria-current={isActive('/items') ? 'page' : undefined}>
 					{t('nav.items')}
 				</a>
@@ -66,10 +69,13 @@
 </main>
 
 {#if data.isAuthenticated}
-	<!-- Same three destinations as the top bar, within thumb reach on phones. -->
+	<!-- Same destinations as the top bar, within thumb reach on phones. -->
 	<nav class="app-tabbar" aria-label={t('nav.labelMobile')}>
 		<a href={resolve('/')} aria-current={isActive('/') ? 'page' : undefined}>{t('nav.whatsNext')}</a
 		>
+		<a href={resolve('/upcoming')} aria-current={isActive('/upcoming') ? 'page' : undefined}>
+			{t('nav.upcoming')}
+		</a>
 		<a href={resolve('/items')} aria-current={isActive('/items') ? 'page' : undefined}>
 			{t('nav.items')}
 		</a>
