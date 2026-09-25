@@ -10,16 +10,19 @@ const MINIMAL_PDF = Buffer.from('%PDF-1.4\n%%EOF');
 test('an archived item disappears from / and /items but stays viewable with a banner and no edit disclosures', async ({
 	page
 }) => {
+	// Unique per run: the E2E database persists across the whole run (and
+	// across retries/repeats), so a fixed title would collide with a
+	// leftover item of the same name and make the `.link-list__row` lookup
+	// below match more than one row.
+	const title = `Archive Visibility Test ${Date.now()}`;
 	await page.goto('/items/new');
-	await page.getByLabel('Titel').fill('Archive Visibility Test');
+	await page.getByLabel('Titel').fill(title);
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 	const itemUrl = page.url();
 
 	await page.goto('/items');
-	await expect(
-		page.locator('.link-list__row', { hasText: 'Archive Visibility Test' })
-	).toBeVisible();
+	await expect(page.locator('.link-list__row', { hasText: title })).toBeVisible();
 
 	await page.goto(itemUrl);
 	await page.locator('summary', { hasText: 'Archivieren' }).click();
@@ -38,16 +41,16 @@ test('an archived item disappears from / and /items but stays viewable with a ba
 	// longer appearing in What's Next is covered at the repository level
 	// in whatsNextRepository.test.ts, with a real playbook item.)
 	await page.goto('/items');
-	await expect(page.locator('.link-list__row', { hasText: 'Archive Visibility Test' })).toHaveCount(
-		0
-	);
+	await expect(page.locator('.link-list__row', { hasText: title })).toHaveCount(0);
 });
 
 test('an archived item is listed under "Archiv anzeigen" and can be reactivated', async ({
 	page
 }) => {
+	// Unique per run — see the comment in the test above.
+	const title = `Archive Reactivate Test ${Date.now()}`;
 	await page.goto('/items/new');
-	await page.getByLabel('Titel').fill('Archive Reactivate Test');
+	await page.getByLabel('Titel').fill(title);
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 	const itemUrl = page.url();
@@ -61,9 +64,7 @@ test('an archived item is listed under "Archiv anzeigen" and can be reactivated'
 	await page.goto('/items');
 	await page.getByRole('link', { name: 'Archiv anzeigen' }).click();
 	await expect(page).toHaveURL(/\?archived=1$/);
-	await expect(
-		page.locator('.link-list__row', { hasText: 'Archive Reactivate Test' })
-	).toBeVisible();
+	await expect(page.locator('.link-list__row', { hasText: title })).toBeVisible();
 
 	await page.goto(itemUrl);
 	await page.getByRole('button', { name: 'Wieder aktivieren' }).click();
@@ -72,9 +73,7 @@ test('an archived item is listed under "Archiv anzeigen" and can be reactivated'
 	await expect(page.getByRole('button', { name: 'Wieder aktivieren' })).toHaveCount(0);
 	await expect(page.locator('.notice__title', { hasText: 'Archiviert' })).toHaveCount(0);
 	await page.goto('/items');
-	await expect(
-		page.locator('.link-list__row', { hasText: 'Archive Reactivate Test' })
-	).toBeVisible();
+	await expect(page.locator('.link-list__row', { hasText: title })).toBeVisible();
 });
 
 /**

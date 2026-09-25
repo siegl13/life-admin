@@ -5,6 +5,10 @@ export default defineConfig({
 	globalSetup: './tests/e2e/global-setup.ts',
 	fullyParallel: false,
 	workers: 1,
+	// Shared CI runners occasionally add enough latency to a single
+	// otherwise-correct request (e.g. item creation) to trip the default
+	// expect timeout. Retry on CI only, never locally.
+	retries: process.env.CI ? 2 : 0,
 	reporter: 'list',
 	projects: [
 		{ name: 'setup', testMatch: /auth\.setup\.ts/ },
