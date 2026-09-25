@@ -116,9 +116,12 @@ test('desktop shows 10 events initially; mobile shows 5; "Ältere anzeigen" wide
 	await page.setViewportSize({ width: 375, height: 667 });
 	await expect(page.locator('.history-event')).toHaveCount(5);
 
+	// Total events so far: 1 initial save + 4 completed actions + 6 loop
+	// saves = 11. "Ältere anzeigen" widens past the page size (10), so it
+	// reveals all 11, not just a second page of 10.
 	await page.getByRole('button', { name: /Ältere anzeigen/ }).click();
 	await expect(page.locator('.history-event').first()).toBeVisible();
-	await expect(page.locator('.history-event')).toHaveCount(10);
+	await expect(page.locator('.history-event')).toHaveCount(11);
 
 	await page.setViewportSize({ width: 1280, height: 800 });
 });
