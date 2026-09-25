@@ -8,6 +8,7 @@ import type { TranslationKey } from './de';
  */
 export const en: Record<TranslationKey, string> = {
 	'nav.whatsNext': "What's next",
+	'nav.upcoming': 'Upcoming',
 	'nav.items': 'Items',
 	'nav.inbox': 'Inbox',
 	'inbox.title': 'Inbox',
@@ -74,6 +75,14 @@ export const en: Record<TranslationKey, string> = {
 	'whatsNext.section.now': 'Ready now',
 	'whatsNext.section.later': 'Later',
 	'whatsNext.dueOn': 'Due',
+	'upcoming.title': 'Upcoming',
+	'upcoming.lead': 'An overview of upcoming actions.',
+	'upcoming.thisWeek': 'This week',
+	'upcoming.next30Days': 'Next 30 days',
+	'upcoming.later': 'Later',
+	'upcoming.available': 'Ready now',
+	'upcoming.blocked': 'Waiting for an earlier step',
+	'upcoming.empty': 'No upcoming actions.',
 
 	'items.title': 'Items',
 	'items.empty': 'Create an item to start tracking dates and actions.',

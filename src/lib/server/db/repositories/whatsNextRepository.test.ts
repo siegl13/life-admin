@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase } from '../database';
 import { buildWhatsNext } from '$lib/domain/whatsnext/whatsNext';
+import { buildUpcoming } from '$lib/domain/upcoming/upcoming';
 import { materializePlaybook } from '$lib/domain/playbook/materialize';
 import { normalizePlaybook } from '$lib/domain/playbook/normalize';
 import { parsePlaybookStructure } from '$lib/domain/playbook/schema';
@@ -203,13 +204,21 @@ describe('loadWhatsNextItems + buildWhatsNext (integration)', () => {
 			materialization: materializePlaybook(playbook)
 		});
 		applyFieldUpdatesAndRecalculate(db, cycleIdOf(item.id), [
-			{ fieldKey: 'next_inspection', value: '2020-01-01' }
+			{ fieldKey: 'next_inspection', value: '2099-01-01' }
 		]);
 		expect(buildWhatsNext(loadWhatsNextItems(db), '2026-09-06')).toHaveLength(1);
+		expect(
+			buildUpcoming(loadWhatsNextItems(db), '2026-09-06').flatMap((g) => g.actions)
+		).toHaveLength(2);
 
 		setItemStatus(db, item.id, 'ARCHIVED');
 
 		expect(buildWhatsNext(loadWhatsNextItems(db), '2026-09-06')).toEqual([]);
+		expect(buildUpcoming(loadWhatsNextItems(db), '2026-09-06')).toEqual([
+			{ key: 'thisWeek', actions: [] },
+			{ key: 'next30Days', actions: [] },
+			{ key: 'later', actions: [] }
+		]);
 	});
 
 	it('after a rollover, only the new ACTIVE cycles actions appear (Slice 8)', () => {
@@ -254,6 +263,15 @@ describe('loadWhatsNextItems + buildWhatsNext (integration)', () => {
 		expect(buildWhatsNext(loadWhatsNextItems(db), '2026-09-06')).toEqual([]);
 		const cycle2Id = cycleIdOf(item.id);
 		expect(cycle2Id).not.toBe(cycle1Id);
+		const loadedActionIds = loadWhatsNextItems(db).flatMap((loadedItem) =>
+			loadedItem.actions.map((action) => action.actionId)
+		);
+		const cycle2ActionIds = (
+			db.prepare(`SELECT id FROM actions WHERE cycle_id = ? ORDER BY position`).all(cycle2Id) as {
+				id: string;
+			}[]
+		).map((action) => action.id);
+		expect(loadedActionIds).toEqual(cycle2ActionIds);
 		const newActions = db.prepare(`SELECT state FROM actions WHERE cycle_id = ?`).all(cycle2Id) as {
 			state: string;
 		}[];
