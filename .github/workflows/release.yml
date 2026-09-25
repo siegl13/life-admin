@@ -232,11 +232,30 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
+      - name: Build release body
+        id: body
+        run: |
+          {
+            echo "body<<EOF"
+            echo "## Docker image"
+            echo ""
+            echo '```'
+            echo "docker pull ${{ needs.promote.outputs.official_ref_version }}"
+            echo '```'
+            echo ""
+            echo "[\`${{ needs.promote.outputs.official_ref_version }}\`](https://github.com/${{ github.repository_owner }}/life-admin/pkgs/container/life-admin) on GHCR."
+            if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
+              echo "Also tagged \`latest\`."
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ needs.validate.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
+          body: ${{ steps.body.outputs.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
