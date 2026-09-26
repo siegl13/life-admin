@@ -4,7 +4,7 @@
 # addon for the target platform. python3/make/g++ are a fallback for
 # platforms without a prebuilt better-sqlite3 binary (e.g. new arm64
 # Node ABIs) — a slower source build here is fine; it must not fail.
-FROM node:24-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		python3 make g++ \
@@ -29,7 +29,7 @@ RUN npm prune --omit=dev
 # never read from `.git` at runtime, so the container needs no Git at all.
 # It is baked in here, not derived from the eventual registry tag, so it
 # stays correct across a later retag/promotion of this same image.
-FROM node:24-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 ARG APP_REVISION=local
 ENV NODE_ENV=production \
 	PORT=3000 \
