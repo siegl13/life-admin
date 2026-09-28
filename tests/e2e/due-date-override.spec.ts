@@ -33,7 +33,7 @@ test('overriding a derived action due date survives a field recalculation and ca
 
 	// Override the due date.
 	await step.locator('summary', { hasText: 'Termin ändern' }).click();
-	await step.locator('input[type="date"]').fill('2026-01-15');
+	await step.locator('input[name="dueDate"]').fill('2026-01-15');
 	await step.getByRole('button', { name: 'Termin speichern' }).click();
 	await expect(page).toHaveURL(itemUrl);
 

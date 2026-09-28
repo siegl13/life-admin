@@ -1,6 +1,8 @@
 import type { ReminderKind } from '$lib/domain/notify/reminders';
+import type { NotificationSnooze } from '$lib/domain/notify/snooze';
 
 export type NotificationChannel = 'NTFY' | 'SLACK';
+export type DeliveryKind = ReminderKind | 'SNOOZED';
 
 export interface NotificationMessage {
 	title: string;
@@ -26,14 +28,14 @@ export interface NotificationSettings {
 
 export interface RetryableDelivery {
 	actionId: string;
-	kind: ReminderKind;
+	kind: DeliveryKind;
 	targetDate: string;
 	channel: NotificationChannel;
 }
 
 export interface RetryableDeliveryKey {
 	actionId: string;
-	kind: ReminderKind;
+	kind: DeliveryKind;
 	targetDate: string;
 }
 
@@ -41,14 +43,14 @@ export interface NotificationDeliveryRepositoryPort {
 	claim(input: {
 		itemId: string;
 		actionId: string;
-		kind: ReminderKind;
+		kind: DeliveryKind;
 		targetDate: string;
 		channel: NotificationChannel;
 		createdAt: string;
 	}): boolean;
 	markSent(
 		actionId: string,
-		kind: ReminderKind,
+		kind: DeliveryKind,
 		targetDate: string,
 		channel: NotificationChannel,
 		nowIso: string
@@ -62,6 +64,13 @@ export interface NotificationDeliveryRepositoryPort {
 		maxAttempts: number,
 		nowIso: string
 	): void;
+	markSentAndConsumeSnooze(input: {
+		actionId: string;
+		targetDate: string;
+		channel: NotificationChannel;
+		nowIso: string;
+		version: string;
+	}): boolean;
 	listRetryable(
 		maxAttempts: number,
 		limit: number,
@@ -72,4 +81,12 @@ export interface NotificationDeliveryRepositoryPort {
 
 export interface NotificationSettingsPort {
 	getSettings(): NotificationSettings;
+}
+
+export interface NotificationSnoozePort {
+	get(actionId: string): NotificationSnooze | null;
+	set(input: { actionId: string; sourceDueDate: string; snoozedUntil: string }): NotificationSnooze;
+	clearIfVersion(actionId: string, version: string): boolean;
+	list(): NotificationSnooze[];
+	clearIneligible?(): number;
 }

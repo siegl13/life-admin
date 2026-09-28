@@ -2,28 +2,35 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 import type { ItemRelationRepositoryPort } from '$lib/application/ports';
 
-const { clock, relations, history, cycles, fields, schedule, items } = vi.hoisted(() => ({
-	clock: { nowIso: () => '2026-01-01T00:00:00.000Z' },
-	relations: {
-		link: vi.fn(),
-		unlink: vi.fn(),
-		listRelated: vi.fn(),
-		listCandidates: vi.fn(),
-		countRelated: vi.fn(),
-		deleteForItem: vi.fn(),
-		get: vi.fn()
-	},
-	history: {
-		insert: vi.fn(),
-		listByItem: vi.fn().mockReturnValue([]),
-		countByItem: vi.fn().mockReturnValue(0),
-		deleteForItem: vi.fn()
-	},
-	cycles: { getActiveCycle: vi.fn() },
-	fields: { listFields: vi.fn() },
-	schedule: { applyFieldUpdatesAndRecalculate: vi.fn() },
-	items: { getItemById: vi.fn() }
-}));
+const { clock, relations, history, cycles, fields, schedule, items, snoozes, whatsNext } =
+	vi.hoisted(() => ({
+		clock: {
+			nowIso: () => '2026-01-01T00:00:00.000Z',
+			todayIso: () => '2026-06-03',
+			localHour: () => 9
+		},
+		relations: {
+			link: vi.fn(),
+			unlink: vi.fn(),
+			listRelated: vi.fn(),
+			listCandidates: vi.fn(),
+			countRelated: vi.fn(),
+			deleteForItem: vi.fn(),
+			get: vi.fn()
+		},
+		history: {
+			insert: vi.fn(),
+			listByItem: vi.fn().mockReturnValue([]),
+			countByItem: vi.fn().mockReturnValue(0),
+			deleteForItem: vi.fn()
+		},
+		cycles: { getActiveCycle: vi.fn() },
+		fields: { listFields: vi.fn() },
+		schedule: { applyFieldUpdatesAndRecalculate: vi.fn() },
+		items: { getItemById: vi.fn() },
+		snoozes: { get: vi.fn(), set: vi.fn(), clearIfVersion: vi.fn(), list: vi.fn() },
+		whatsNext: { loadItems: vi.fn() }
+	}));
 
 vi.mock('$lib/server/appPorts', () => ({
 	actionsPort: {},
@@ -39,8 +46,10 @@ vi.mock('$lib/server/appPorts', () => ({
 	itemRelationsPort: relations,
 	itemHistoryPort: history,
 	itemsPort: items,
+	notificationSnoozesPort: snoozes,
 	playbooksPort: {},
-	scheduleRepositoryPort: schedule
+	scheduleRepositoryPort: schedule,
+	whatsNextPort: whatsNext
 }));
 
 import { actions } from './+page.server';
@@ -264,5 +273,154 @@ describe('updateFields action (history recording)', () => {
 				payload: JSON.stringify({ fieldKey: 'notes' })
 			})
 		);
+	});
+});
+
+function snoozeRequest(actionId: string, snoozedUntil: string): Request {
+	const form = new FormData();
+	form.set('actionId', actionId);
+	form.set('snoozedUntil', snoozedUntil);
+	return new Request('http://localhost/items/' + A, { method: 'POST', body: form });
+}
+
+describe('snooze actions', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		items.getItemById.mockReturnValue({ status: 'ACTIVE' });
+	});
+
+	it('rejects an invalid snooze date before persistence', async () => {
+		const result = await actions.setSnooze({
+			request: snoozeRequest('action-1', '2020-01-01'),
+			params: { id: A }
+		} as never);
+
+		expect(result).toMatchObject({ status: 400 });
+		expect(snoozes.set).not.toHaveBeenCalled();
+	});
+
+	it('rejects snoozing an archived item and leaves the snooze unchanged', async () => {
+		items.getItemById.mockReturnValue({ status: 'ARCHIVED' });
+		const result = await actions.setSnooze({
+			request: snoozeRequest('action-1', 'TOMORROW'),
+			params: { id: A }
+		} as never);
+
+		expect(result).toMatchObject({ status: 400 });
+		expect(snoozes.set).not.toHaveBeenCalled();
+	});
+
+	it('rejects snoozing an action belonging to another item', async () => {
+		whatsNext.loadItems.mockReturnValue([
+			{
+				itemId: B,
+				title: 'Other item',
+				actions: [
+					{
+						actionId: 'action-1',
+						label: 'Action',
+						dueDate: '2026-06-10',
+						dueKind: 'MANUAL',
+						dueOverrideDate: null,
+						state: 'OPEN',
+						position: 0,
+						dependencyStates: []
+					}
+				]
+			}
+		]);
+
+		const result = await actions.setSnooze({
+			request: snoozeRequest('action-1', 'TOMORROW'),
+			params: { id: A }
+		} as never);
+
+		expect(result).toMatchObject({ status: 400 });
+		expect(snoozes.set).not.toHaveBeenCalled();
+	});
+
+	it('clears a snooze through the authenticated item action', async () => {
+		const current = {
+			actionId: 'action-1',
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05',
+			version: 'version-1'
+		};
+		snoozes.get.mockReturnValue(current);
+		whatsNext.loadItems.mockReturnValue([
+			{
+				itemId: A,
+				title: 'Item',
+				actions: [
+					{
+						actionId: 'action-1',
+						label: 'Action',
+						state: 'OPEN',
+						dueKind: 'MANUAL',
+						dueDate: '2026-06-10',
+						dueOverrideDate: null,
+						position: 0,
+						dependencyStates: []
+					}
+				]
+			}
+		]);
+
+		let caught: unknown;
+		try {
+			const form = new FormData();
+			form.set('actionId', 'action-1');
+			await actions.clearSnooze({
+				request: new Request('http://localhost/items/' + A, { method: 'POST', body: form }),
+				params: { id: A }
+			} as never);
+		} catch (thrown) {
+			caught = thrown;
+		}
+
+		expect(isRedirect(caught)).toBe(true);
+		expect(snoozes.clearIfVersion).toHaveBeenCalledWith('action-1', 'version-1');
+	});
+
+	it('does not clear an action belonging to another item', async () => {
+		snoozes.get.mockReturnValue({
+			actionId: 'action-1',
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05',
+			version: 'version-1'
+		});
+		whatsNext.loadItems.mockReturnValue([
+			{
+				itemId: B,
+				title: 'Other item',
+				actions: [
+					{
+						actionId: 'action-1',
+						label: 'Action',
+						dueDate: '2026-06-10',
+						dueKind: 'MANUAL',
+						dueOverrideDate: null,
+						state: 'OPEN',
+						position: 0,
+						dependencyStates: []
+					}
+				]
+			}
+		]);
+		const form = new FormData();
+		form.set('actionId', 'action-1');
+
+		let caught: unknown;
+		try {
+			await actions.clearSnooze({
+				request: new Request('http://localhost/items/' + A, { method: 'POST', body: form }),
+				params: { id: A }
+			} as never);
+		} catch (thrown) {
+			caught = thrown;
+		}
+
+		expect(isRedirect(caught)).toBe(true);
+		expect(snoozes.clearIfVersion).not.toHaveBeenCalled();
 	});
 });

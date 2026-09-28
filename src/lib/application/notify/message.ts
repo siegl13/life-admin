@@ -17,7 +17,11 @@ export function buildNotificationMessage(
 	return {
 		title: reminder.itemTitle,
 		body: `${reminder.actionLabel}\n${t(
-			reminder.kind === 'OVERDUE' ? 'notify.message.overdue' : 'notify.message.dueOn',
+			reminder.kind === 'OVERDUE'
+				? 'notify.message.overdue'
+				: reminder.kind === 'SNOOZED'
+					? 'notify.message.snoozed'
+					: 'notify.message.dueOn',
 			{ date: formatDate(reminder.targetDate) }
 		)}`,
 		clickUrl: options.origin ? `${options.origin}/items/${reminder.itemId}` : null

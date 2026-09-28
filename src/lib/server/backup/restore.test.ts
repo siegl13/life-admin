@@ -628,6 +628,25 @@ describe('backup -> restore round trip (real data, not fabricated bytes)', () =>
 			.run();
 		getDb()
 			.prepare(
+				`INSERT INTO cycles (id, item_id, sequence, status, created_at)
+				 VALUES ('cycle-backup', 'item-A', 1, 'ACTIVE', '2026-01-01T00:00:00.000Z')`
+			)
+			.run();
+		getDb()
+			.prepare(
+				`INSERT INTO actions
+				 (id, cycle_id, action_key, label, state, due_kind, due_date, position, created_at)
+				 VALUES ('action-backup', 'cycle-backup', 'backup', 'Backup action', 'OPEN', 'MANUAL', '2026-06-10', 0, '2026-01-01T00:00:00.000Z')`
+			)
+			.run();
+		getDb()
+			.prepare(
+				`INSERT INTO notification_snoozes (action_id, source_due_date, snoozed_until, version)
+				 VALUES ('action-backup', '2026-06-10', '2026-06-05', 'backup-version')`
+			)
+			.run();
+		getDb()
+			.prepare(
 				`INSERT INTO item_relations (item_a_id, item_b_id, created_at) VALUES ('item-A', 'item-B', '2026-01-01T00:00:00.000Z')`
 			)
 			.run();
@@ -652,6 +671,17 @@ describe('backup -> restore round trip (real data, not fabricated bytes)', () =>
 					.prepare('SELECT item_a_id, item_b_id FROM item_relations WHERE item_a_id = ?')
 					.get('item-A')
 			).toEqual({ item_a_id: 'item-A', item_b_id: 'item-B' });
+			expect(
+				restoredDb
+					.prepare(
+						'SELECT source_due_date, snoozed_until, version FROM notification_snoozes WHERE action_id = ?'
+					)
+					.get('action-backup')
+			).toEqual({
+				source_due_date: '2026-06-10',
+				snoozed_until: '2026-06-05',
+				version: 'backup-version'
+			});
 		} finally {
 			restoredDb.close();
 		}
@@ -659,6 +689,80 @@ describe('backup -> restore round trip (real data, not fabricated bytes)', () =>
 			'ORIGINAL_PLAYBOOK'
 		);
 		expect(fs.existsSync(path.join(config.customPlaybooksDir, 'round-trip.yaml'))).toBe(true);
+
+		const restartedDb = openDatabase(config.databasePath);
+		try {
+			const { dispatchDueReminders } = await import('$lib/application/notify/dispatchDueReminders');
+			const deliveries = await import('../db/repositories/notificationRepository');
+			const snoozes = await import('../db/repositories/notificationSnoozeRepository');
+			const { loadWhatsNextItems } = await import('../db/repositories/whatsNextRepository');
+			const send = vi.fn(async () => {});
+			const dispatchPorts = (todayIso: string) => ({
+				settings: {
+					getSettings: () => ({
+						enabled: true,
+						channel: 'NTFY' as const,
+						selectedChannelConfigured: true,
+						leadDays: 0,
+						minimalContent: false
+					})
+				},
+				deliveries: {
+					claim: (input: Parameters<typeof deliveries.claim>[1]) =>
+						deliveries.claim(restartedDb, input),
+					markSent: (
+						...args: Parameters<typeof deliveries.markSent> extends [unknown, ...infer Rest]
+							? Rest
+							: never
+					) => deliveries.markSent(restartedDb, ...args),
+					markSentAndConsumeSnooze: (
+						input: Parameters<typeof deliveries.markSentAndConsumeSnooze>[1]
+					) => deliveries.markSentAndConsumeSnooze(restartedDb, input),
+					markAttemptFailed: (
+						...args: Parameters<typeof deliveries.markAttemptFailed> extends [
+							unknown,
+							...infer Rest
+						]
+							? Rest
+							: never
+					) => deliveries.markAttemptFailed(restartedDb, ...args),
+					listRetryable: (
+						maxAttempts: number,
+						limit: number,
+						eligible: Parameters<typeof deliveries.listRetryable>[3]
+					) => deliveries.listRetryable(restartedDb, maxAttempts, limit, eligible),
+					getLastFailure: () => deliveries.getLastFailure(restartedDb)
+				},
+				snoozes: {
+					get: (id: string) => snoozes.get(restartedDb, id),
+					set: (input: Parameters<typeof snoozes.set>[1]) => snoozes.set(restartedDb, input),
+					clearIfVersion: (id: string, version: string) =>
+						snoozes.clearIfVersion(restartedDb, id, version),
+					list: () => snoozes.list(restartedDb)
+				},
+				channels: { get: () => ({ send }) },
+				whatsNext: { loadItems: () => loadWhatsNextItems(restartedDb) },
+				clock: {
+					todayIso: () => todayIso,
+					nowIso: () => `${todayIso}T09:00:00.000Z`,
+					localHour: () => 9
+				},
+				origin: null
+			});
+
+			await dispatchDueReminders(dispatchPorts('2026-06-04'));
+			expect(send).not.toHaveBeenCalled();
+			await dispatchDueReminders(dispatchPorts('2026-06-05'));
+			await dispatchDueReminders(dispatchPorts('2026-06-05'));
+			expect(send).toHaveBeenCalledTimes(1);
+			expect(
+				restartedDb
+					.prepare("SELECT COUNT(*) AS count FROM notification_deliveries WHERE kind = 'SNOOZED'")
+					.get()
+			).toEqual({ count: 1 });
+		} finally {
+			restartedDb.close();
+		}
 	});
 });
 

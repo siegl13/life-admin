@@ -51,6 +51,7 @@ function ports(overrides: Record<string, unknown> = {}) {
 		deliveries: {
 			claim: vi.fn(() => true),
 			markSent: vi.fn(),
+			markSentAndConsumeSnooze: vi.fn(() => true),
 			markAttemptFailed: vi.fn(),
 			listRetryable,
 			getLastFailure: vi.fn()

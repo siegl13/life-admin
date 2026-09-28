@@ -58,6 +58,33 @@ export function markSent(
 	).run(nowIso, actionId, kind, targetDate, channel);
 }
 
+export function markSentAndConsumeSnooze(
+	db: Database.Database,
+	input: {
+		actionId: string;
+		targetDate: string;
+		channel: NotificationChannel;
+		nowIso: string;
+		version: string;
+	}
+): boolean {
+	const finalize = db.transaction(() => {
+		const result = db
+			.prepare(
+				`UPDATE notification_deliveries SET status = 'SENT', sent_at = ?, last_error = NULL
+				 WHERE action_id = ? AND kind = 'SNOOZED' AND target_date = ? AND channel = ? AND status = 'PENDING'`
+			)
+			.run(input.nowIso, input.actionId, input.targetDate, input.channel);
+		if (result.changes !== 1) return false;
+		db.prepare('DELETE FROM notification_snoozes WHERE action_id = ? AND version = ?').run(
+			input.actionId,
+			input.version
+		);
+		return true;
+	});
+	return finalize();
+}
+
 export function markAttemptFailed(
 	db: Database.Database,
 	actionId: string,
