@@ -13,7 +13,7 @@
 
 Inspected all six direct Zod imports: playbook schemas, shared validators, frozen snapshots, AI extraction and routing schemas, and the new-item form action.
 
-Existing tests cover strict object rejection, defaults, optional properties, bounded records, refinements, snapshot round trips, bounded error paths, AI output rejection, and bundled playbook parsing. No new tests were added because no concrete compatibility defect or application behavior change was found. Supervisor attempt 01 passed full type checking and the automated browser suite.
+Existing tests cover strict object rejection, defaults, optional properties, bounded records, refinements, snapshot round trips, bounded error paths, AI output rejection, and bundled playbook parsing. No new tests were added because no concrete compatibility defect or application behavior change was found. Supervisor attempts 01 and 02 passed full type checking and the automated browser suite.
 
 Focused commands from initial validation:
 
@@ -22,7 +22,7 @@ Focused commands from initial validation:
 - `./node_modules/.bin/vitest run src/lib/domain/playbook/schema.test.ts src/lib/domain/playbook/snapshot.test.ts src/lib/application/ai/extractionOutputSchema.test.ts src/lib/server/ai/openaiProvider.test.ts src/lib/server/playbooks/bundledPlaybooks.test.ts`: passed, 5 files and 84 tests.
 - `./node_modules/.bin/prettier --write pr-26-zod-status.md`: passed, unchanged.
 - `git diff --check`: passed before and after the initial metadata edit.
-- Final worktree inspection showed only the new `pr-26-zod-status.md` as untracked; the local supervisor status is ignored. The new file is not ignored and is ready for later tracking, without staging in this turn.
+- Before the report was committed, the only repository change was the new `pr-26-zod-status.md`; the local supervisor status is ignored.
 
 ## Self-review and base state
 
@@ -30,8 +30,7 @@ Focused commands from initial validation:
 - Local `origin/main` is two commits behind this branch, with no commits unique to `origin/main`. Its comparison includes existing workflow changes plus the Zod update.
 - These local refs do not confirm the brief's statement that the live PR is behind its base. No fetch, rebase, or unrelated cleanup was performed.
 - The Zod diff contains only the exact dependency version, tarball URL, and integrity changes. No tests were deleted, weakened, or disabled by this unit. Existing historical changes were preserved.
-- `gh pr view 26 --json url,state,headRefName,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup,files` failed before contacting GitHub: `failed to read configuration: open /dev/null/config.yml: not a directory`.
-- Live CI, review, mergeability, and behind-base state are unverified. The brief's reported green CI and pending review are not fresh evidence.
+- An earlier `gh pr view` attempt failed because of local GitHub CLI configuration. GitHub CLI authentication was then confirmed and the live PR was inspected successfully on 2026-10-03; see the fresh status below.
 
 ## Supervisor verification and review
 
@@ -44,12 +43,10 @@ Focused commands from initial validation:
 - Docker verification: `docker buildx build --platform linux/amd64 --load -t life-admin:pr-26 .` passed on 2026-10-03. This created only a local image and did not publish it.
 - Fresh GitHub inspection on 2026-10-03: PR #26 is open; `verify` is green; Docker CI job is skipped; CodeQL is neutral; mergeable is reported as `MERGEABLE`, but `mergeStateStatus` is `BLOCKED` and `reviewDecision` is `REVIEW_REQUIRED`. CODEOWNERS maps all files to `@siegl13`; that review is requested and no review has been submitted. No PR metadata was changed.
 - GitHub PR: https://github.com/siegl13/life-admin/pull/26
-- No files were staged, committed, or pushed.
+- The status report was committed locally after validation. No push has been made.
 
 ## Remaining gates and next safe work
 
-- Supervisor owns final verification and review before marking this unit complete, within the brief's three-attempt and three-review-round limits. Recorded passing results do not establish final approval or merge readiness.
-- Live PR state needs a working GitHub CLI configuration.
-- No operational browser or Docker checks were run.
+- Technical verification, Docker build, and independent code review are complete. PR #26 remains blocked on the requested CODEOWNERS review from `@siegl13`.
 - This unit has no assigned prerequisite units. The authoritative unit brief defines no next planned unit. No later unit was started; later-unit dependencies cannot be assessed from this brief.
-- No files were staged, committed, or pushed. Update this repository-visible record when final supervisor review is available.
+- No push has been made. After the required CODEOWNERS review is submitted, refresh the PR status before treating it as merge-ready.
