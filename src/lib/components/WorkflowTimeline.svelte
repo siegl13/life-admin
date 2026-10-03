@@ -3,9 +3,19 @@
 	import { formatDate } from '$lib/ui/format';
 	import { effectiveDueDate } from '$lib/domain/action/action';
 	import type { WorkflowAction } from '$lib/application/items/getItemWorkflow';
+	import type { NotificationSnooze } from '$lib/domain/notify/snooze';
 
-	let { workflow, readOnly = false }: { workflow: readonly WorkflowAction[]; readOnly?: boolean } =
-		$props();
+	let {
+		workflow,
+		snoozes = {},
+		today,
+		readOnly = false
+	}: {
+		workflow: readonly WorkflowAction[];
+		snoozes?: Record<string, NotificationSnooze | null>;
+		today: string;
+		readOnly?: boolean;
+	} = $props();
 
 	type StepState = 'done' | 'skipped' | 'now' | 'waiting';
 
@@ -39,6 +49,12 @@
 			entry.action.state === 'OPEN' &&
 			entry.action.dueKind === 'DERIVED' &&
 			(entry.action.dueDate !== null || entry.action.dueOverrideDate !== null)
+		);
+	}
+
+	function canSnooze(entry: WorkflowAction): boolean {
+		return (
+			entry.available && entry.action.state === 'OPEN' && effectiveDueDate(entry.action) !== null
 		);
 	}
 </script>
@@ -154,6 +170,79 @@
 							</form>
 						</details>
 					{/if}
+				{/if}
+				{#if canSnooze(entry) && !readOnly}
+					<div class="snooze">
+						{#if snoozes[entry.action.id]}
+							<span class="hint">
+								{t('items.detail.snoozeActive', {
+									date: formatDate(snoozes[entry.action.id]!.snoozedUntil)
+								})}
+							</span>
+							{#if effectiveDueDate(entry.action)}
+								<span class="meta">
+									{#if effectiveDueDate(entry.action)! < today}
+										{t('due.overdueSince', { date: formatDate(effectiveDueDate(entry.action)!) })}
+									{:else}
+										{t('due.dueOn', { date: formatDate(effectiveDueDate(entry.action)!) })}
+									{/if}
+								</span>
+							{/if}
+							<form method="POST" action="?/clearSnooze" class="timeline__controls">
+								<input type="hidden" name="actionId" value={entry.action.id} />
+								<button type="submit" class="link">{t('items.detail.snoozeClear')}</button>
+							</form>
+							<span class="meta">{t('items.detail.snoozeReplace')}</span>
+							<form method="POST" action="?/setSnooze" class="snooze__form">
+								<input type="hidden" name="actionId" value={entry.action.id} />
+								<button type="submit" name="snoozedUntil" value="TOMORROW" class="secondary">
+									{t('items.detail.snoozeTomorrow')}
+								</button>
+								<button type="submit" name="snoozedUntil" value="THREE_DAYS" class="secondary">
+									{t('items.detail.snoozeThreeDays')}
+								</button>
+								<button type="submit" name="snoozedUntil" value="SEVEN_DAYS" class="secondary">
+									{t('items.detail.snoozeSevenDays')}
+								</button>
+								<label>
+									<span class="sr-only">{t('items.detail.snoozeCustom')}</span>
+									<input
+										type="date"
+										name="snoozedUntil"
+										aria-label={t('items.detail.snoozeCustom')}
+									/>
+								</label>
+								<button type="submit" class="secondary"
+									>{t('items.detail.snoozeCustomSubmit')}</button
+								>
+							</form>
+						{:else}
+							<span class="meta">{t('items.detail.snooze')}</span>
+							<form method="POST" action="?/setSnooze" class="snooze__form">
+								<input type="hidden" name="actionId" value={entry.action.id} />
+								<button type="submit" name="snoozedUntil" value="TOMORROW" class="secondary"
+									>{t('items.detail.snoozeTomorrow')}</button
+								>
+								<button type="submit" name="snoozedUntil" value="THREE_DAYS" class="secondary"
+									>{t('items.detail.snoozeThreeDays')}</button
+								>
+								<button type="submit" name="snoozedUntil" value="SEVEN_DAYS" class="secondary"
+									>{t('items.detail.snoozeSevenDays')}</button
+								>
+								<label>
+									<span class="sr-only">{t('items.detail.snoozeCustom')}</span>
+									<input
+										type="date"
+										name="snoozedUntil"
+										aria-label={t('items.detail.snoozeCustom')}
+									/>
+								</label>
+								<button type="submit" class="secondary"
+									>{t('items.detail.snoozeCustomSubmit')}</button
+								>
+							</form>
+						{/if}
+					</div>
 				{/if}
 
 				{#if state === 'now' && !readOnly}

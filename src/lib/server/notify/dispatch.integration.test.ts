@@ -13,9 +13,10 @@ import {
 	setActionDueOverride,
 	setActionState
 } from '../db/repositories/actionRepository';
-import { getActiveCycle } from '../db/repositories/cycleRepository';
+import { getActiveCycle, startNextCycle } from '../db/repositories/cycleRepository';
 import { createItem } from '../db/repositories/itemRepository';
 import * as deliveries from '../db/repositories/notificationRepository';
+import * as snoozes from '../db/repositories/notificationSnoozeRepository';
 import { loadWhatsNextItems } from '../db/repositories/whatsNextRepository';
 
 let db: Database.Database;
@@ -41,6 +42,9 @@ function createPorts(settings: NotificationSettings, send = vi.fn(async () => {}
 				channel: NotificationChannel,
 				nowIso: string
 			) => deliveries.markSent(db, actionId, kind, targetDate, channel, nowIso),
+			markSentAndConsumeSnooze: (
+				input: Parameters<typeof deliveries.markSentAndConsumeSnooze>[1]
+			) => deliveries.markSentAndConsumeSnooze(db, input),
 			markAttemptFailed: (
 				actionId: string,
 				kind: ReminderKind,
@@ -66,6 +70,13 @@ function createPorts(settings: NotificationSettings, send = vi.fn(async () => {}
 				eligible: Parameters<typeof deliveries.listRetryable>[3]
 			) => deliveries.listRetryable(db, maxAttempts, limit, eligible),
 			getLastFailure: () => deliveries.getLastFailure(db)
+		},
+		snoozes: {
+			get: (id: string) => snoozes.get(db, id),
+			set: (input: Parameters<typeof snoozes.set>[1]) => snoozes.set(db, input),
+			clearIfVersion: (id: string, version: string) => snoozes.clearIfVersion(db, id, version),
+			list: () => snoozes.list(db),
+			clearIneligible: () => snoozes.clearIneligible(db)
 		},
 		channels: { get: () => ({ send }) },
 		whatsNext: { loadItems: () => loadWhatsNextItems(db) },
@@ -197,5 +208,287 @@ describe('dispatchDueReminders with real persistence', () => {
 			status: 'FAILED',
 			attempts: 3
 		});
+	});
+
+	it('exhausts retries for a reached snooze without consuming it', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		const send = vi.fn(async () => {
+			throw new Error('http_502');
+		});
+		const settings = {
+			enabled: true,
+			channel: 'NTFY' as const,
+			selectedChannelConfigured: true,
+			leadDays: 7,
+			minimalContent: false
+		};
+		for (let attempt = 0; attempt < 4; attempt++)
+			await dispatchDueReminders(createPorts(settings, send));
+		expect(send).toHaveBeenCalledTimes(3);
+		expect(snoozes.get(db, actionId)).not.toBeNull();
+		expect(
+			db
+				.prepare(
+					"SELECT kind, status, attempts FROM notification_deliveries WHERE kind = 'SNOOZED'"
+				)
+				.get()
+		).toEqual({
+			kind: 'SNOOZED',
+			status: 'FAILED',
+			attempts: 3
+		});
+	});
+
+	it('loads a snooze again after the database is reopened', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05'
+		});
+		const databasePath = path.join(tmpDir, 'test.sqlite');
+		db.close();
+		db = openDatabase(databasePath);
+		const send = vi.fn(async () => {});
+		await dispatchDueReminders(
+			createPorts(
+				{
+					enabled: true,
+					channel: 'NTFY',
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					minimalContent: false
+				},
+				send
+			)
+		);
+		expect(send).not.toHaveBeenCalled();
+		expect(snoozes.get(db, actionId)?.snoozedUntil).toBe('2026-06-05');
+	});
+
+	it('sends a reached snooze once, consumes it, and resumes normal reminders', async () => {
+		const send = vi.fn(async () => {});
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		const settings = {
+			enabled: true,
+			channel: 'NTFY' as const,
+			selectedChannelConfigured: true,
+			leadDays: 7,
+			minimalContent: false
+		};
+		await dispatchDueReminders(createPorts(settings, send));
+		await dispatchDueReminders(createPorts(settings, send));
+		expect(send).toHaveBeenCalledTimes(2);
+		expect(snoozes.get(db, actionId)).toBeNull();
+		expect(
+			db.prepare("SELECT kind, status FROM notification_deliveries WHERE kind = 'SNOOZED'").get()
+		).toEqual({
+			kind: 'SNOOZED',
+			status: 'SENT'
+		});
+	});
+
+	it('suppresses normal due delivery while a future snooze is active', async () => {
+		const send = vi.fn(async () => {});
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05'
+		});
+		await dispatchDueReminders(
+			createPorts(
+				{
+					enabled: true,
+					channel: 'NTFY',
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					minimalContent: false
+				},
+				send
+			)
+		);
+		expect(send).not.toHaveBeenCalled();
+		expect(db.prepare('SELECT COUNT(*) AS count FROM notification_deliveries').get()).toEqual({
+			count: 0
+		});
+	});
+
+	it('cleans a completed-cycle snooze while delivery is disabled', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05'
+		});
+		const cycle = getActiveCycle(db, itemId)!;
+		startNextCycle(db, {
+			itemId,
+			completingCycleId: cycle.id,
+			playbookVersion: null,
+			fields: [],
+			events: [],
+			actions: []
+		});
+
+		await dispatchDueReminders(
+			createPorts({
+				enabled: false,
+				channel: 'NTFY',
+				selectedChannelConfigured: false,
+				leadDays: 7,
+				minimalContent: false
+			})
+		);
+		expect(snoozes.get(db, actionId)).toBeNull();
+	});
+
+	it('suppresses the current tick after source-date cleanup and preserves a concurrent replacement', async () => {
+		const send = vi.fn(async () => {});
+		const clearIfVersion = snoozes.clearIfVersion;
+		const stale = snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-09',
+			snoozedUntil: '2026-06-04'
+		});
+		const clear = vi
+			.spyOn(snoozes, 'clearIfVersion')
+			.mockImplementation((database, id, version) => {
+				const cleared = clearIfVersion(database, id, version);
+				snoozes.set(database, {
+					actionId: id,
+					sourceDueDate: '2026-06-10',
+					snoozedUntil: '2026-06-05'
+				});
+				return cleared;
+			});
+		await dispatchDueReminders(
+			createPorts(
+				{
+					enabled: true,
+					channel: 'NTFY',
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					minimalContent: false
+				},
+				send
+			)
+		);
+		clear.mockRestore();
+		expect(send).not.toHaveBeenCalled();
+		expect(snoozes.get(db, actionId)).toMatchObject({ sourceDueDate: '2026-06-10' });
+		expect(stale.version).not.toBe(snoozes.get(db, actionId)?.version);
+	});
+
+	it('preserves a replacement made while the snoozed message is being sent', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		const send = vi.fn(async () => {
+			snoozes.set(db, {
+				actionId,
+				sourceDueDate: '2026-06-10',
+				snoozedUntil: '2026-06-05'
+			});
+		});
+		await dispatchDueReminders(
+			createPorts(
+				{
+					enabled: true,
+					channel: 'NTFY',
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					minimalContent: false
+				},
+				send
+			)
+		);
+		expect(snoozes.get(db, actionId)?.snoozedUntil).toBe('2026-06-05');
+	});
+
+	it('cleans a completed-cycle snooze even when delivery is disabled', async () => {
+		const snooze = snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		db.prepare(
+			"UPDATE cycles SET status = 'COMPLETED' WHERE id = (SELECT cycle_id FROM actions WHERE id = ?)"
+		).run(actionId);
+		await dispatchDueReminders(
+			createPorts({
+				enabled: false,
+				channel: 'NTFY',
+				selectedChannelConfigured: false,
+				leadDays: 7,
+				minimalContent: false
+			})
+		);
+		expect(snoozes.get(db, actionId)).toBeNull();
+		expect(snooze.version).toBeDefined();
+	});
+
+	it('cleans an archived action snooze even when delivery is disabled', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		db.prepare("UPDATE items SET status = 'ARCHIVED' WHERE id = ?").run(itemId);
+		await dispatchDueReminders(
+			createPorts({
+				enabled: false,
+				channel: 'NTFY',
+				selectedChannelConfigured: false,
+				leadDays: 7,
+				minimalContent: false
+			})
+		);
+		expect(snoozes.get(db, actionId)).toBeNull();
+	});
+
+	it('cleans a snooze when its action loses its due date', async () => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		db.prepare('UPDATE actions SET due_date = NULL WHERE id = ?').run(actionId);
+		await dispatchDueReminders(
+			createPorts({
+				enabled: true,
+				channel: 'NTFY',
+				selectedChannelConfigured: true,
+				leadDays: 7,
+				minimalContent: false
+			})
+		);
+		expect(snoozes.get(db, actionId)).toBeNull();
+	});
+
+	it.each(['DONE', 'SKIPPED'] as const)('cleans a %s action snooze', async (state) => {
+		snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-03'
+		});
+		setActionState(db, itemId, actionId, state);
+		await dispatchDueReminders(
+			createPorts({
+				enabled: true,
+				channel: 'NTFY',
+				selectedChannelConfigured: true,
+				leadDays: 7,
+				minimalContent: false
+			})
+		);
+		expect(snoozes.get(db, actionId)).toBeNull();
 	});
 });

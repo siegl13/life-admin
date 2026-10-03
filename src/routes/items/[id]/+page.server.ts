@@ -31,6 +31,13 @@ import { newerVersionAvailable } from '$lib/domain/playbook/version';
 import type { Item } from '$lib/domain/item/item';
 import { setActionState } from '$lib/application/actions/setActionState';
 import {
+	clearSnooze,
+	IneligibleSnoozeError,
+	InvalidSnoozeDateError,
+	readSnooze,
+	setSnooze
+} from '$lib/application/notify/snooze';
+import {
 	InvalidDueOverrideDateError,
 	setActionDueOverride
 } from '$lib/application/actions/setActionDueOverride';
@@ -75,7 +82,9 @@ import {
 	itemsPort as attachmentItemsPort,
 	playbooksPort,
 	itemRelationsPort,
-	itemHistoryPort
+	itemHistoryPort,
+	notificationSnoozesPort,
+	whatsNextPort
 } from '$lib/server/appPorts';
 import { recordHistoryEvent } from '$lib/application/history/itemHistory';
 import {
@@ -123,6 +132,15 @@ export const load: PageServerLoad = ({ params, url }) => {
 			{ cycles: cyclesPort, actions: actionsPort, events: eventsPort, fields: fieldsPort },
 			params.id
 		) ?? [];
+	const snoozes = Object.fromEntries(
+		workflow.map((entry) => [
+			entry.action.id,
+			readSnooze(
+				{ snoozes: notificationSnoozesPort, whatsNext: whatsNextPort, clock },
+				entry.action.id
+			)
+		])
+	);
 	// May import domain modules directly (route files are allowed to).
 	const cycleComplete = isCycleComplete(workflow.map((w) => w.action));
 	const history = getCycleHistory(
@@ -185,6 +203,8 @@ export const load: PageServerLoad = ({ params, url }) => {
 		item: detail.item,
 		fields: detail.fields,
 		workflow,
+		snoozes,
+		today: clock.todayIso(),
 		attachments: attachmentsPort.listByItem(params.id),
 		attachmentCycleSequences,
 		overview,
@@ -600,6 +620,37 @@ export const actions: Actions = {
 	completeAction: async ({ request, params }) => transitionAction(request, params.id, 'DONE'),
 	skipAction: async ({ request, params }) => transitionAction(request, params.id, 'SKIPPED'),
 	reopenAction: async ({ request, params }) => transitionAction(request, params.id, 'OPEN'),
+
+	setSnooze: async ({ request, params }) => {
+		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
+		const formData = await request.formData();
+		const actionId = formData.get('actionId')?.toString() ?? '';
+		const choice = formData.get('snoozedUntil')?.toString() ?? '';
+		try {
+			setSnooze(
+				{ snoozes: notificationSnoozesPort, whatsNext: whatsNextPort, clock },
+				{ actionId, choice, expectedItemId: params.id }
+			);
+		} catch (err) {
+			if (err instanceof InvalidSnoozeDateError)
+				return fail(400, { error: t('items.detail.snoozeInvalidDate') });
+			if (err instanceof IneligibleSnoozeError)
+				return fail(400, { error: t('items.detail.snoozeUnavailable') });
+			throw err;
+		}
+		redirect(303, `/items/${params.id}`);
+	},
+
+	clearSnooze: async ({ request, params }) => {
+		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
+		const actionId = (await request.formData()).get('actionId')?.toString() ?? '';
+		clearSnooze(
+			{ snoozes: notificationSnoozesPort, whatsNext: whatsNextPort, clock },
+			actionId,
+			params.id
+		);
+		redirect(303, `/items/${params.id}`);
+	},
 
 	setActionDueOverride: async ({ request, params }) => {
 		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });

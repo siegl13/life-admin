@@ -8,7 +8,14 @@ import { openDatabase } from '../database';
 import { addManualAction } from './actionRepository';
 import { getActiveCycle, startNextCycle } from './cycleRepository';
 import { createItem } from './itemRepository';
-import { claim, listRetryable, markAttemptFailed, markSent } from './notificationRepository';
+import {
+	claim,
+	listRetryable,
+	markAttemptFailed,
+	markSent,
+	markSentAndConsumeSnooze
+} from './notificationRepository';
+import * as snoozes from './notificationSnoozeRepository';
 
 let db: Database.Database;
 let tmpDir: string;
@@ -62,6 +69,33 @@ describe('notificationRepository', () => {
 	it('uses the delivery key as an atomic duplicate check', () => {
 		expect(claimDelivery(actionId)).toBe(true);
 		expect(claimDelivery(actionId)).toBe(false);
+	});
+
+	it('allows one delivery per channel for the same reminder date', () => {
+		expect(claimDelivery(actionId)).toBe(true);
+		expect(
+			claim(db, {
+				itemId,
+				actionId,
+				kind: 'DUE_SOON',
+				targetDate: '2026-06-10',
+				channel: 'SLACK',
+				createdAt: '2026-06-03T09:00:00.000Z'
+			})
+		).toBe(true);
+	});
+
+	it('deduplicates reached snoozes independently per channel', () => {
+		const input = {
+			itemId,
+			actionId,
+			kind: 'SNOOZED' as const,
+			targetDate: '2026-06-04',
+			createdAt: '2026-06-04T09:00:00.000Z'
+		};
+		expect(claim(db, { ...input, channel: 'NTFY' })).toBe(true);
+		expect(claim(db, { ...input, channel: 'NTFY' })).toBe(false);
+		expect(claim(db, { ...input, channel: 'SLACK' })).toBe(true);
 	});
 
 	it('marks a successful pending delivery as sent', () => {
@@ -146,6 +180,53 @@ describe('notificationRepository', () => {
 		db.prepare('DELETE FROM items WHERE id = ?').run(itemId);
 		expect(db.prepare('SELECT COUNT(*) AS count FROM notification_deliveries').get()).toEqual({
 			count: 0
+		});
+	});
+
+	it('replaces snoozes with a new compare-and-delete version', () => {
+		const first = snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-04'
+		});
+		const second = snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-05'
+		});
+		expect(snoozes.clearIfVersion(db, actionId, first.version)).toBe(false);
+		expect(snoozes.get(db, actionId)).toEqual(second);
+		expect(snoozes.clearIfVersion(db, actionId, second.version)).toBe(true);
+	});
+
+	it('atomically marks a snoozed delivery and consumes its matching row', () => {
+		const snooze = snoozes.set(db, {
+			actionId,
+			sourceDueDate: '2026-06-10',
+			snoozedUntil: '2026-06-04'
+		});
+		claim(db, {
+			itemId,
+			actionId,
+			kind: 'SNOOZED',
+			targetDate: '2026-06-04',
+			channel: 'NTFY',
+			createdAt: '2026-06-04T09:00:00.000Z'
+		});
+		expect(
+			markSentAndConsumeSnooze(db, {
+				actionId,
+				targetDate: '2026-06-04',
+				channel: 'NTFY',
+				nowIso: '2026-06-04T09:00:00.000Z',
+				version: snooze.version
+			})
+		).toBe(true);
+		expect(snoozes.get(db, actionId)).toBeNull();
+		expect(
+			db.prepare("SELECT status FROM notification_deliveries WHERE kind = 'SNOOZED'").get()
+		).toEqual({
+			status: 'SENT'
 		});
 	});
 });

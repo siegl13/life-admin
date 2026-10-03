@@ -95,7 +95,11 @@
 					<span class="next-up__action">{next.action.label}</span>
 					<span class="next-up__state">
 						{#if effectiveDueDate(next.action)}
-							{t('whatsNext.dueOn')} {formatDate(effectiveDueDate(next.action)!)}
+							{#if effectiveDueDate(next.action)! < data.today}
+								{t('due.overdueSince', { date: formatDate(effectiveDueDate(next.action)!) })}
+							{:else}
+								{t('whatsNext.dueOn')} {formatDate(effectiveDueDate(next.action)!)}
+							{/if}
 						{:else}
 							{t('items.detail.status.now')} — {t('items.detail.status.noDate')}
 						{/if}
@@ -173,7 +177,12 @@
 {#if hasWorkflow}
 	<section class="section" aria-labelledby="workflow-label">
 		<h2 class="section__label" id="workflow-label">{t('items.detail.workflow')}</h2>
-		<WorkflowTimeline workflow={data.workflow} readOnly={isArchived} />
+		<WorkflowTimeline
+			workflow={data.workflow}
+			snoozes={data.snoozes}
+			today={data.today}
+			readOnly={isArchived}
+		/>
 	</section>
 {/if}
 

@@ -3,11 +3,44 @@
 Engineering status log for the phased implementation roadmap. Updated after
 each slice's verification loop.
 
-**Current roadmap state:** Slices 1-17 are complete. Slice 18 - Snooze / Remind
-Me Later is not started. Its direct dependency, Slice 10 Notifications, is
-complete.
-Slice 18 - Snooze / Remind Me Later is not started. Its direct dependency,
-Slice 10 Notifications, is complete.
+**Current roadmap state:** Slices 1-18 are complete. Slice 19 - Playbook
+Community Catalog is not started.
+Its direct dependency, Slice 10
+Notifications, is complete. Slice 19 - Playbook Community Catalog is not
+started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
+
+## Slice 18 - Snooze / Remind Me Later
+
+**Status: COMPLETE.**
+
+- Added notification-only snooze state with one versioned row per Action,
+  inclusive tomorrow, three-day, seven-day, and custom local-date validation
+  through today plus 365 calendar days.
+- Set, replace, read, and clear use the existing active Item, active cycle,
+  open Action, resolved effective due date, and availability rules. Snooze
+  state does not alter Action dates, state, availability, dependencies, or
+  What's Next ordering.
+- Added migration `0018_notification_snoozes.sql`. It preserves existing
+  delivery rows while extending delivery kind with `SNOOZED`; database
+  snapshots therefore include snoozes and delivery history.
+- Dispatch suppresses normal reminders while a snooze is future, creates a
+  reached `SNOOZED` delivery, clears stale rows by exact version before delivery
+  enablement and send-window checks, and atomically marks successful delivery
+  and consumes the evaluated snooze version.
+- Dispatch also removes persisted snoozes for completed, inactive, undated, or
+  blocked Actions before delivery guards, including when delivery is disabled.
+- Added no-JavaScript item-detail forms for presets, custom dates, replacement,
+  and clear, with due-date/overdue context retained and responsive styles.
+- Focused checks passed: `npx prettier --check` on changed files, `npm run
+lint`, `npm run check`, snooze domain/application tests, notification
+  repository tests, dispatch integration tests, and item route tests.
+- `npm run verify` passed with 924 tests, and `npm run test:e2e` passed with
+  95/95 tests. The focused Notifications browser suite passed 6/6 tests.
+- Manual browser checks passed for authenticated setup, snooze presets,
+  replacement, clearing, custom-date validation, no-JavaScript forms, mobile
+  layout, and archived read-only behavior.
+- Docker amd64 build, Compose startup, migration `0018`, `/healthz`, and
+  run-owned cleanup passed. Slice 19 remains not started.
 
 ## Slice 17 - Upcoming Overview
 
