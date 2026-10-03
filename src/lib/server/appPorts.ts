@@ -59,9 +59,11 @@ import { selectProvider } from './ai/selectProvider';
 import type {
 	NotificationChannelsPort,
 	NotificationDeliveryRepositoryPort,
-	NotificationSettingsPort
+	NotificationSettingsPort,
+	NotificationSnoozePort
 } from '$lib/application/notify/ports';
 import * as notificationRepo from './db/repositories/notificationRepository';
+import * as notificationSnoozeRepo from './db/repositories/notificationSnoozeRepository';
 import * as searchRepo from './db/repositories/searchRepository';
 import * as relationRepo from './db/repositories/itemRelationRepository';
 import * as historyRepo from './db/repositories/itemHistoryRepository';
@@ -303,9 +305,19 @@ export const notificationDeliveriesPort: NotificationDeliveryRepositoryPort = {
 			maxAttempts,
 			nowIso
 		),
+	markSentAndConsumeSnooze: (input) => notificationRepo.markSentAndConsumeSnooze(getDb(), input),
 	listRetryable: (maxAttempts, limit, eligible) =>
 		notificationRepo.listRetryable(getDb(), maxAttempts, limit, eligible),
 	getLastFailure: () => notificationRepo.getLastFailure(getDb())
+};
+
+export const notificationSnoozesPort: NotificationSnoozePort = {
+	get: (actionId) => notificationSnoozeRepo.get(getDb(), actionId),
+	set: (input) => notificationSnoozeRepo.set(getDb(), input),
+	clearIfVersion: (actionId, version) =>
+		notificationSnoozeRepo.clearIfVersion(getDb(), actionId, version),
+	list: () => notificationSnoozeRepo.list(getDb()),
+	clearIneligible: () => notificationSnoozeRepo.clearIneligible(getDb())
 };
 
 export const notificationChannelsPort: NotificationChannelsPort = {

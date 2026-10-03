@@ -1,7 +1,7 @@
 import { applyOffset, compareIsoDate, type IsoDate } from '../date/isoDate';
 import type { WhatsNextBucket } from '../whatsnext/whatsNext';
 
-export type ReminderKind = 'DUE_SOON' | 'OVERDUE';
+export type ReminderKind = 'DUE_SOON' | 'OVERDUE' | 'SNOOZED';
 
 export interface ReminderCandidate {
 	itemId: string;

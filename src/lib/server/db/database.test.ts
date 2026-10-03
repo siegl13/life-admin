@@ -44,6 +44,35 @@ describe('openDatabase / migrations', () => {
 		expect(listAppliedMigrations(db)).toContain('0001_init');
 	});
 
+	it('forward migration preserves existing notification delivery rows', () => {
+		db = openDatabase(dbPath);
+		insertItem(db, 'item');
+		insertCycle(db, 'item', 'cycle');
+		db.prepare(
+			`INSERT INTO actions
+			 (id, cycle_id, action_key, label, state, due_kind, due_date, position, created_at)
+			 VALUES ('action', 'cycle', 'action', 'Action', 'OPEN', 'MANUAL', '2026-06-10', 0, '2026-06-03T09:00:00.000Z')`
+		).run();
+		db.prepare(
+			`INSERT INTO notification_deliveries
+			 (item_id, action_id, kind, target_date, channel, status, attempts, sent_at, created_at)
+			 VALUES ('item', 'action', 'DUE_SOON', '2026-06-10', 'NTFY', 'SENT', 1, '2026-06-03T09:01:00.000Z', '2026-06-03T09:00:00.000Z')`
+		).run();
+		db.prepare('DROP TABLE notification_snoozes').run();
+		db.prepare('DELETE FROM schema_migrations WHERE version = ?').run('0018_notification_snoozes');
+		runMigrations(db);
+
+		expect(db.prepare('SELECT kind, status FROM notification_deliveries').get()).toEqual({
+			kind: 'DUE_SOON',
+			status: 'SENT'
+		});
+		expect(
+			db.prepare('SELECT name FROM sqlite_master WHERE name = ?').get('notification_snoozes')
+		).toEqual({
+			name: 'notification_snoozes'
+		});
+	});
+
 	it('sets the required startup pragmas', () => {
 		db = openDatabase(dbPath);
 		expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
