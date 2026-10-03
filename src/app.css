@@ -707,6 +707,36 @@ code {
 	display: block;
 }
 
+.snooze {
+	display: grid;
+	gap: 0.4rem;
+	margin-top: 0.55rem;
+}
+
+.snooze__form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	align-items: center;
+}
+
+.snooze__form input[type='date'] {
+	min-height: 2.35rem;
+}
+
+@media (max-width: 639px) {
+	.snooze__form {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.snooze__form button,
+	.snooze__form label,
+	.snooze__form input[type='date'] {
+		width: 100%;
+	}
+}
+
 /* ------------------------------------------------------------ data rows */
 
 .data-list {

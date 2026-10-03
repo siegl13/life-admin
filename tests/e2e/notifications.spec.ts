@@ -99,3 +99,82 @@ test('testing a channel checks the current draft, not the saved settings', async
 	await slackForm.getByRole('button', { name: 'Testbenachrichtigung senden' }).click();
 	await expect(page.getByText('Die Slack Webhook-Adresse ist ungültig.')).toBeVisible();
 });
+
+test('snoozed actions retain overdue context and can be replaced directly', async ({ page }) => {
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill('Snooze UI Test');
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('summary', { hasText: 'Aufgabe hinzufügen' }).click();
+	const addAction = page.locator('form[action="?/addManualAction"]');
+	await addAction.getByLabel('Bezeichnung der Aufgabe').fill('Snoozed overdue task');
+	await addAction.getByLabel('Fällig am (optional)').fill('2020-01-01');
+	await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
+
+	const step = page.locator('.timeline__step', { hasText: 'Snoozed overdue task' });
+	await step.getByRole('button', { name: 'Morgen' }).click();
+	await expect(step.getByText('Überfällig seit 1. Januar 2020')).toBeVisible();
+	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+	await step.getByRole('button', { name: 'In 7 Tagen' }).click();
+	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+
+	await step.getByRole('button', { name: 'Erinnerung löschen' }).click();
+	await expect(step.getByText('Erneut erinnern am')).toHaveCount(0);
+
+	await step.getByRole('button', { name: 'Morgen' }).click();
+	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+	const maximumSnoozeDate = new Date();
+	maximumSnoozeDate.setDate(maximumSnoozeDate.getDate() + 365);
+	const customDate = step.getByLabel('Anderes Datum');
+	await customDate.fill(maximumSnoozeDate.toISOString().slice(0, 10));
+	await step.getByRole('button', { name: 'Setzen' }).click();
+	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+	await page.setViewportSize({ width: 375, height: 667 });
+	await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 375);
+
+	await page.locator('summary', { hasText: 'Archivieren' }).click();
+	await page.getByRole('button', { name: 'Archivieren' }).click();
+	await expect(step.getByRole('button', { name: 'Morgen' })).toHaveCount(0);
+	await expect(step.getByText('Erneut erinnern am')).toHaveCount(0);
+});
+
+test('anonymous users cannot submit a snooze mutation', async ({ page }) => {
+	await page.context().clearCookies();
+	const response = await page.request.post('/items/not-an-item?/setSnooze', {
+		form: { actionId: 'unknown', snoozedUntil: 'TOMORROW' },
+		maxRedirects: 0
+	});
+	// SvelteKit rejects a form POST without a trusted Origin before the
+	// unauthenticated route guard can redirect it.
+	expect(response.status()).toBe(403);
+});
+
+test('snooze forms submit without JavaScript', async ({ browser }) => {
+	const context = await browser.newContext({
+		storageState: '.data-e2e/playwright-auth.json',
+		javaScriptEnabled: false,
+		locale: 'de-DE'
+	});
+	const page = await context.newPage();
+	try {
+		await page.goto('/items/new');
+		await page.getByLabel('Titel').fill('Snooze without JavaScript');
+		await page.getByRole('button', { name: 'Anlegen' }).click();
+		await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+
+		await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+		await page.locator('summary', { hasText: 'Aufgabe hinzufügen' }).click();
+		const addAction = page.locator('form[action="?/addManualAction"]');
+		await addAction.getByLabel('Bezeichnung der Aufgabe').fill('No JavaScript task');
+		await addAction.getByLabel('Fällig am (optional)').fill('2099-01-01');
+		await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
+
+		const step = page.locator('.timeline__step', { hasText: 'No JavaScript task' });
+		await step.getByRole('button', { name: 'Morgen' }).click();
+		await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+	} finally {
+		await context.close();
+	}
+});

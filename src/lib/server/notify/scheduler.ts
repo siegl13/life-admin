@@ -4,6 +4,7 @@ import {
 	clock,
 	notificationChannelsPort,
 	notificationDeliveriesPort,
+	notificationSnoozesPort,
 	notificationSettingsPort,
 	whatsNextPort
 } from '$lib/server/appPorts';
@@ -59,6 +60,7 @@ export function startNotificationScheduler(): void {
 		dispatchDueReminders({
 			settings: notificationSettingsPort,
 			deliveries: notificationDeliveriesPort,
+			snoozes: notificationSnoozesPort,
 			channels: notificationChannelsPort,
 			whatsNext: whatsNextPort,
 			clock,
