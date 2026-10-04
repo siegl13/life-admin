@@ -68,12 +68,19 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await expect(page.getByText('Vorschläge wurden verworfen')).toBeVisible();
 
 	// 10/11. Apply the (pre-checked, since the field was empty) suggestion.
-	// Anchored by the field's own id (not `.first()`): once the field is
-	// filled, the now-resolved derived action gains its own due-date
-	// override date input earlier in the DOM (see WorkflowTimeline.svelte).
+	// Keep only this suggestion selected so the real accepted-history event
+	// covers the singular count. Anchored by the field's own id (not `.first()`):
+	// once filled, the resolved action gains its own date input earlier in the
+	// DOM (see WorkflowTimeline.svelte).
+	for (const checkbox of await page.locator('#known-suggestions input[type="checkbox"]').all()) {
+		if (!(await checkbox.isChecked())) continue;
+		if ((await checkbox.getAttribute('name')) !== 'accept:next_inspection')
+			await checkbox.uncheck();
+	}
 	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
 	await expect(page).toHaveURL(itemUrl);
 	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2031-03-15');
+	await expect(page.getByText('1 Vorschlag übernommen', { exact: true })).toBeVisible();
 	// .first(): the resolved action now legitimately appears in both the
 	// workflow timeline and the "Nächste Schritte" widget.
 	await expect(page.getByText('HU-Termin planen').first()).toBeVisible();
@@ -93,10 +100,10 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
 	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
 	await expect(page).toHaveURL(/\/suggestions\//);
-	await expect(page.getByText('Aktueller Wert')).toBeVisible();
-	await expect(page.getByText('1. Januar 2030')).toBeVisible();
-	await expect(page.getByText('Überschreibt den aktuellen Wert')).toBeVisible();
-	await expect(page.getByRole('checkbox').first()).not.toBeChecked();
+	const inspectionSuggestion = page.locator('#suggestion-next_inspection');
+	await expect(inspectionSuggestion.getByText('Aktueller Wert: 1. Januar 2030')).toBeVisible();
+	await expect(inspectionSuggestion.getByText('Überschreibt den aktuellen Wert')).toBeVisible();
+	await expect(inspectionSuggestion.getByRole('checkbox')).not.toBeChecked();
 
 	// 13/14. Dismiss: no field change.
 	await page.getByRole('button', { name: 'Verwerfen' }).click();
@@ -201,6 +208,41 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	await expect(fieldsView.locator('.data-row', { hasText: 'Vertragsende' })).toContainText(
 		'5. April 2032'
 	);
+	const historyEvents = page.locator('.history-event__text');
+	await expect(historyEvents).toHaveCount(3);
+	await expect(historyEvents.getByText('5 Vorschläge übernommen', { exact: true })).toHaveCount(1);
+	await expect(historyEvents.getByText('2 Vorschläge übernommen', { exact: true })).toHaveCount(1);
+	await expect(historyEvents.getByText('Dokument hinzugefügt', { exact: true })).toHaveCount(1);
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	const longValue = 'VIN' + '0123456789'.repeat(5);
+	await page.locator('#license_plate').fill(longValue);
+	await page.getByRole('button', { name: 'Speichern' }).click();
+	const overviewValues = page.locator('.item-overview__values');
+	const overviewValue = overviewValues.locator('.item-overview__value').first();
+	for (const width of [375, 390, 430]) {
+		await page.setViewportSize({ width, height: 800 });
+		await expect(overviewValue).toHaveCSS('flex-grow', '0');
+		await expect(overviewValue).toHaveCSS('flex-basis', 'auto');
+		await expect(overviewValues).toHaveCSS('flex-direction', 'column');
+		await expect(overviewValues).toHaveCSS('gap', '20px');
+		await expect(overviewValue.locator('.item-overview__content')).toHaveText(longValue);
+		await expect(overviewValue.locator('.item-overview__content')).toHaveCSS(
+			'overflow-wrap',
+			'anywhere'
+		);
+		await expect
+			.poll(() =>
+				overviewValue.locator('.item-overview__content').evaluate((element) => {
+					const content = element as HTMLElement;
+					return content.scrollWidth <= content.clientWidth;
+				})
+			)
+			.toBe(true);
+	}
+	await page.setViewportSize({ width: 1024, height: 800 });
+	await expect(overviewValue).toHaveCSS('flex-grow', '1');
+	await expect(overviewValue).toHaveCSS('flex-basis', '192px');
+	await expect(overviewValues).toHaveCSS('flex-direction', 'row');
 
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Ausschalten' }).click();

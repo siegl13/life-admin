@@ -263,8 +263,8 @@ export const de = {
 	'items.detail.historyItemUnarchived': 'Wieder aktiviert',
 	'items.detail.historyRelationLinked': 'Verknüpfung hinzugefügt',
 	'items.detail.historyRelationUnlinked': 'Verknüpfung entfernt',
-	'items.detail.historyAiSuggestionsAccepted':
-		'{count} {count, plural, one {Vorschlag übernommen} other {Vorschläge übernommen}}',
+	'items.detail.historyAiSuggestionsAcceptedOne': '{count} Vorschlag übernommen',
+	'items.detail.historyAiSuggestionsAcceptedMany': '{count} Vorschläge übernommen',
 	'items.detail.historyCustomFieldAdded': 'Eigene Angabe hinzugefügt',
 	'items.detail.historyCustomFieldRemoved': 'Eigene Angabe entfernt',
 	'items.detail.historyCycleDetails': 'Zyklusdetails anzeigen',

@@ -139,9 +139,12 @@
 			case 'RELATION_UNLINKED':
 				return t('items.detail.historyRelationUnlinked');
 			case 'AI_SUGGESTIONS_ACCEPTED':
-				return t('items.detail.historyAiSuggestionsAccepted', {
-					count: String(p.acceptedCount ?? 1)
-				});
+				return t(
+					(p.acceptedCount ?? 1) === 1
+						? 'items.detail.historyAiSuggestionsAcceptedOne'
+						: 'items.detail.historyAiSuggestionsAcceptedMany',
+					{ count: String(p.acceptedCount ?? 1) }
+				);
 			case 'CUSTOM_FIELD_ADDED':
 				return t('items.detail.historyCustomFieldAdded');
 			case 'CUSTOM_FIELD_REMOVED':
