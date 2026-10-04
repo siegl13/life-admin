@@ -25,4 +25,5 @@ docs/*
 # Local agent/editor state, never meant to be tracked.
 .claude/
 .agent/
+.worktrees/
 .data-manual/
