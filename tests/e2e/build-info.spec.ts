@@ -15,10 +15,16 @@ const packageJson = JSON.parse(
  * Docker/CI injection is covered by build verification, not this suite.
  */
 test('Settings shows the running version and the local-build fallback', async ({ page }) => {
+	await page.setViewportSize({ width: 375, height: 800 });
 	await page.goto('/settings');
 
+	const systemSection = page.locator('#g-system');
+	await expect(systemSection).toBeInViewport();
 	await expect(page.getByText(`Version ${packageJson.version}`)).toBeVisible();
 	await expect(page.getByText('Build local')).toBeVisible();
+
+	await page.setViewportSize({ width: 1280, height: 720 });
+	await expect(systemSection).toBeInViewport();
 });
 
 test('authenticated /healthz reports version and revision, nothing else new', async ({
