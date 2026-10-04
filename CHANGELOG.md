@@ -8,6 +8,23 @@ Versioning follows `0.x.y-beta` until the product is stable enough for
 
 All notable changes to Life Admin will be documented in this file.
 
+## [0.1.0-beta.2] - 2026-10-04
+
+### Added
+
+- Snooze reminders for open Actions until tomorrow, in three or seven days, or
+  on a custom date. Snoozing leaves the Action's due date and state unchanged.
+
+### Changed
+
+- Show the application version and build revision at the top of Settings.
+- Keep long custom-property values readable in mobile Item overviews.
+- Run the container on Node 26 while keeping Node 24 supported for development.
+
+### Fixed
+
+- Use the correct singular or plural text for accepted-suggestion history.
+
 ## [0.1.0-beta.1] - 2026-09-24
 
 First public beta of Life Admin.
