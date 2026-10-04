@@ -24,6 +24,17 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 - The `linux/amd64` Docker image built with Node 26. A local container started
   with temporary storage and returned `200 {"status":"ok"}` from `/healthz`.
 
+## Settings version visibility
+
+**Status: VERIFICATION PASSED.**
+
+- The System card now appears first in Settings and in the section index. This
+  keeps the application version and build revision in the initial viewport on
+  desktop and mobile.
+- E2E coverage verifies viewport visibility at 375px and 1280px widths.
+- `npm run verify` passed with 934 tests; `npm run test:e2e` passed all 95
+  browser tests.
+
 ## Slice 18 - Snooze / Remind Me Later
 
 **Status: COMPLETE.**
