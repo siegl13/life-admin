@@ -3,6 +3,7 @@ build/
 node_modules/
 .agent/
 .claude/
+.worktrees/
 package-lock.json
 playbooks/**/*.yaml
 tests/fixtures/playbooks/**/*.yaml

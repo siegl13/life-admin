@@ -38,6 +38,7 @@ export default tseslint.config(
 	{
 		ignores: [
 			'.agent/',
+			'.worktrees/',
 			'build/',
 			'.svelte-kit/',
 			'node_modules/',

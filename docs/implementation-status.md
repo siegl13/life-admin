@@ -9,6 +9,21 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Node 26 runtime metadata
+
+**Status: VERIFICATION PASSED.**
+
+- PR #24 already changed the Docker build and runtime stages to Node 26. This
+  follow-up updates the declared engine range to support Node 24 and Node 26,
+  while continuing to exclude Node 25. The root package and lockfile metadata
+  match.
+- The repository, Prettier, and ESLint ignore `.worktrees/` so local worktree
+  contents are not processed as project files.
+- `npm ci` passed. `npm run verify` passed with 114 test files and 934 tests;
+  `npm run test:e2e` passed all 95 browser tests.
+- The `linux/amd64` Docker image built with Node 26. A local container started
+  with temporary storage and returned `200 {"status":"ok"}` from `/healthz`.
+
 ## Slice 18 - Snooze / Remind Me Later
 
 **Status: COMPLETE.**
