@@ -2274,16 +2274,23 @@ mark {
 	.item-overview__values {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
+		gap: var(--space-5);
 	}
 
 	.item-overview__value {
 		max-width: none;
+		flex: 0 1 auto;
 		display: flex;
 		flex-direction: row;
 		align-items: baseline;
 		justify-content: space-between;
 		gap: var(--space-4);
+	}
+
+	.item-overview__content {
+		min-width: 0;
+		text-align: right;
+		overflow-wrap: anywhere;
 	}
 
 	.item-overview__label {
