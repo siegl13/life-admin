@@ -258,8 +258,8 @@ export const en: Record<TranslationKey, string> = {
 	'items.detail.historyItemUnarchived': 'Reactivated',
 	'items.detail.historyRelationLinked': 'Relation added',
 	'items.detail.historyRelationUnlinked': 'Relation removed',
-	'items.detail.historyAiSuggestionsAccepted':
-		'{count} {count, plural, one {suggestion accepted} other {suggestions accepted}}',
+	'items.detail.historyAiSuggestionsAcceptedOne': '{count} suggestion accepted',
+	'items.detail.historyAiSuggestionsAcceptedMany': '{count} suggestions accepted',
 	'items.detail.historyCustomFieldAdded': 'Custom detail added',
 	'items.detail.historyCustomFieldRemoved': 'Custom detail removed',
 	'items.detail.historyCycleDetails': 'Show cycle details',

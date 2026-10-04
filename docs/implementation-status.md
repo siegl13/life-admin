@@ -42,6 +42,24 @@ lint`, `npm run check`, snooze domain/application tests, notification
 - Docker amd64 build, Compose startup, migration `0018`, `/healthz`, and
   run-owned cleanup passed. Slice 19 remains not started.
 
+## Item property spacing and accepted-suggestion history
+
+**Implementation status: READY FOR REVIEW.**
+
+- Mobile Item overview properties no longer retain the desktop flex-grow basis
+  when stacked. Mobile values wrap naturally, while the desktop grid remains
+  unchanged.
+- Accepted-suggestion history now selects singular or plural translation keys.
+  It uses the existing simple interpolation mechanism, which avoids exposing
+  raw ICU syntax. Existing semantic history payloads remain unchanged.
+- `npm ci` passed after rebasing on current `main`.
+- `npm run verify` passed with 115 test files and 936 tests. Formatting,
+  lint, Svelte checks, playbook validation, unit tests, and the production build
+  all passed; Svelte reported zero errors and warnings.
+- `npm run test:e2e` passed all 95 browser tests. Coverage includes singular
+  and plural accepted-suggestion history, unchanged document history, narrow
+  mobile wrapping, and the desktop layout.
+
 ## Slice 17 - Upcoming Overview
 
 **Status: COMPLETE.**
