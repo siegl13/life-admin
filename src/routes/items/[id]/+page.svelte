@@ -182,6 +182,7 @@
 			snoozes={data.snoozes}
 			today={data.today}
 			readOnly={isArchived}
+			{form}
 		/>
 	</section>
 {/if}

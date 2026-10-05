@@ -690,6 +690,25 @@ code {
 	color: var(--color-text);
 }
 
+/* Mirrors the title-aligned `.timeline__state` badge, but only rendered
+   where the single-column mobile layout actually needs it (see the
+   @media override below) — on wider screens the badge already sits next
+   to the title via the grid, so this copy stays hidden there. */
+.timeline__status-inline {
+	display: none;
+	font-size: var(--text-meta);
+	font-weight: 600;
+	color: var(--color-text-faint);
+}
+
+.timeline__status-inline--done {
+	color: var(--color-success);
+}
+
+.timeline__status-inline--now {
+	color: var(--color-text);
+}
+
 .timeline__controls {
 	display: flex;
 	gap: var(--space-2);
@@ -703,14 +722,74 @@ code {
 	display: inline;
 }
 
-.timeline__due-disclosure {
-	display: block;
+/* A compact, tappable trigger row for a secondary action ("Termin
+   ändern", "Später erinnern") — its actual editor lives in a native
+   <dialog> opened from here, so it never competes with the primary
+   Erledigen/Überspringen pair above it. */
+.timeline__secondary-trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	min-height: var(--control-h);
+	margin-top: var(--space-2);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-surface);
+	color: var(--color-text-muted);
+	font-weight: 500;
+	text-align: left;
 }
 
-.snooze {
-	display: grid;
-	gap: 0.4rem;
-	margin-top: 0.55rem;
+.timeline__secondary-trigger:hover,
+.timeline__secondary-trigger:focus-visible {
+	background: var(--color-surface-hover);
+	color: var(--color-text);
+}
+
+.timeline__secondary-trigger::after {
+	content: '›';
+	margin-left: var(--space-2);
+	color: var(--color-text-faint);
+	font-weight: 700;
+}
+
+/* The snooze/due editor itself: one shared responsive dialog shape.
+   Opened via showModal() once hydrated — native focus trap, Escape and
+   ::backdrop come for free. Before hydration (and with no JavaScript at
+   all) it renders statically `open`, i.e. as a plain always-visible
+   inline editor, so the surface stays fully usable either way. */
+.action-dialog {
+	width: min(100%, 24rem);
+	margin: auto;
+	padding: var(--space-5);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface);
+	color: var(--color-text);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.action-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.action-dialog__title {
+	display: block;
+	font-size: var(--text-body);
+	font-weight: 700;
+	margin-bottom: var(--space-4);
+}
+
+@media (max-width: 639px) {
+	.action-dialog {
+		width: 100%;
+		max-width: none;
+		margin: auto auto 0;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+	}
 }
 
 .snooze__form {
@@ -2225,8 +2304,11 @@ mark {
 	}
 
 	.timeline__state {
-		grid-column: 2;
-		padding-top: 0;
+		display: none;
+	}
+
+	.timeline__status-inline {
+		display: inline-block;
 	}
 
 	.data-row {

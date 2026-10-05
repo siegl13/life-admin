@@ -56,7 +56,16 @@ export default tseslint.config(
 	{
 		languageOptions: {
 			globals: {
-				process: 'readonly'
+				process: 'readonly',
+				// Only the DOM globals actually referenced from component
+				// script, not a full browser env — this project is
+				// server-rendered-forms-first and has had no client-side DOM
+				// code until the Action detail dialogs needed to open/close
+				// themselves.
+				MouseEvent: 'readonly',
+				HTMLElement: 'readonly',
+				HTMLDialogElement: 'readonly',
+				document: 'readonly'
 			}
 		}
 	},
