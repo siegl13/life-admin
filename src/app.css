@@ -741,7 +741,9 @@ a.app-sidebar-primary,
 	background: var(--color-surface);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	overflow: hidden;
+	/* Not `hidden`: a child ActionRow's native .action-menu popover must be
+	   able to float outside this box without being clipped. */
+	overflow: visible;
 }
 
 .item-group--overdue {
@@ -765,10 +767,10 @@ a.app-sidebar-primary,
 /* ------------------------------------------------------------ action row */
 
 .action-row {
-	display: flex;
+	display: grid;
+	grid-template-columns: var(--control-h) minmax(0, 1fr) var(--control-h);
 	align-items: center;
-	flex-wrap: wrap;
-	gap: var(--space-3) var(--space-4);
+	gap: var(--space-2);
 	padding: var(--space-2) var(--space-5) var(--space-4);
 }
 
@@ -778,7 +780,6 @@ a.app-sidebar-primary,
 }
 
 .action-row__text {
-	flex: 1 1 14rem;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
@@ -790,6 +791,7 @@ a.app-sidebar-primary,
 	font-weight: 600;
 	color: var(--color-text);
 	text-wrap: pretty;
+	overflow-wrap: anywhere;
 }
 
 .action-row__due {
@@ -2566,4 +2568,219 @@ mark {
 	.relation-search__controls {
 		flex-direction: column;
 	}
+}
+
+/* ------------------------------------------------- What's Next (root) */
+
+/* Only the What's Next section headers drop the shared uppercase/tracked
+   style — every other `.section__label` on other pages is untouched. */
+.section__label--plain {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+.section__label--now {
+	color: var(--color-accent-text);
+}
+
+.section__label--later {
+	color: var(--color-text-body);
+}
+
+.section__label--now::before,
+.section__label--later::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.section__label__count {
+	margin-left: auto;
+	font-weight: 400;
+	color: var(--color-text-faint);
+}
+
+.due-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px var(--space-2);
+	border-radius: 999px;
+	font-size: var(--text-meta);
+	font-weight: 600;
+	margin-right: var(--space-2);
+}
+
+.due-pill--overdue {
+	color: var(--color-danger);
+	background: var(--color-danger-soft);
+}
+
+.due-pill--now {
+	color: var(--color-accent-text);
+	background: var(--color-accent-soft);
+}
+
+.due-pill--later {
+	color: var(--color-text-body);
+	background: var(--color-surface-hover);
+}
+
+.action-row__done-form {
+	flex: 0 0 auto;
+}
+
+/* The 22px ring sits inside a 44px round hit target. */
+.action-row__done {
+	width: var(--control-h);
+	height: var(--control-h);
+	padding: 0;
+	border: 0;
+	background: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+}
+
+.action-row__done-ring {
+	width: 22px;
+	height: 22px;
+	fill: none;
+	stroke: var(--color-text-faint);
+	stroke-width: 4;
+}
+
+.action-row--overdue .action-row__done-ring {
+	stroke: var(--color-danger);
+}
+
+.action-row__done:hover .action-row__done-ring,
+.action-row__done:focus-visible .action-row__done-ring {
+	stroke: var(--color-accent-text);
+}
+
+/* A native <details> used as a floating "more actions" menu, anchored to
+   its own summary button rather than pushed inline — `.item-group`'s
+   `overflow: visible` (see above) is what lets this panel escape the
+   card instead of being clipped. */
+.action-menu {
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.action-menu > summary {
+	list-style: none;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-h);
+	height: var(--control-h);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	font-weight: 700;
+}
+
+.action-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.action-menu__panel {
+	position: absolute;
+	right: 0;
+	top: calc(100% + var(--space-2));
+	z-index: 20;
+	min-width: 10rem;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2);
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	box-shadow: 0 4px 16px var(--color-border-strong);
+}
+
+.action-menu__panel a,
+.action-menu__panel button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	text-align: left;
+	padding: var(--space-2) var(--space-3);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--color-text-body);
+	font-size: var(--text-body);
+	font-weight: 500;
+}
+
+.action-menu__panel button {
+	width: 100%;
+}
+
+.action-menu__panel a:hover,
+.action-menu__panel button:hover,
+.action-menu__panel a:focus-visible,
+.action-menu__panel button:focus-visible {
+	background: var(--color-surface-hover);
+}
+
+.filter-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-bottom: var(--space-5);
+}
+
+.filter-chip {
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-4);
+	border-radius: 999px;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	color: var(--color-text-body);
+	font-size: var(--text-meta);
+	font-weight: 600;
+}
+
+.filter-chip[aria-current='page'] {
+	background: var(--color-inverse-bg);
+	color: var(--color-inverse-fg);
+	border-color: var(--color-inverse-bg);
+}
+
+.undo-notice {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	margin-bottom: var(--space-5);
+	border-radius: var(--radius-md);
+	background: var(--color-accent-soft);
+	color: var(--color-accent-text);
+	flex-wrap: wrap;
+}
+
+.undo-notice p {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Beats `button.link`'s own `min-height: 32px` (same specificity,
+   defined later here in source order) — the undo action needs a real
+   44px target, not the quiet inline-link sizing. */
+button.undo-notice__button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--control-h);
+	min-height: var(--control-h);
 }

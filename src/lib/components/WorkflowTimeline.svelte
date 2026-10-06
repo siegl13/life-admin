@@ -66,7 +66,7 @@
 -->
 <ol class="timeline">
 	{#each steps as { entry, state } (entry.action.id)}
-		<li class="timeline__step timeline__step--{state}">
+		<li class="timeline__step timeline__step--{state}" id="action-{entry.action.id}">
 			<span class="timeline__rail" aria-hidden="true">
 				<span
 					class="timeline__dot"

@@ -49,13 +49,86 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 - Deviations from the original spec, per the user's approved amendments:
   no navigation counts, no sidebar item-area
   list, no Cmd+K (all explicitly deferred). Mobile header integration
-  into each page's own header is deferred to phase 2.
-- Phase 2 (Was steht an) depends on phase 1 acceptance. Reuse the shared
-  navigation snippet and shell CSS after the final checks and review pass.
-  Mobile header integration with the page header belongs to phase 2.
+  into each page's own header is deferred, with no phase assigned yet.
 - Follow-up, outside this change: date and currency formatting still uses
   `de-DE` regardless of UI language. English pages can show dates such as
   "13. Oktober 2026". Make formatting follow the selected UI language separately.
+
+## Phase 2 - What's next redesign
+
+**Status: IMPLEMENTED AND VERIFIED.**
+
+- The root page now splits each Item's available actions by bucket
+  (overdue/ready/future) instead of filing the whole Item under its most
+  urgent one: the same Item can appear in more than one section, each
+  action exactly once. Server-side `?filter=all|overdue|now|later` links
+  show full-working-set action counts and mark the active filter with
+  `aria-current`; an unknown filter falls back to `all`.
+- Each action row has a round "done" control (labelled "Erledigen:
+  `<action>`" for assistive tech) and a native `<details>` "more actions"
+  menu with skip and a link to the action's spot on the item detail page
+  (`#action-<id>`, added to `WorkflowTimeline`). No inline due-date editor
+  on the root page; date changes stay on the item detail page.
+- A shared server-only helper (`src/lib/server/http/actionTransition.ts`)
+  owns parsing, the guarded state transition, history recording, AND the
+  rejected-transition error mapping for the item-detail route, the root
+  route's complete/skip/reopen actions, and the root's cookie-based undo,
+  with one mapping for rejected transitions. The detail route keeps its
+  existing archive check and redirect. The root page also supports reopening (`?/reopenAction`, same
+  itemId+actionId contract as complete/skip): completing an action sets a
+  bounded (120s), httpOnly flash cookie carrying the completed action's
+  own id/label (length-capped, by Unicode code point, so neither a very
+  long nor a multibyte label can grow the cookie past browser limits).
+  The cookie is read-only on every page view until the user clicks
+  "Undo" (which consumes and deletes it) or its 120s `maxAge` elapses.
+  a GET never invalidates the undo a following POST still needs. A
+  rejected or stale undo (already reopened, unknown/deleted action,
+  archived item) renders a clear 400 error instead of a 500. The active
+  `?filter=` is preserved across complete/skip/reopen/undo by carrying it
+  in the form `action` query (navigation state, not a hidden business
+  field) and re-validating it server-side through `parseWhatsNextFilter`
+  before building the post-action redirect.
+  Undo submits the displayed action's identity too. If another tab replaces
+  the cookie, the older notice fails without reopening or consuming the newer
+  action. Matching IDs still pass through the shared guarded transition.
+- Due dates show a relative pill next to the existing exact-date text:
+  "Today"/"In 5 days"/"3 days overdue" etc. for a dated action, and a
+  "Ready now" pill for an undated one, so every row has a pill, not only
+  dated ones. Computed from the server clock's `today` (never the
+  browser's), so hydration cannot disagree with the server-rendered date.
+- Deferred, same as phase 1: mobile header integration, inline due-date
+  editing on this page, swipe actions, Cmd+K, a week strip, app-wide
+  locale-aware date/currency formatting (still `de-DE` regardless of UI
+  language), and the side panel ("this week" / inbox count) the original
+  spec lists for this page. No side panel exists yet and no extra
+  domain/persistence query was added for it.
+- Focused unit tests cover the shared transition helper (guarded
+  rejection, success + history, no history on failure, a post-write
+  history failure still propagating), the undo cookie's size bound
+  (long-ASCII and multibyte labels), the filter/count/section projection
+  (including the mixed-bucket split), and the relative due text
+  (today/tomorrow/yesterday, day counts across month/year boundaries).
+  `tests/e2e/whats-next-redesign.spec.ts` covers the round done/undo
+  flow with JavaScript disabled, a DERIVED action's dependency
+  re-blocking after undo, the native menu's skip and date-change link
+  (landing on a real DERIVED date editor), filter count deltas/unknown-
+  filter fallback/a mismatched-filter empty view, the mixed-section
+  grouping, rendered relative-plus-exact dates, stale/unknown/archived
+  undo attempts, and a populated 375px layout.
+- `npm run verify` passed with 118 test files and 962 tests, no Svelte
+  errors or warnings. The full `npm run test:e2e` suite passed all 130 tests.
+  Fresh-data browser checks passed for empty and long lists in light/dark
+  at 390px and 1280px. No console, page or CSP errors were observed.
+  Filtered-empty and complete/undo journeys also worked without JavaScript.
+  The desktop sidebar reached the document bottom on the long list.
+  Independent review passed. The final English README screenshot was captured
+  after review, with overdue, ready-now and later actions from scratch data.
+- The next ordered redesign phase is phase 3, "Item detail"
+  (`src/routes/items/[id]/+page.svelte`,
+  `WorkflowTimeline.svelte`). Phase 3 is not started. Its stated
+  dependency is this phase's acceptance. Implementation, full verification,
+  browser checks and independent review are complete. Commit and push await
+  approval. Check the separate mobile item-detail work is merged before phase 3.
 
 ## Node 26 runtime metadata
 
