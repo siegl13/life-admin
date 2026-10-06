@@ -337,7 +337,8 @@ test('later rows sort by due date ascending while undated ready actions keep the
 			rowHeights.every((height) => height >= 60 && height <= 76),
 			`${rowHeights}`
 		).toBe(true);
-		const rowGaps = await rows.evaluateAll((elements) => {
+		const allLaterRows = page.locator('section[aria-labelledby="section-2"] .item-group');
+		const rowGaps = await allLaterRows.evaluateAll((elements) => {
 			const boxes = elements.map((element) =>
 				element.querySelector('.action-row')!.getBoundingClientRect()
 			);
