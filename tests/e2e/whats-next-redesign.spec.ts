@@ -180,7 +180,10 @@ test('native menu date-change link reaches the DERIVED action and its own date e
 		const step = page.locator('.timeline__step').filter({
 			has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 		});
-		await expect(step.locator('summary', { hasText: 'Termin ändern' })).toBeVisible();
+		const dueTrigger = step.getByRole('button', { name: 'Termin ändern' });
+		await expect(dueTrigger).toBeVisible();
+		await dueTrigger.click();
+		await expect(step.getByRole('dialog', { name: 'Termin ändern' })).toBeVisible();
 
 		await page.goto('/');
 		const group2 = page.locator('.item-group', { hasText: title });
