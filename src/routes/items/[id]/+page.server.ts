@@ -637,9 +637,19 @@ export const actions: Actions = {
 			);
 		} catch (err) {
 			if (err instanceof InvalidSnoozeDateError)
-				return fail(400, { error: t('items.detail.snoozeInvalidDate') });
+				return fail(400, {
+					error: t('items.detail.snoozeInvalidDate'),
+					context: 'snooze' as const,
+					actionId,
+					snoozedUntil: choice
+				});
 			if (err instanceof IneligibleSnoozeError)
-				return fail(400, { error: t('items.detail.snoozeUnavailable') });
+				return fail(400, {
+					error: t('items.detail.snoozeUnavailable'),
+					context: 'snooze' as const,
+					actionId,
+					snoozedUntil: choice
+				});
 			throw err;
 		}
 		redirect(303, `/items/${params.id}`);
@@ -667,10 +677,20 @@ export const actions: Actions = {
 			setActionDueOverride({ actions: actionsPort }, { itemId: params.id, actionId, dueDate });
 		} catch (err) {
 			if (err instanceof InvalidDueOverrideDateError) {
-				return fail(400, { error: err.message });
+				return fail(400, {
+					error: err.message,
+					context: 'dueOverride' as const,
+					actionId,
+					dueDate
+				});
 			}
 			if (err instanceof ActionNotMutableError) {
-				return fail(400, { error: t('items.detail.actionNotMutable') });
+				return fail(400, {
+					error: t('items.detail.actionNotMutable'),
+					context: 'dueOverride' as const,
+					actionId,
+					dueDate
+				});
 			}
 			throw err;
 		}

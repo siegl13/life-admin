@@ -114,19 +114,27 @@ test('snoozed actions retain overdue context and can be replaced directly', asyn
 	await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
 
 	const step = page.locator('.timeline__step', { hasText: 'Snoozed overdue task' });
+	// Presets stay hidden behind the compact "Später erinnern" trigger row
+	// until opened — never shown alongside Erledigen/Überspringen by
+	// default.
+	await expect(step.getByRole('button', { name: 'Morgen' })).toHaveCount(0);
+	await step.getByRole('button', { name: 'Später erinnern' }).click();
 	await step.getByRole('button', { name: 'Morgen' }).click();
 	await expect(step.getByText('Überfällig seit 1. Januar 2020')).toBeVisible();
 	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
+	await step.getByRole('button', { name: 'Erinnerungsdatum ändern' }).click();
 	await step.getByRole('button', { name: 'In 7 Tagen' }).click();
 	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
 
 	await step.getByRole('button', { name: 'Erinnerung löschen' }).click();
 	await expect(step.getByText('Erneut erinnern am')).toHaveCount(0);
 
+	await step.getByRole('button', { name: 'Später erinnern' }).click();
 	await step.getByRole('button', { name: 'Morgen' }).click();
 	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
 	const maximumSnoozeDate = new Date();
 	maximumSnoozeDate.setDate(maximumSnoozeDate.getDate() + 365);
+	await step.getByRole('button', { name: 'Erinnerungsdatum ändern' }).click();
 	const customDate = step.getByLabel('Anderes Datum');
 	await customDate.fill(maximumSnoozeDate.toISOString().slice(0, 10));
 	await step.getByRole('button', { name: 'Setzen' }).click();
@@ -172,6 +180,9 @@ test('snooze forms submit without JavaScript', async ({ browser }) => {
 		await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
 
 		const step = page.locator('.timeline__step', { hasText: 'No JavaScript task' });
+		// The editor dialog renders statically `open` (no `showModal()` call
+		// ever ran to close it), so it's already visible and usable with no
+		// JavaScript at all — no trigger click needed.
 		await step.getByRole('button', { name: 'Morgen' }).click();
 		await expect(step.getByText('Erneut erinnern am')).toBeVisible();
 	} finally {

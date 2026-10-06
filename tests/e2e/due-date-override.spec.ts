@@ -1,4 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
+
+/**
+ * The due dialog repeats the effective date as "Aktuell: …" (and often
+ * "Vorgeschlagen: …" too), so a plain `step.getByText(date)` is ambiguous
+ * once that dialog exists in the DOM. Scope to the main view's own meta
+ * line — a direct child of `.timeline__body`, never nested inside the
+ * dialog — to keep asserting the one line this suite always meant.
+ */
+function dueMeta(step: Locator, date: string) {
+	return step.locator('.timeline__body > .meta', { hasText: date });
+}
 
 /**
  * "The playbook calculates the default. The user has the final say."
@@ -29,15 +40,15 @@ test('overriding a derived action due date survives a field recalculation and ca
 	const step = page.locator('.timeline__step').filter({
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 	});
-	await expect(step.getByText('1. Dezember 2025')).toBeVisible(); // -1 month, calculated suggestion
+	await expect(dueMeta(step, '1. Dezember 2025')).toBeVisible(); // -1 month, calculated suggestion
 
 	// Override the due date.
-	await step.locator('summary', { hasText: 'Termin ändern' }).click();
+	await step.getByRole('button', { name: 'Termin ändern' }).click();
 	await step.locator('input[name="dueDate"]').fill('2026-01-15');
 	await step.getByRole('button', { name: 'Termin speichern' }).click();
 	await expect(page).toHaveURL(itemUrl);
 
-	await expect(step.getByText('15. Januar 2026')).toBeVisible();
+	await expect(dueMeta(step, '15. Januar 2026')).toBeVisible();
 	await expect(step.getByText('Eigener Termin')).toBeVisible();
 	await expect(step.getByText('Vorschlag: 1. Dezember 2025')).toBeVisible();
 
@@ -49,14 +60,14 @@ test('overriding a derived action due date survives a field recalculation and ca
 	await page.locator('#next_inspection').fill('2026-02-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
-	await expect(step.getByText('15. Januar 2026')).toBeVisible(); // override still effective
+	await expect(dueMeta(step, '15. Januar 2026')).toBeVisible(); // override still effective
 	await expect(step.getByText('Vorschlag: 1. Januar 2026')).toBeVisible(); // new suggestion shown
 
 	// Reset to the (now-current) suggestion.
 	await step.getByRole('button', { name: 'Auf Vorschlag zurücksetzen' }).click();
 	await expect(page).toHaveURL(itemUrl);
 
-	await expect(step.getByText('1. Januar 2026')).toBeVisible();
+	await expect(dueMeta(step, '1. Januar 2026')).toBeVisible();
 	await expect(step.getByText('Eigener Termin')).toHaveCount(0);
 });
 
@@ -87,13 +98,13 @@ test('a future DERIVED action blocked only by a dependency can still have its du
 	// Blocked by the dependency, not by an unresolved date of its own —
 	// its calculated suggestion is already known.
 	await expect(futureStep.getByText('Wartet auf „HU-Termin planen“')).toBeVisible();
-	await expect(futureStep.getByText('18. Dezember 2025')).toBeVisible();
+	await expect(dueMeta(futureStep, '18. Dezember 2025')).toBeVisible();
 
-	await futureStep.locator('summary', { hasText: 'Termin ändern' }).click();
+	await futureStep.getByRole('button', { name: 'Termin ändern' }).click();
 	await futureStep.locator('input[type="date"]').fill('2026-01-20');
 	await futureStep.getByRole('button', { name: 'Termin speichern' }).click();
 
-	await expect(futureStep.getByText('20. Januar 2026')).toBeVisible();
+	await expect(dueMeta(futureStep, '20. Januar 2026')).toBeVisible();
 	await expect(futureStep.getByText('Eigener Termin')).toBeVisible();
 	// Still blocked: an override never changes availability.
 	await expect(futureStep.getByText('Wartet auf „HU-Termin planen“')).toBeVisible();
@@ -128,9 +139,9 @@ test('an archived item cannot have its due-date override changed or reset via a 
 		.getByRole('button', { name: 'Archivieren' })
 		.click();
 	await expect(
-		page.locator('.timeline__step', { hasText: 'HU-Termin planen' }).locator('summary', {
-			hasText: 'Termin ändern'
-		})
+		page
+			.locator('.timeline__step', { hasText: 'HU-Termin planen' })
+			.getByRole('button', { name: 'Termin ändern' })
 	).toHaveCount(0);
 
 	const response = await page.request.post(`${itemUrl}?/setActionDueOverride`, {
