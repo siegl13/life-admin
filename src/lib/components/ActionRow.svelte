@@ -1,19 +1,26 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
-	import { formatDue, formatRelativeDue } from '$lib/ui/format';
+	import { formatDate, formatRelativeDue } from '$lib/ui/format';
 	import type { WhatsNextAction } from '$lib/domain/whatsnext/whatsNext';
 	import type { WhatsNextFilter } from '$lib/ui/whatsNextView';
 
 	let {
 		action,
 		itemId,
+		itemTitle,
 		today,
 		filter
-	}: { action: WhatsNextAction; itemId: string; today: string; filter: WhatsNextFilter } = $props();
+	}: {
+		action: WhatsNextAction;
+		itemId: string;
+		itemTitle: string;
+		today: string;
+		filter: WhatsNextFilter;
+	} = $props();
 
 	let overdue = $derived(action.bucket === 0);
-	let dueText = $derived(formatDue(action.bucket, action.dueDate));
+	let exactDueText = $derived(action.dueDate ? formatDate(action.dueDate) : t('due.noDate'));
 	// Undated (bucket 1, "ready now") actions have no relative distance to
 	// report — they get their own pill text instead, so every row shows a
 	// pill, not just dated ones.
@@ -40,10 +47,9 @@
 </script>
 
 <!--
-	Always rendered inside an ItemGroup (see +page.svelte) — an ActionRow
-	never appears on its own, which is what keeps every action tied to its
-	item. The due text always spells the state out in words; colour only
-	reinforces it.
+Always rendered inside a What's next item-context wrapper (see +page.svelte).
+	The item name remains linked below the task title. Relative and exact due
+	text both remain visible, so colour only reinforces the state.
 -->
 <div class="action-row" class:action-row--overdue={overdue}>
 	<form method="POST" action={completeFormAction} class="action-row__done-form">
@@ -63,8 +69,9 @@
 		<a class="action-row__label" href={resolve('/items/[id]', { id: itemId })}>{action.label}</a>
 		<span class="action-row__due">
 			<span class="due-pill {pillClass}">{pillText}</span>
-			{dueText}
+			{exactDueText}
 		</span>
+		<a class="action-row__item" href={resolve('/items/[id]', { id: itemId })}>{itemTitle}</a>
 	</div>
 	<details class="action-menu">
 		<summary aria-label={t('whatsNext.moreActions', { label: action.label })}>⋯</summary>

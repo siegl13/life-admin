@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatCurrencyDisplay, formatRelativeDue } from './format';
+import { t } from '$lib/i18n';
 
 describe('formatCurrencyDisplay', () => {
 	it('renders a stored EUR value in German locale format', () => {
@@ -36,5 +37,12 @@ describe('formatRelativeDue', () => {
 	it('counts days overdue, including across a year boundary', () => {
 		expect(formatRelativeDue('2026-06-10', today)).toBe('5 Tage überfällig');
 		expect(formatRelativeDue('2025-12-31', '2026-01-02')).toBe('2 Tage überfällig');
+	});
+});
+
+describe("What's next exact due date text", () => {
+	it('shows only the exact date or No date, without a repeated state prefix', () => {
+		expect(t('due.noDate')).toBe('Ohne Datum');
+		expect(t('due.noDateAnytime')).toBe('Ohne Datum');
 	});
 });

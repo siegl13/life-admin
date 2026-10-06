@@ -344,7 +344,7 @@ export const en: Record<TranslationKey, string> = {
 	'settings.system.version': 'Version',
 	'settings.system.build': 'Build',
 	'due.overdueSince': 'Overdue since {date}',
-	'due.noDateAnytime': 'No date — anytime',
+	'due.noDateAnytime': 'No date',
 	'due.dueOn': 'Due {date}',
 	'due.noDate': 'No date',
 	'due.relative.today': 'Today',

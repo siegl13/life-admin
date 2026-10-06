@@ -54,7 +54,9 @@ export interface WhatsNextSection {
 }
 
 /**
- * Splits groups into per-bucket sections. In the `all` filter every
+ * Splits groups into per-bucket sections and sorts dated actions by
+ * ascending due date. Undated actions retain their working-set order
+ * after the dated actions. In the `all` filter every
  * bucket is its own section, and the SAME Item can appear in more than
  * one section — once per bucket it has actions in, each action exactly
  * once, always inside its Item's group — because this is a deliberate
@@ -68,13 +70,21 @@ export function projectWhatsNextSections(
 	filter: WhatsNextFilter
 ): WhatsNextSection[] {
 	const buckets: WhatsNextBucket[] = filter === 'all' ? [0, 1, 2] : [BUCKET_OF_FILTER[filter]];
-	return buckets.map((bucket) => ({
-		bucket,
-		groups: groups
-			.map((group) => ({
-				...group,
-				actions: group.actions.filter((action) => action.bucket === bucket)
-			}))
-			.filter((group) => group.actions.length > 0)
-	}));
+	return buckets.map((bucket) => {
+		const rows = groups.flatMap((group) =>
+			group.actions
+				.filter((action) => action.bucket === bucket)
+				.map((action) => ({ group, action }))
+		);
+		rows.sort((left, right) => {
+			if (left.action.dueDate === null) return right.action.dueDate === null ? 0 : 1;
+			if (right.action.dueDate === null) return -1;
+			return left.action.dueDate.localeCompare(right.action.dueDate);
+		});
+
+		return {
+			bucket,
+			groups: rows.map(({ group, action }) => ({ ...group, actions: [action] }))
+		};
+	});
 }

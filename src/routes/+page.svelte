@@ -1,6 +1,5 @@
 <script lang="ts">
 	import ActionRow from '$lib/components/ActionRow.svelte';
-	import ItemGroup from '$lib/components/ItemGroup.svelte';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
 	import type { TranslationKey } from '$lib/i18n/de';
@@ -90,18 +89,17 @@
 							})}
 						</span>
 					</h2>
-					<div class="section__actions">
-						{#each section.groups as group (group.itemId)}
-							<ItemGroup itemId={group.itemId} title={group.title} overdue={section.bucket === 0}>
-								{#each group.actions as action (action.actionId)}
-									<ActionRow
-										{action}
-										itemId={group.itemId}
-										today={data.today}
-										filter={data.filter}
-									/>
-								{/each}
-							</ItemGroup>
+					<div class="section__actions section__actions--whats-next">
+						{#each section.groups as group (group.actions[0].actionId)}
+							<article class="item-group">
+								<ActionRow
+									action={group.actions[0]}
+									itemId={group.itemId}
+									itemTitle={group.title}
+									today={data.today}
+									filter={data.filter}
+								/>
+							</article>
 						{/each}
 					</div>
 				</section>

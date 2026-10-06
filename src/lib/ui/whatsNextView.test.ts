@@ -70,6 +70,36 @@ describe('projectWhatsNextSections', () => {
 		}
 	);
 
+	it('sorts dated actions by due date and leaves undated ready actions in their original order', () => {
+		const input: WhatsNextGroup[] = [
+			{
+				itemId: 'later-item',
+				title: 'Later item',
+				actions: [
+					{ actionId: 'late', label: 'Later', dueDate: '2026-09-01', bucket: 2 },
+					{ actionId: 'ready-1', label: 'Ready 1', dueDate: null, bucket: 1 },
+					{ actionId: 'soon', label: 'Soon', dueDate: '2026-06-20', bucket: 2 },
+					{ actionId: 'ready-2', label: 'Ready 2', dueDate: null, bucket: 1 }
+				]
+			},
+			{
+				itemId: 'middle-item',
+				title: 'Middle item',
+				actions: [{ actionId: 'middle', label: 'Middle', dueDate: '2026-07-01', bucket: 2 }]
+			}
+		];
+		const sections = projectWhatsNextSections(input, 'all');
+		expect(sections[2].groups.map((group) => group.actions[0].actionId)).toEqual([
+			'soon',
+			'middle',
+			'late'
+		]);
+		expect(sections[1].groups.map((group) => group.actions[0].actionId)).toEqual([
+			'ready-1',
+			'ready-2'
+		]);
+	});
+
 	it('every action from a mixed item appears exactly once across all "all" sections', () => {
 		const sections = projectWhatsNextSections(groups, 'all');
 		const allActionIds = sections.flatMap((s) =>

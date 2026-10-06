@@ -96,6 +96,10 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   "Ready now" pill for an undated one, so every row has a pill, not only
   dated ones. Computed from the server clock's `today` (never the
   browser's), so hydration cannot disagree with the server-rendered date.
+- Dated actions sort by due date within each bucket, oldest first. Undated
+  ready actions keep their existing order. What's next now uses one compact
+  row per action, with its linked Item name below the task title. Dates are
+  shown once as a relative pill and exact date; undated actions say "No date".
 - Deferred, same as phase 1: mobile header integration, inline due-date
   editing on this page, swipe actions, Cmd+K, a week strip, app-wide
   locale-aware date/currency formatting (still `de-DE` regardless of UI

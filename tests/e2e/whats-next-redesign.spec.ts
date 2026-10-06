@@ -68,6 +68,12 @@ async function chipCount(page: Page, name: RegExp): Promise<number> {
 	return Number(text!.match(/\((\d+)\)/)![1]);
 }
 
+function dateInDays(days: number): string {
+	const date = new Date();
+	date.setUTCDate(date.getUTCDate() + days);
+	return date.toISOString().slice(0, 10);
+}
+
 test('round done control completes the action, offers undo, and both work with JavaScript disabled', async ({
 	browser
 }) => {
@@ -274,11 +280,73 @@ test('the rendered due text shows both the relative pill and the exact date, inc
 		await page.goto('/');
 		const datedRow = page.locator('.action-row', { hasText: 'Has a due date' });
 		await expect(datedRow.locator('.due-pill')).toBeVisible();
-		await expect(datedRow).toContainText('Überfällig seit 1. Januar 2020');
+		await expect(datedRow).toContainText('1. Januar 2020');
+		await expect(datedRow).not.toContainText('Überfällig seit');
 
 		const undatedRow = page.locator('.action-row', { hasText: 'No due date at all' });
 		await expect(undatedRow.locator('.due-pill')).toHaveText('Jetzt möglich');
-		await expect(undatedRow).toContainText('Ohne Datum — jederzeit möglich');
+		await expect(undatedRow).toContainText('Ohne Datum');
+		await expect(undatedRow).not.toContainText('jederzeit');
+	} finally {
+		await archiveItem(page, itemId);
+	}
+});
+
+test('later rows sort by due date ascending while undated ready actions keep their order', async ({
+	page
+}) => {
+	const title = `Sorted rows ${Date.now()}`;
+	const itemId = await createGenericItem(page, title);
+	try {
+		await addManualAction(page, 'Due in sixty days', dateInDays(60));
+		await addManualAction(page, 'Due in four days', dateInDays(4));
+		await addManualAction(page, 'Ready first');
+		await addManualAction(page, 'Ready second');
+		await page.goto('/');
+
+		const ownItem = page.getByRole('link', { name: title, exact: true });
+		const rows = page
+			.locator('section[aria-labelledby="section-2"] .item-group')
+			.filter({ has: ownItem });
+		const actual: string[] = [];
+		for (const row of await rows.all()) {
+			actual.push((await row.locator('.action-row__label').textContent())!.trim());
+		}
+		expect(actual.slice(0, 2)).toEqual(['Due in four days', 'Due in sixty days']);
+
+		const readyRows = page
+			.locator('section[aria-labelledby="section-1"] .item-group')
+			.filter({ has: ownItem });
+		const readyLabels: string[] = [];
+		for (const row of await readyRows.all()) {
+			if (await row.getByRole('link', { name: title, exact: true }).count()) {
+				readyLabels.push((await row.locator('.action-row__label').textContent())!.trim());
+			}
+		}
+		expect(readyLabels).toEqual(['Ready first', 'Ready second']);
+
+		for (const row of await rows.all()) {
+			await expect(row.locator('.action-row__item')).toHaveText(title);
+		}
+		const rowHeights = await rows.evaluateAll((elements) =>
+			elements.map(
+				(element) => element.querySelector('.action-row')!.getBoundingClientRect().height
+			)
+		);
+		expect(
+			rowHeights.every((height) => height >= 60 && height <= 72),
+			`${rowHeights}`
+		).toBe(true);
+		const rowGaps = await rows.evaluateAll((elements) => {
+			const boxes = elements.map((element) =>
+				element.querySelector('.action-row')!.getBoundingClientRect()
+			);
+			return boxes.slice(1).map((box, index) => box.top - boxes[index].bottom);
+		});
+		expect(
+			rowGaps.every((gap) => gap <= 1),
+			`${rowGaps}`
+		).toBe(true);
 	} finally {
 		await archiveItem(page, itemId);
 	}
@@ -316,7 +384,7 @@ test('stale or invalid undo attempts are refused with a rendered 400, never a 50
 		await expect(page.locator('.undo-notice')).toBeVisible(); // stale notice still rendered
 		await page.locator('.undo-notice').getByRole('button', { name: 'Rückgängig' }).click();
 		await expect(page.locator('.form-error')).toBeVisible();
-		await expect(page.locator('.item-group', { hasText: title })).toBeVisible(); // state unchanged
+		await expect(page.locator('.item-group', { hasText: title })).toHaveCount(2); // state unchanged
 
 		// 3) An undo cookie naming an unknown/deleted action id.
 		await page.context().addCookies([

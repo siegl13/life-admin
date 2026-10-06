@@ -355,7 +355,7 @@ export const de = {
 	'settings.system.version': 'Version',
 	'settings.system.build': 'Build',
 	'due.overdueSince': 'Überfällig seit {date}',
-	'due.noDateAnytime': 'Ohne Datum — jederzeit möglich',
+	'due.noDateAnytime': 'Ohne Datum',
 	'due.dueOn': 'Fällig am {date}',
 	'due.noDate': 'Ohne Datum',
 	'due.relative.today': 'Heute',

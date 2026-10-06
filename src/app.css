@@ -746,15 +746,6 @@ a.app-sidebar-primary,
 	overflow: visible;
 }
 
-.item-group--overdue {
-	border-left: 3px solid var(--color-danger);
-}
-
-.item-group__context {
-	padding: var(--space-3) var(--space-5) 0;
-	font-size: var(--text-body);
-}
-
 .item-group__context a {
 	font-weight: 600;
 	color: var(--color-text);
@@ -771,12 +762,41 @@ a.app-sidebar-primary,
 	grid-template-columns: var(--control-h) minmax(0, 1fr) var(--control-h);
 	align-items: center;
 	gap: var(--space-2);
-	padding: var(--space-2) var(--space-5) var(--space-4);
+	min-height: 68px;
+	padding: 2px var(--space-3);
 }
 
 .action-row + .action-row {
-	padding-top: var(--space-4);
 	border-top: 1px solid var(--color-hairline);
+}
+
+.section__actions--whats-next {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: visible;
+}
+
+.section__actions--whats-next > .item-group {
+	display: contents;
+}
+
+.section__actions--whats-next .action-row {
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--color-hairline);
+	border-radius: 0;
+}
+
+.section__actions--whats-next > .item-group:first-child .action-row {
+	border-top: 1px solid var(--color-hairline);
+}
+
+.section__actions--whats-next > .item-group:last-child .action-row {
+	border-bottom: 0;
 }
 
 .action-row__text {
@@ -788,14 +808,22 @@ a.app-sidebar-primary,
 
 .action-row__label {
 	font-size: var(--text-action);
+	line-height: 1.2;
 	font-weight: 600;
 	color: var(--color-text);
 	text-wrap: pretty;
 	overflow-wrap: anywhere;
 }
 
+.action-row__item {
+	font-size: var(--text-meta);
+	line-height: 1.3;
+	color: var(--color-text-faint);
+}
+
 .action-row__due {
 	font-size: var(--text-meta);
+	line-height: 1.2;
 	color: var(--color-text-muted);
 	font-variant-numeric: tabular-nums;
 }
@@ -2400,6 +2428,11 @@ mark {
 
 	.search-page input {
 		font-size: 16px;
+	}
+
+	.section__actions--whats-next .action-row {
+		padding-left: var(--space-3);
+		padding-right: var(--space-3);
 	}
 
 	.item-group__context,
