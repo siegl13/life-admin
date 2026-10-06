@@ -28,18 +28,23 @@ Never rebuild an accepted candidate for release.
 
 ## 1. Prepare release
 
-1. Choose the target version (e.g. `0.1.0-beta.1`).
-2. Create a release preparation branch from `main`.
-3. Update `package.json` version to the target version.
-4. Run `npm install` to update `package-lock.json` consistently.
-5. **Finalize the CHANGELOG:**
-   - Move relevant "Unreleased" content into a new section with the target
-     version.
-   - Add the release date when appropriate.
+1. Choose the target version (e.g. `0.1.0-beta.2`).
+2. From a clean worktree, run the preparation helper:
+
+   ```bash
+   scripts/prepare-release.sh 0.1.0-beta.2
+   ```
+
+   It updates `main`, creates `release/<version>`, and updates `package.json`
+   and `package-lock.json`. It does not commit, push, or open a PR.
+
+3. **Finalize the CHANGELOG** at the path printed by the helper:
+   - Add a dated section for the target version.
    - Include user/admin-facing changes, not raw commit messages.
-6. Open a PR against `main`.
-7. Pass all Quality Gates (see below).
-8. Merge to `main`.
+4. Run `npm run verify` and `npm run test:e2e`.
+5. Commit `package.json`, `package-lock.json`, and `CHANGELOG.md`, then push the
+   release branch and open a PR against `main`.
+6. Pass all Quality Gates (see below) and merge to `main`.
 
 ## 2. Build candidate
 
@@ -116,15 +121,19 @@ immutable `git-<sha>` reference.
 Once staging acceptance passes:
 
 1. Verify the exact tested commit is on `main`.
-2. Create a protected Git tag on that commit:
+2. Run the release tag helper with the version and full commit SHA:
 
    ```bash
-   git tag v0.1.0-beta.1
-   git push origin v0.1.0-beta.1
+   VERSION="0.1.0-beta.2"
+   RELEASE_SHA="FULL_SHA_OF_ACCEPTED_CANDIDATE"
+   scripts/tag-release.sh "$VERSION" "$RELEASE_SHA"
    ```
 
-Creating and pushing the tag is the explicit human release approval. No
-release is published without this deliberate step.
+The script checks the package version, changelog entry, `main` ancestry,
+candidate image, and tag immutability. It asks for the exact tag before creating
+and pushing it. That confirmation is the explicit human release approval. The
+script does not build or publish an image. Docker must already be logged in to
+GHCR so the helper can verify the private candidate image.
 
 ## 7. Release workflow
 
@@ -200,8 +209,9 @@ For the first release, use a prerelease version:
 
 This exercises the full flow without marking a stable release.
 
-The CHANGELOG currently has an "Unreleased" section for `0.1.0-beta`. When
-preparing this release, rename it to `0.1.0-beta.1` and add the release date.
+For each release, add a dated version section to `CHANGELOG.md` before building
+the candidate. Keep the changelog section, package version, candidate commit,
+and release tag aligned.
 
 ---
 
