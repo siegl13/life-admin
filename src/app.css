@@ -59,8 +59,13 @@
 	--form-max: 560px;
 
 	/* --- Typografie --- */
-	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-	--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	/* Geist is bundled via @fontsource (see +layout.svelte), never loaded
+	   from a third-party host: the app is self-hosted and the CSP only
+	   allows font-src 'self'. */
+	--font-sans:
+		'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+		sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	--text-page: 1.5rem;
 	--text-section: 1.1875rem;
 	--text-action: 1.03rem;
