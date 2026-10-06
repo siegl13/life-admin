@@ -272,31 +272,31 @@ code {
 	padding: var(--space-2) var(--space-3);
 }
 
-.app-topbar {
-	background: var(--color-surface);
-	border-bottom: 1px solid var(--color-border);
-}
-
-.app-topbar__inner {
-	max-width: var(--content-max);
-	margin: 0 auto;
-	padding: 0 var(--space-5);
-	min-height: 60px;
+/* Two layouts only: a non-sticky left sidebar at >=768px, a mobile header
+   with a bottom tab bar and a floating create button below that. No
+   intermediate stacked-sidebar layout in between. */
+.app-shell-root {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-5);
-	flex-wrap: nowrap;
+	align-items: stretch;
 }
 
-.app-topbar__inner > .button {
-	min-height: var(--control-h);
+.app-sidebar {
+	flex: 0 0 248px;
+	min-height: 100svh;
+	box-sizing: border-box;
+	padding: var(--space-6) var(--space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	border-right: 1px solid var(--color-border);
+	background: var(--color-sidebar);
 }
 
 .app-brand {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
+	padding: 0 var(--space-2);
 	font-size: 0.9375rem;
 	font-weight: 600;
 	color: var(--color-text);
@@ -315,90 +315,345 @@ code {
 	background: var(--color-accent);
 }
 
-.app-nav {
+.app-sidebar-search {
 	display: flex;
-	flex: none;
-	gap: var(--space-5);
-	font-size: var(--text-body);
-}
-
-.topbar-search-link {
-	flex: none;
-	margin-left: auto;
-	display: inline-flex;
 	align-items: center;
-	width: var(--control-h);
-	height: var(--control-h);
-	justify-content: center;
-	border: 1px solid transparent;
-	border-radius: var(--radius-sm);
-	color: var(--color-text);
-	white-space: nowrap;
+	gap: var(--space-3);
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text-muted);
 }
 
-.topbar-search-link svg {
+.app-sidebar-search svg {
+	flex: none;
 	fill: none;
 	stroke: currentColor;
 	stroke-width: 1.8;
 	stroke-linecap: round;
 }
 
-.topbar-search-link:hover {
-	background: var(--color-surface-hover);
-	border-color: var(--color-border);
+.app-sidebar-search:hover {
+	color: var(--color-text);
 	text-decoration: none;
 }
 
-.topbar-logout {
-	flex: none;
+.app-nav {
 	display: flex;
-	align-items: center;
-	padding-left: var(--space-4);
-	border-left: 1px solid var(--color-border);
-}
-
-.topbar-logout button {
-	min-height: var(--control-h);
-	padding: 0;
-	border: 0;
-	background: none;
-	color: var(--color-text-muted);
-	font-weight: 500;
-}
-
-.topbar-logout button:hover {
-	border: 0;
-	background: none;
-	color: var(--color-text);
+	flex-direction: column;
+	gap: 2px;
+	font-size: var(--text-body);
 }
 
 .app-nav a {
-	color: var(--color-text-muted);
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border-radius: var(--radius-md);
+	color: var(--color-text-body);
 	font-weight: 500;
-	padding: var(--space-5) 0 calc(var(--space-5) - 2px);
-	border-bottom: 2px solid transparent;
+}
+
+.app-nav svg,
+.app-tabbar svg,
+.app-sidebar-footer svg,
+.app-account-menu__panel svg {
+	flex: none;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
 }
 
 .app-nav a:hover {
 	color: var(--color-text);
+	background: var(--color-surface-hover);
 	text-decoration: none;
 }
 
 .app-nav a[aria-current='page'] {
 	color: var(--color-text);
-	font-weight: 600;
-	border-bottom-color: var(--color-accent);
+	background: var(--color-surface);
+	box-shadow: 0 0 0 1px var(--color-border);
+}
+
+/* Beats .button's min-height: 40px (same specificity, defined later in
+   this file) so the primary create link keeps a 44px touch target. */
+a.app-sidebar-primary {
+	justify-content: flex-start;
+	min-height: var(--control-h);
+}
+
+.app-sidebar-footer {
+	margin-top: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--color-border);
+}
+
+.app-sidebar-footer a,
+.app-sidebar-footer button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text-muted);
+	font-weight: 500;
+	text-align: left;
+}
+
+.app-sidebar-footer a:hover,
+.app-sidebar-footer button:hover {
+	color: var(--color-text);
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-mobile-header {
+	display: none;
+}
+
+.app-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-h);
+	height: var(--control-h);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text);
+	cursor: pointer;
+}
+
+.app-icon-button svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+}
+
+.app-icon-button:hover {
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-account-menu {
+	position: relative;
+}
+
+.app-account-menu summary {
+	list-style: none;
+}
+
+.app-account-menu summary::-webkit-details-marker {
+	display: none;
+}
+
+.app-account-menu__panel {
+	position: absolute;
+	top: calc(100% + var(--space-2));
+	right: 0;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 10rem;
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	box-shadow: 0 10px 30px var(--color-border);
+}
+
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--color-text-body);
+	font-weight: 500;
+	text-align: left;
+}
+
+.app-account-menu__panel a:hover,
+.app-account-menu__panel button:hover {
+	color: var(--color-text);
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-sidebar-search,
+.app-nav a,
+a.app-sidebar-primary,
+.app-sidebar-footer a,
+.app-sidebar-footer button,
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	font-size: var(--text-body);
+	font-weight: 500;
+	line-height: 1.5;
+	min-height: var(--control-h);
+}
+
+.app-sidebar-footer a,
+.app-sidebar-footer button,
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	gap: var(--space-3);
 }
 
 .app-shell {
+	flex: 1 1 auto;
+	min-width: 0;
 	max-width: var(--content-max);
 	margin: 0 auto;
 	padding: var(--space-7) var(--space-5) var(--space-8);
 }
 
-/* Mobile Tab-Leiste: gleiche Ziele wie die Topbar-Navigation. */
+.app-fab {
+	display: none;
+}
+
+.app-fab svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+}
+
+/* Mobile tab bar: the same four destinations as the sidebar. */
 .app-tabbar {
 	display: none;
+}
+
+/* Below 768px: sidebar gives way to a thin header, a bottom tab bar and a
+   floating create button. Exactly two layouts, no intermediate stacked
+   sidebar in between. */
+@media (max-width: 767px) {
+	:root {
+		/* The floating create button sits above the tab bar, so it is the
+		   taller of the two: this is its top edge's distance from the
+		   bottom of the viewport, used wherever bottom space must be
+		   reserved so neither control covers page content. */
+		--mobile-floating-reserve: calc(
+			60px + env(safe-area-inset-bottom) + var(--space-3) + 56px + var(--space-3)
+		);
+	}
+
+	/* Without this, scrolling a focused control into view (keyboard focus,
+	   in-page anchors) can align it flush with the bottom of the layout
+	   viewport, which the browser doesn't know is covered by the fixed
+	   tab bar and create button. scroll-padding-bottom makes it reserve
+	   that space for any scroll-into-view, not just the end of the
+	   document. */
+	html {
+		scroll-padding-bottom: var(--mobile-floating-reserve);
+	}
+
+	.app-shell-root {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.app-sidebar {
+		display: none;
+	}
+
+	.app-mobile-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.app-mobile-header__actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.app-shell {
+		max-width: none;
+		margin: 0;
+		padding: var(--space-5) var(--space-4) var(--mobile-floating-reserve);
+	}
+
+	.app-tabbar {
+		display: flex;
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding-bottom: env(safe-area-inset-bottom);
+		background: var(--color-surface);
+		border-top: 1px solid var(--color-border);
+		z-index: 5;
+	}
+
+	.app-tabbar a {
+		flex: 1;
+		min-height: 60px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 2px;
+		padding: 0 2px;
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--color-text-muted);
+		border-top: 2px solid transparent;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	.app-tabbar a:hover {
+		text-decoration: none;
+	}
+
+	.app-tabbar a[aria-current='page'] {
+		color: var(--color-accent);
+		font-weight: 600;
+		border-top-color: var(--color-accent);
+	}
+
+	.app-fab {
+		display: flex;
+		position: fixed;
+		right: var(--space-4);
+		bottom: calc(60px + env(safe-area-inset-bottom) + var(--space-3));
+		width: 56px;
+		height: 56px;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-xl);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		box-shadow: 0 8px 20px var(--color-border-strong);
+		z-index: 6;
+	}
+
+	.app-fab:hover {
+		background: var(--color-accent-hover);
+		text-decoration: none;
+	}
 }
 
 /* ------------------------------------------------------------ typography */
@@ -2141,76 +2396,8 @@ mark {
 		--text-page: 1.3125rem;
 	}
 
-	.app-topbar__inner {
-		padding: 0 var(--space-4);
-		min-height: 56px;
-		gap: var(--space-2);
-	}
-
-	.app-topbar__inner > .button {
-		padding-left: var(--space-2);
-		padding-right: var(--space-2);
-	}
-
-	/* Navigation wandert nach unten in Reichweite des Daumens. */
-	.app-nav {
-		display: none;
-	}
-
-	.topbar-search-link {
-		min-width: 44px;
-		min-height: 44px;
-		padding: 0;
-		justify-content: center;
-		border-color: var(--color-border-strong);
-	}
-	.app-brand {
-		font-size: 0;
-		gap: 0;
-	}
-
-	.topbar-logout {
-		padding-left: var(--space-2);
-	}
 	.search-page input {
 		font-size: 16px;
-	}
-
-	.app-shell {
-		padding: var(--space-5) var(--space-4) calc(60px + var(--space-7));
-	}
-
-	.app-tabbar {
-		display: flex;
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: var(--color-surface);
-		border-top: 1px solid var(--color-border);
-	}
-
-	.app-tabbar a {
-		flex: 1;
-		min-height: 60px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: var(--text-meta);
-		font-weight: 500;
-		color: var(--color-text-muted);
-		border-top: 2px solid transparent;
-		text-align: center;
-	}
-
-	.app-tabbar a:hover {
-		text-decoration: none;
-	}
-
-	.app-tabbar a[aria-current='page'] {
-		color: var(--color-accent);
-		font-weight: 600;
-		border-top-color: var(--color-accent);
 	}
 
 	.item-group__context,

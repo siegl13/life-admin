@@ -7,6 +7,7 @@ import type { TranslationKey } from './de';
  * refactor. Keep every key from de.ts in sync with this file.
  */
 export const en: Record<TranslationKey, string> = {
+	'nav.brand': 'Life Admin',
 	'nav.whatsNext': "What's next",
 	'nav.upcoming': 'Upcoming',
 	'nav.items': 'Items',
@@ -64,6 +65,7 @@ export const en: Record<TranslationKey, string> = {
 	'nav.settings': 'Settings',
 	'nav.label': 'Main navigation',
 	'nav.labelMobile': 'Navigation',
+	'nav.account': 'Account',
 	'nav.skipToContent': 'Skip to content',
 
 	'whatsNext.title': "What's next",

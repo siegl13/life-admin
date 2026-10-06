@@ -9,6 +9,54 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## UI redesign phase 1 - App shell
+
+**Status: IMPLEMENTED AND VERIFIED.**
+
+- Scope: responsive application navigation. Desktop gets a non-sticky left
+  sidebar (brand, search link, four destinations, primary create link,
+  Settings and sign-out) at >=768px. Below 768px: a thin mobile header
+  (search icon, Settings icon, native `<details>` account menu with a
+  POST sign-out form), a four-destination bottom tab bar, and a floating
+  create button (hidden on `/items/new`, where it would sit on the
+  form's own submit button). Exactly two layouts; no intermediate
+  stacked-sidebar state. No page content redesign (deferred to later
+  phases).
+- `--mobile-floating-reserve` (shared by `.app-shell`'s bottom padding
+  and `scroll-padding-bottom`) keeps the tab bar and create button clear
+  of every field and submit control, including mid-page controls
+  scrolled into view and the full-page bottom scroll, verified in
+  `tests/e2e/app-shell.spec.ts` across `/items/new`, `/settings`, a
+  populated item detail page, and both inbox destinations, with both
+  rectangle-overlap and pointer hit-test assertions.
+- After the sidebar-height correction, `npm run verify` passed (936 unit
+  tests across 115 files, no Svelte errors or warnings). The full
+  `npm run test:e2e` suite passed all 120 tests including setup and the new
+  long-page sidebar regression. Initial built-app browser checks: 32
+  route/theme/viewport checks (all seven top-level routes plus a
+  generated item detail page, light/dark, 390px/1280px), plus 375/767/768
+  boundary checks, zero console, page, or CSP errors.
+- README screenshots show the English interface with fictional Items,
+  tasks and populated details. Sample data is created only in a scratch
+  data directory. Unreferenced shell screenshots were removed.
+- Sidebar entries and mobile account-menu rows use the same text size,
+  weight and control height. Settings and Sign out have matching icons.
+  Current Light/Dark browser checks at 1280px and 390px confirmed uniform
+  typography, 44px rows, no horizontal overflow and no console or CSP errors.
+- The desktop sidebar stretches to the full document height. Its background
+  and border continue to the page bottom. Settings and Sign out stay at the
+  sidebar bottom. The sidebar remains in normal flow, without sticky positioning.
+- Deviations from the original spec, per the user's approved amendments:
+  no navigation counts, no sidebar item-area
+  list, no Cmd+K (all explicitly deferred). Mobile header integration
+  into each page's own header is deferred to phase 2.
+- Phase 2 (Was steht an) depends on phase 1 acceptance. Reuse the shared
+  navigation snippet and shell CSS after the final checks and review pass.
+  Mobile header integration with the page header belongs to phase 2.
+- Follow-up, outside this change: date and currency formatting still uses
+  `de-DE` regardless of UI language. English pages can show dates such as
+  "13. Oktober 2026". Make formatting follow the selected UI language separately.
+
 ## Node 26 runtime metadata
 
 **Status: VERIFICATION PASSED.**

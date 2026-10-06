@@ -253,17 +253,19 @@ test('document rows remain usable without horizontal overflow at mobile boundari
 		.getByRole('button', { name: 'Hinzufügen' })
 		.click();
 
-	for (const width of [375, 640]) {
+	for (const width of [375, 767]) {
 		await page.setViewportSize({ width, height: 800 });
-		await expect(page.locator('.app-topbar .button')).toHaveCount(1);
-		await expect(page.locator('.topbar-search-link')).toHaveAccessibleName('Suchen');
-		await expect(page.locator('.topbar-search-link')).toHaveText('');
-		await expect(page.locator('.topbar-logout')).toHaveAttribute('method', 'POST');
+		await expect(page.getByRole('link', { name: 'Neues Element' })).toHaveCount(1);
+		await expect(page.getByRole('link', { name: 'Suchen' })).toHaveAccessibleName('Suchen');
+		await expect(page.getByRole('link', { name: 'Suchen' })).toHaveText('');
+		await expect(page.locator('.app-account-menu form')).toHaveAttribute('method', 'POST');
 		expect(
 			await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth),
 			`page must not overflow at ${width}px`
 		).toBe(true);
-		const targets = page.locator('.app-topbar a, .app-topbar button, .document-row a');
+		const targets = page.locator(
+			'.app-mobile-header a, .app-mobile-header summary, .app-fab, .document-row a'
+		);
 		for (let index = 0; index < (await targets.count()); index++) {
 			const box = await targets.nth(index).boundingBox();
 			if (box) expect(box.height).toBeGreaterThanOrEqual(44);

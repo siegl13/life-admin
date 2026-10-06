@@ -65,6 +65,13 @@ hostname, a different port, a reverse proxy), you must set `ORIGIN` in
 - Optional AI-assisted document field extraction (off by default)
 - Optional notifications via ntfy or Slack (off by default)
 
+On screens at least 768px wide, the sidebar links to What's Next, Upcoming,
+Items and Inbox. Search, New Item, Settings and Sign out are also in the sidebar.
+On smaller screens, four bottom tabs provide navigation. Search and Settings
+are in the header. The account menu contains Sign out. The floating plus opens
+New Item and is hidden on the new-item form. Navigation and sign out work
+without JavaScript.
+
 ## Key concepts
 
 - **Item**: the thing you're tracking. Example: "NV-Bescheinigung Max",

@@ -9,6 +9,7 @@
  * in the explicitly technical part of Settings.
  */
 export const de = {
+	'nav.brand': 'Life Admin',
 	'nav.whatsNext': 'Was steht an',
 	'nav.upcoming': 'Demnächst',
 	'nav.items': 'Elemente',
@@ -67,6 +68,7 @@ export const de = {
 	'nav.settings': 'Einstellungen',
 	'nav.label': 'Hauptnavigation',
 	'nav.labelMobile': 'Navigation',
+	'nav.account': 'Konto',
 	'nav.skipToContent': 'Zum Inhalt springen',
 
 	'whatsNext.title': 'Was steht an',
