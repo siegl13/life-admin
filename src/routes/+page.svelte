@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
 	import type { TranslationKey } from '$lib/i18n/de';
-	import type { WhatsNextFilter } from '$lib/ui/whatsNextView';
+	import { formatWhatsNextSectionCount, type WhatsNextFilter } from '$lib/ui/whatsNextView';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -84,9 +84,9 @@
 					>
 						<span>{SECTION_LABEL[section.bucket]}</span>
 						<span class="section__label__count">
-							{t('whatsNext.sectionCount', {
-								count: String(section.groups.reduce((n, g) => n + g.actions.length, 0))
-							})}
+							{formatWhatsNextSectionCount(
+								section.groups.reduce((n, g) => n + g.actions.length, 0)
+							)}
 						</span>
 					</h2>
 					<div class="section__actions section__actions--whats-next">

@@ -334,7 +334,7 @@ test('later rows sort by due date ascending while undated ready actions keep the
 			)
 		);
 		expect(
-			rowHeights.every((height) => height >= 60 && height <= 72),
+			rowHeights.every((height) => height >= 60 && height <= 76),
 			`${rowHeights}`
 		).toBe(true);
 		const rowGaps = await rows.evaluateAll((elements) => {

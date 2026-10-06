@@ -1,4 +1,5 @@
 import type { WhatsNextBucket, WhatsNextGroup } from '$lib/domain/whatsnext/whatsNext';
+import { t } from '$lib/i18n';
 
 /**
  * Presentation-only projection of the What's Next working set for the
@@ -29,6 +30,11 @@ export interface WhatsNextCounts {
 	overdue: number;
 	now: number;
 	later: number;
+}
+
+export function formatWhatsNextSectionCount(count: number): string {
+	const key = count === 1 ? 'whatsNext.sectionCount.one' : 'whatsNext.sectionCount.other';
+	return t(key, { count: String(count) });
 }
 
 /** Counts ACTIONS (not Items) across the full, unfiltered working set —

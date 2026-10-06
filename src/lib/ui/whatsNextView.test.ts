@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
 	countWhatsNextActions,
+	formatWhatsNextSectionCount,
 	parseWhatsNextFilter,
 	projectWhatsNextSections
 } from './whatsNextView';
 import type { WhatsNextGroup } from '$lib/domain/whatsnext/whatsNext';
+import { setLocaleProvider } from '$lib/i18n';
 
 const groups: WhatsNextGroup[] = [
 	{
@@ -26,6 +28,28 @@ const groups: WhatsNextGroup[] = [
 		actions: [{ actionId: 'a4', label: 'Future task', dueDate: '2099-01-01', bucket: 2 }]
 	}
 ];
+
+afterEach(() => setLocaleProvider(() => 'de'));
+
+describe('formatWhatsNextSectionCount', () => {
+	it.each([
+		{ count: 0, expected: '0 Aufgaben' },
+		{ count: 1, expected: '1 Aufgabe' },
+		{ count: 2, expected: '2 Aufgaben' }
+	])('formats German count $count', ({ count, expected }) => {
+		setLocaleProvider(() => 'de');
+		expect(formatWhatsNextSectionCount(count)).toBe(expected);
+	});
+
+	it.each([
+		{ count: 0, expected: '0 actions' },
+		{ count: 1, expected: '1 action' },
+		{ count: 2, expected: '2 actions' }
+	])('formats English count $count', ({ count, expected }) => {
+		setLocaleProvider(() => 'en');
+		expect(formatWhatsNextSectionCount(count)).toBe(expected);
+	});
+});
 
 describe('parseWhatsNextFilter', () => {
 	it('accepts the four known values', () => {
