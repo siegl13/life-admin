@@ -2899,3 +2899,125 @@ button.undo-notice__button {
 	min-width: var(--control-h);
 	min-height: var(--control-h);
 }
+
+/* --------------------------------------------------------------- Inbox */
+/* Phase 4 Inbox redesign: the list/detail layout, scoped under the route's
+   own .inbox-page root since this lives in global app.css rather than the
+   component's scoped <style>. */
+
+.inbox-page .inbox-count {
+	margin: var(--space-1) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--text-meta);
+}
+
+.inbox-page .upload-form-group {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.inbox-page .inbox-upload__formats {
+	margin: 0;
+	color: var(--color-text-faint);
+	font-size: var(--text-meta);
+}
+
+.inbox-page .inbox-layout {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.inbox-page .inbox-list {
+	min-width: 0;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	order: 2;
+}
+
+.inbox-page .inbox-list ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.inbox-page .file-tile {
+	width: 34px;
+	height: 34px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+	background: var(--color-hairline);
+	color: var(--color-text-muted);
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	flex: none;
+}
+
+.inbox-page .inbox-detail {
+	min-width: 0;
+	order: 1;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-5);
+}
+
+.inbox-page .inbox-layout--list-first .inbox-list {
+	order: 1;
+}
+
+.inbox-page .inbox-layout--list-first .inbox-detail {
+	order: 2;
+}
+
+.inbox-page .inbox-back-link {
+	display: inline-flex;
+	min-height: var(--control-h);
+	align-items: center;
+	margin-bottom: var(--space-3);
+	font-size: var(--text-body);
+	font-weight: 600;
+}
+
+@media (min-width: 768px) {
+	.inbox-page .inbox-back-link {
+		display: none;
+	}
+
+	.inbox-page .inbox-layout {
+		display: grid;
+		grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+		gap: var(--space-5);
+	}
+
+	.inbox-page .inbox-list,
+	.inbox-page .inbox-detail {
+		order: unset;
+	}
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+	.inbox-page .inbox-page-head {
+		flex-direction: column;
+	}
+
+	.inbox-page .upload-form-group {
+		align-items: flex-start;
+	}
+
+	.inbox-page .inbox-layout {
+		grid-template-columns: minmax(180px, 210px) minmax(0, 1fr);
+		gap: var(--space-3);
+	}
+
+	.inbox-page .inbox-detail {
+		padding: var(--space-3);
+	}
+}

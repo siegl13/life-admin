@@ -19,3 +19,31 @@ describe('accepted suggestion history translations', () => {
 		}
 	);
 });
+
+describe('inbox minute and document count translations', () => {
+	afterEach(() => setLocaleProvider(() => 'de'));
+
+	it.each([
+		{ locale: 'en', one: '1 minute ago', many: '4 minutes ago' },
+		{ locale: 'de', one: 'vor 1 Minute', many: 'vor 4 Minuten' }
+	] satisfies { locale: Locale; one: string; many: string }[])(
+		'formats singular and plural minute counts in $locale',
+		({ locale, one, many }) => {
+			setLocaleProvider(() => locale);
+			expect(t('inbox.minutesAgoOne', { minutes: '1' })).toBe(one);
+			expect(t('inbox.minutesAgoMany', { minutes: '4' })).toBe(many);
+		}
+	);
+
+	it.each([
+		{ locale: 'en', one: '1 document in the inbox', many: '4 documents in the inbox' },
+		{ locale: 'de', one: '1 Dokument im Eingang', many: '4 Dokumente im Eingang' }
+	] satisfies { locale: Locale; one: string; many: string }[])(
+		'formats singular and plural document counts in $locale',
+		({ locale, one, many }) => {
+			setLocaleProvider(() => locale);
+			expect(t('inbox.countOne', { count: '1' })).toBe(one);
+			expect(t('inbox.countMany', { count: '4' })).toBe(many);
+		}
+	);
+});

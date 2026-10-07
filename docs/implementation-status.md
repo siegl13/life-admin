@@ -134,6 +134,48 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   browser checks and independent review are complete. Commit and push await
   approval. Check the separate mobile item-detail work is merged before phase 3.
 
+## Phase 4 - Inbox redesign
+
+**Status: IMPLEMENTED. Full verification, browser checks and independent review
+pass.**
+
+- `src/routes/inbox/+page.svelte` uses `InboxUpload`, `InboxDocumentList` and
+  `InboxRouteForm` components in `src/lib/components/inbox/`. An Inbox-only
+  `src/app.css` section styles the compact document list and selected detail
+  panel. Desktop uses side-by-side panels. At widths under 768px, the selected
+  detail appears first. `?view=list` returns to the list without JavaScript.
+  At 768px, responsive columns and wrapping prevent overflow.
+- Each document row is one link with a translated accessible name. Filenames use
+  one-line ellipsis and retain the full name in `title`. The suggested badge can
+  wrap inside its radio label. List and destination pills use the same title-case
+  term in each language. The suggestion panel uses a quiet surface and normal-case
+  section headings. The active row uses the soft accent surface and accent border.
+- `?doc=<id>` selects a document. Missing, empty, unknown and stale IDs select the
+  newest pending document. After routing or deleting a document, the next pending
+  document is selected. An empty inbox shows its upload state.
+- Upload and routing use native forms and links. Destination radios, confirmation,
+  status pills and existing POST actions keep their current contracts. Suggested
+  items and playbooks are preselected. No domain, persistence, AI or endpoint changes.
+- The detail shows file type, name, size and upload date. It does not preview the
+  file or move item field extraction into the Inbox. Labels and count text use
+  English and German singular/plural forms. Controls have visible focus and 44px
+  targets. The German list link reads "Zurück zur Liste".
+- Automated checks: `npm run verify` passed with 118 test files and 974 unit tests.
+  The final `npm run test:e2e` passed all 153 tests. Focused Inbox E2E checks passed
+  26/26, including long filenames at 390px and 1280px, the 375px suggested badge,
+  and both destination panels at 768px in light and dark. The browser check passed
+  at 375px, 390px, 768px, 1024px and 1280px in both themes, with empty and populated
+  Inbox data and a long filename. No console, page, CSP or horizontal overflow
+  errors were observed. Native upload and URL navigation passed without JavaScript.
+  Screenshots and observation data remain in the local supervisor scratchpad.
+- An earlier full E2E run had two unrelated timeout failures. The final full run
+  passed without those failures.
+- Follow-ups: Inbox preview needs a content endpoint; drag-and-drop is optional;
+  three equal destination cards need a form-contract decision; extracted value chips
+  need Inbox extraction data.
+- Phase 3 proceeds in its own worktree. It is not accepted or integrated here.
+  Integration waits for phase 3's committed acceptance and explicit user approval.
+
 ## Node 26 runtime metadata
 
 **Status: VERIFICATION PASSED.**
