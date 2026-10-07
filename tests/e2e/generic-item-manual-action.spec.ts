@@ -13,9 +13,17 @@ test('generic item: title only, add a custom date field, add a manual action, se
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 
-	// "Angaben" itself defaults to the closed, read-only view — open it
-	// before reaching the custom-field disclosure nested inside.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	const fieldsPanel = page.locator('details.fields-panel').filter({
+		has: page.locator('#fields-label')
+	});
+	const openFieldsForEdit = async () => {
+		if (!(await fieldsPanel.evaluate((node) => node instanceof HTMLDetailsElement && node.open))) {
+			await fieldsPanel.locator(':scope > summary').click();
+		}
+		await expect(fieldsPanel).toHaveAttribute('open', '');
+	};
+	// Keep the field form open before reaching its nested custom-field disclosure.
+	await openFieldsForEdit();
 
 	// Both the custom-field and manual-action forms are folded into closed
 	// <details> disclosures. Regression guard: a closed disclosure must
@@ -32,9 +40,8 @@ test('generic item: title only, add a custom date field, add a manual action, se
 	// Scoped to the field's own id: its label also appears in the separate
 	// read-only "Angaben" view, which always stays in the DOM alongside the
 	// edit form (only one of the two is shown at a time, via CSS). The
-	// redirect lands on this anchor, but a closed <details> is not
-	// auto-opened by fragment navigation — reopen it by hand.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	// The field form may remain open after the action, so only toggle it if needed.
+	await openFieldsForEdit();
 	await expect(page.locator('#field-c_departure_date')).toBeVisible();
 
 	const addActionForm = page.locator('form[action="?/addManualAction"]');

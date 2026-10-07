@@ -82,3 +82,18 @@ export function formatRelativeDue(dueDate: IsoDate | null, todayIso: IsoDate): s
 	if (diff > 1) return t('due.relative.inDays', { count: String(diff) });
 	return t('due.relative.overdueByDays', { count: String(-diff) });
 }
+
+/** Numeric day distance for the Item detail hero. Unlike the short pill,
+ *  this keeps the number visible for today and tomorrow too. */
+export function formatDueDayCount(dueDate: IsoDate, todayIso: IsoDate): string {
+	const diff = diffCalendarDays(todayIso, dueDate);
+	if (diff < 0) {
+		const count = -diff;
+		return t(count === 1 ? 'items.detail.daysOverdueOne' : 'items.detail.daysOverdueMany', {
+			count: String(count)
+		});
+	}
+	return t(diff === 1 ? 'items.detail.daysLeftOne' : 'items.detail.daysLeftMany', {
+		count: String(diff)
+	});
+}

@@ -47,24 +47,26 @@ test('mobile: due dialog stays collapsed for an eligible derived action, opens w
 	});
 
 	// Primary actions need no dialog opened first.
-	const markDone = step.getByRole('button', { name: 'Erledigen' });
+	const sticky = page.locator('.sticky-action-bar');
+	const markDone = sticky.getByRole('button', { name: 'Erledigen' });
 	await expect(markDone).toBeVisible();
-	await expect(step.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+	await sticky.locator('summary').click();
+	await expect(sticky.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 
-	// Readiness renders right under the title/due status, not after the
-	// controls — the mobile single-column layout must not push it below
-	// the primary/secondary rows.
+	// Readiness remains directly under the title in the workflow list. The
+	// featured primary control now lives separately in the sticky bar.
 	const readiness = step.locator('.timeline__status-inline');
 	await expect(readiness).toBeVisible();
 	await expect(readiness).toHaveText('Jetzt möglich');
 	const readinessBox = await readiness.boundingBox();
-	const markDoneBox = await markDone.boundingBox();
+	const titleBox = await step.locator('.timeline__title').boundingBox();
 	expect(readinessBox).not.toBeNull();
-	expect(markDoneBox).not.toBeNull();
-	expect(readinessBox!.y).toBeLessThan(markDoneBox!.y);
+	expect(titleBox).not.toBeNull();
+	expect(readinessBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
 
-	// The due editor's compact trigger is visible; its dialog is not.
-	const dueTrigger = step.getByRole('button', { name: 'Termin ändern' });
+	// The featured due editor is owned by the sticky bar; the dialog itself
+	// remains rendered once in its workflow step.
+	const dueTrigger = sticky.getByRole('button', { name: 'Termin ändern' });
 	await expect(dueTrigger).toBeVisible();
 	const dueDialog = step.locator('dialog.action-dialog').first();
 	await expect(dueDialog).not.toBeVisible();
@@ -209,8 +211,8 @@ test('English catalog renders the compact Action rows', async ({ page }) => {
 	await addAction.getByRole('button', { name: 'Add task' }).click();
 
 	const step = page.locator('.timeline__step', { hasText: 'English task' });
-	await expect(step.getByRole('button', { name: 'Mark done' })).toBeVisible();
-	await expect(step.getByRole('button', { name: 'Skip' })).toBeVisible();
+	await expect(page.locator('.next-up').getByRole('button', { name: 'Mark done' })).toBeVisible();
+	await expect(page.locator('.next-up').getByRole('button', { name: 'Skip' })).toBeVisible();
 
 	const remindTrigger = step.getByRole('button', { name: 'Remind me later' });
 	await expect(remindTrigger).toBeVisible();
