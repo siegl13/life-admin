@@ -54,12 +54,18 @@ async function uploadInboxDocument(page: Page, filename: string): Promise<void> 
 async function openAllDisclosures(page: Page): Promise<void> {
 	for (let guard = 0; guard < 20; guard += 1) {
 		const closed = page.locator('details:not([open])');
-		const before = await closed.count();
-		if (before === 0) return;
-		// :scope > summary only: a closed details can itself contain a
-		// further nested details/summary before it is opened.
-		await closed.first().locator(':scope > summary').click();
-		if ((await closed.count()) >= before) return; // safety: stop if nothing opened
+		let visibleSummary = null;
+		for (const detail of await closed.all()) {
+			const summary = detail.locator(':scope > summary');
+			if (await summary.isVisible()) {
+				visibleSummary = summary;
+				break;
+			}
+		}
+		// Nested disclosures inside another closed/hidden section are not
+		// reachable yet. Open only a visible parent, then discover children.
+		if (!visibleSummary) return;
+		await visibleSummary.click();
 	}
 }
 

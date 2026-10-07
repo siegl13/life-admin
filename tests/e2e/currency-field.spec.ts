@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+async function openFieldsForEdit(page: import('@playwright/test').Page) {
+	const panel = page.locator('details.fields-panel').filter({ has: page.locator('#fields-label') });
+	if (!(await panel.evaluate((node) => node instanceof HTMLDetailsElement && node.open))) {
+		await panel.locator(':scope > summary').click();
+	}
+	await expect(panel).toHaveAttribute('open', '');
+	return panel;
+}
+
 /**
  * `currency` is a normal, generic Custom Field type (AI Extraction 1.1,
  * section 8/9) — independent of the AI feature. A custom field is always
@@ -14,16 +23,16 @@ test('a custom currency field can be added, given a value, and displays localize
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
-	await page.locator('summary', { hasText: 'Angabe hinzufügen' }).click();
+	const fieldsPanel = await openFieldsForEdit(page);
+	await fieldsPanel.locator('details.fields-panel__add > summary').click();
 	const addFieldForm = page.locator('form[action="?/addField"]');
 	await addFieldForm.getByLabel('Bezeichnung', { exact: true }).fill('Grundpreis');
 	await addFieldForm.getByLabel('Typ').selectOption('currency');
 	await addFieldForm.getByRole('button', { name: 'Angabe hinzufügen' }).click();
 
-	// The redirect lands on `#field-c_grundpreis`, but a closed <details>
-	// is not auto-opened by fragment navigation — reopen it by hand.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	// Ensure the editable panel is open after the add-field action before
+	// filling the new value.
+	await openFieldsForEdit(page);
 	const field = page.locator('#field-c_grundpreis');
 	await expect(field).toBeVisible();
 	await field.locator('input[type="text"]').fill('12.90');
@@ -51,13 +60,13 @@ test('pressing Enter in a custom field saves its value, not deletes the field', 
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
-	await page.locator('summary', { hasText: 'Angabe hinzufügen' }).click();
+	const fieldsPanel = await openFieldsForEdit(page);
+	await fieldsPanel.locator('details.fields-panel__add > summary').click();
 	const addFieldForm = page.locator('form[action="?/addField"]');
 	await addFieldForm.getByLabel('Bezeichnung', { exact: true }).fill('Vertragsnummer');
 	await addFieldForm.getByRole('button', { name: 'Angabe hinzufügen' }).click();
 
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await openFieldsForEdit(page);
 	const field = page.locator('#field-c_vertragsnummer');
 	await field.locator('input[type="text"]').fill('N272914');
 	await field.locator('input[type="text"]').press('Enter');

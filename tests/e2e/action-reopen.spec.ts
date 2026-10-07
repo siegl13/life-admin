@@ -26,7 +26,7 @@ test('completing, then reopening an action makes it available again and un-block
 			.filter({ has: page.locator('.timeline__title', { hasText: title }) });
 	}
 
-	await step('HU-Termin planen').getByRole('button', { name: 'Erledigen' }).click();
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
 
 	// Done: shows the completion hint and a reopen control, dependent
 	// step is now available.
@@ -59,15 +59,11 @@ test('a crafted reopenAction POST against an archived item is refused', async ({
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
 	const actionId = await page
-		.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-		.locator('form[action="?/completeAction"] input[name="actionId"]')
+		.locator('.next-up form[action="?/completeAction"] input[name="actionId"]')
 		.getAttribute('value');
 	expect(actionId).toBeTruthy();
 
-	await page
-		.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-		.getByRole('button', { name: 'Erledigen' })
-		.click();
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
 
 	// No reopen control anywhere on an archived (read-only) item.
 	await page.locator('summary', { hasText: 'Archivieren' }).click();

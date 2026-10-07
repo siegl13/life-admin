@@ -180,7 +180,7 @@ test('native menu date-change link reaches the DERIVED action and its own date e
 		const step = page.locator('.timeline__step').filter({
 			has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 		});
-		const dueTrigger = step.getByRole('button', { name: 'Termin ändern' });
+		const dueTrigger = page.locator('.next-up').getByRole('button', { name: 'Termin ändern' });
 		await expect(dueTrigger).toBeVisible();
 		await dueTrigger.click();
 		await expect(step.getByRole('dialog', { name: 'Termin ändern' })).toBeVisible();
@@ -221,8 +221,8 @@ test('filter chips reflect exact count deltas per bucket, reject unknown filters
 
 		await page.getByRole('link', { name: /^Überfällig \(\d+\)$/ }).click();
 		await expect(page).toHaveURL(/\?filter=overdue$/);
-		await expect(page.getByText('Overdue task')).toBeVisible();
-		await expect(page.getByText('Ready task')).not.toBeVisible();
+		await expect(page.getByText('Overdue task', { exact: true })).toBeVisible();
+		await expect(page.getByText('Ready task', { exact: true })).not.toBeVisible();
 
 		// Completing from a filtered view must return to that SAME filter,
 		// not reset to "all" — the filter rides the form action's query.

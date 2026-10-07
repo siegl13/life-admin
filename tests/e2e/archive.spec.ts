@@ -120,12 +120,8 @@ test('an archived item detail page has no mutation buttons or forms anywhere, an
 		.getAttribute('href');
 	expect(attachmentHref).toBeTruthy();
 
-	// The workflow's "now" step has Erledigen/Überspringen while active.
-	await expect(
-		page
-			.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-			.getByRole('button', { name: 'Erledigen' })
-	).toBeVisible();
+	// The featured open action is controlled from the hero card.
+	await expect(page.locator('.next-up').getByRole('button', { name: 'Erledigen' })).toBeVisible();
 
 	await page.locator('summary', { hasText: 'Archivieren' }).click();
 	await page
@@ -172,11 +168,7 @@ test('an archived item detail page has no mutation buttons or forms anywhere, an
 	// Reactivating brings every control back.
 	await page.getByRole('button', { name: 'Wieder aktivieren' }).click();
 	await expect(page).toHaveURL(itemUrl);
-	await expect(
-		page
-			.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-			.getByRole('button', { name: 'Erledigen' })
-	).toBeVisible();
+	await expect(page.locator('.next-up').getByRole('button', { name: 'Erledigen' })).toBeVisible();
 	// "Entfernen" lives behind the "Dokumente verwalten" disclosure again.
 	await page.locator('summary', { hasText: 'Dokumente verwalten' }).click();
 	await expect(
@@ -207,8 +199,7 @@ test('a crafted completeAction POST against an archived item is refused, not jus
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
 	const actionHref = await page
-		.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-		.locator('form[action="?/completeAction"] input[name="actionId"]')
+		.locator('.next-up form[action="?/completeAction"] input[name="actionId"]')
 		.getAttribute('value');
 	expect(actionHref).toBeTruthy();
 
@@ -226,9 +217,5 @@ test('a crafted completeAction POST against an archived item is refused, not jus
 
 	await page.goto(itemUrl);
 	await page.getByRole('button', { name: 'Wieder aktivieren' }).click();
-	await expect(
-		page
-			.locator('.timeline__step', { hasText: 'HU-Termin planen' })
-			.getByRole('button', { name: 'Erledigen' })
-	).toBeVisible(); // still OPEN — the crafted POST never completed it
+	await expect(page.locator('.next-up').getByRole('button', { name: 'Erledigen' })).toBeVisible(); // still OPEN — the crafted POST never completed it
 });

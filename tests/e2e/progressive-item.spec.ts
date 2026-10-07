@@ -9,6 +9,14 @@ import { expect, test } from '@playwright/test';
  * extended here once Slice 3 lands.
  */
 
+async function openFieldsForEdit(page: import('@playwright/test').Page) {
+	const panel = page.locator('details.fields-panel').filter({ has: page.locator('#fields-label') });
+	if (!(await panel.evaluate((node) => node instanceof HTMLDetailsElement && node.open))) {
+		await panel.locator(':scope > summary').click();
+	}
+	await expect(panel).toHaveAttribute('open', '');
+}
+
 test('a generic item (no playbook) can be created with only a title', async ({ page }) => {
 	await page.goto('/items/new');
 	await page.getByLabel('Titel').fill('Mallorca Trip');
@@ -31,7 +39,7 @@ test('an item can be created from a playbook, saved with the date field empty, t
 
 	// The recommended date field is visibly optional, not required, and
 	// the item saves without it.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await openFieldsForEdit(page);
 	const dateInput = page.locator('input[type="date"]').first();
 	await expect(dateInput).not.toHaveAttribute('required');
 
@@ -46,7 +54,7 @@ test('an item can be created from a playbook, saved with the date field empty, t
 	await expect(page.getByRole('heading', { name: 'Zweitwagen' })).toBeVisible();
 
 	// Now fill in the date and save.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await openFieldsForEdit(page);
 	await page.locator('input[type="date"]').first().fill('2026-12-25');
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
@@ -54,7 +62,7 @@ test('an item can be created from a playbook, saved with the date field empty, t
 	// (not `.first()`): once the date resolves, the action becomes "now"
 	// and gains its own due-date-override date input higher up the page.
 	await page.goto(itemUrl);
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await openFieldsForEdit(page);
 	await expect(page.locator('#next_inspection')).toHaveValue('2026-12-25');
 
 	// Now that the date is resolved, the derived action must appear on
@@ -71,21 +79,18 @@ test('a custom field can be added to a generic item and its value persists', asy
 	await page.getByRole('button', { name: 'Anlegen' }).click();
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 
-	// "Angaben" defaults to the closed, read-only view; the custom-field
-	// form is a further closed <details> nested inside it — open both via
-	// their <summary> before interacting with the fields inside.
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	// The custom-field form is nested inside the fields disclosure.
+	await openFieldsForEdit(page);
 	await page.locator('summary', { hasText: 'Angabe hinzufügen' }).click();
 	const addFieldForm = page.locator('form[action="?/addField"]');
 	await addFieldForm.getByLabel('Bezeichnung', { exact: true }).fill('Policy number');
 	await addFieldForm.getByRole('button', { name: 'Angabe hinzufügen' }).click();
 
-	// The redirect lands on this anchor, but a closed <details> is not
-	// auto-opened by fragment navigation — reopen "Angaben bearbeiten".
+	// The action can preserve the open state; do not toggle it closed.
 	// Scoped to the field's own id: its label also appears in the separate
 	// read-only "Angaben" view, which always stays in the DOM alongside the
 	// edit form (only one of the two is shown at a time, via CSS).
-	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await openFieldsForEdit(page);
 	await expect(page.locator('#field-c_policy_number')).toBeVisible();
 
 	// Discoverability regression guard: after creation, the user must land

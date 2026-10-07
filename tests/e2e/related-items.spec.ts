@@ -38,12 +38,11 @@ test('links and unlinks items symmetrically without JavaScript-only controls', a
 	await page.getByRole('link', { name: 'Relation First' }).click();
 	await expect(page).toHaveURL(firstUrl);
 	await expect(page.getByRole('link', { name: '0 Dokumente' })).toHaveCount(0);
-	await expect(page.getByText('Keine Dokumente', { exact: true })).toBeVisible();
-	await expect(page.getByRole('link', { name: '1 verknüpftes Item' })).toHaveAttribute(
-		'href',
-		'#relations'
-	);
-	await expect(page.locator('.item-overview__context')).toHaveCSS('display', 'flex');
+	await expect(page.locator('#attachments')).toContainText('Noch keine Dokumente.');
+	await expect(page.locator('.item-overview__context')).toHaveCount(0);
+	await expect(
+		page.locator('#relations .fields-view .related-row', { hasText: 'Relation Second' })
+	).toBeVisible();
 	await page.getByText('Verknüpfungen verwalten').click();
 	await page.getByRole('button', { name: 'Verknüpfung lösen' }).click();
 	await expect(page.locator('.related-list--manage')).toHaveCount(0);
@@ -74,7 +73,9 @@ test('highlights normalized title matches across repeated whitespace', async ({ 
 	await expect(page.locator('.relation-candidates mark')).toHaveText('Cafe\u0301   Insurance');
 });
 
-test('archived items show a document link and a quiet zero-relation count', async ({ page }) => {
+test('archived items show documents read-only and omit an empty relations section', async ({
+	page
+}) => {
 	await createItem(page, 'Relation Archive Document');
 	await page
 		.locator('form[action="?/addAttachment"] input[type="file"]')
@@ -89,12 +90,7 @@ test('archived items show a document link and a quiet zero-relation count', asyn
 		.getByRole('button', { name: 'Archivieren' })
 		.click();
 
-	await expect(page.getByRole('link', { name: '1 Dokument' })).toHaveAttribute(
-		'href',
-		'#attachments'
-	);
-	await expect(page.getByRole('link', { name: '0 verknüpfte Items' })).toHaveCount(0);
-	await expect(page.getByText('0 verknüpfte Items', { exact: true })).toBeVisible();
+	await expect(page.locator('#attachments .document-row')).toContainText('relation.pdf');
 	await expect(page.locator('#relations')).toHaveCount(0);
 });
 
@@ -159,7 +155,7 @@ test('shows five related items before the inline disclosure and fits at 375px', 
 	expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(
 		true
 	);
-	await expect(page.locator('.item-overview__context')).toHaveCSS('display', 'flex');
+	await expect(page.locator('.item-overview__context')).toHaveCount(0);
 	await expect(page.locator('.related-row').first()).toHaveCSS('min-height', '64px');
 	await page.setViewportSize({ width: 640, height: 667 });
 	await expect(page.locator('.related-row').first()).toHaveCSS('min-height', '60px');

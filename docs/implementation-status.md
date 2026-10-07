@@ -127,12 +127,39 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   The desktop sidebar reached the document bottom on the long list.
   Independent review passed. The final English README screenshot was captured
   after review, with overdue, ready-now and later actions from scratch data.
-- The next ordered redesign phase is phase 3, "Item detail"
-  (`src/routes/items/[id]/+page.svelte`,
-  `WorkflowTimeline.svelte`). Phase 3 is not started. Its stated
-  dependency is this phase's acceptance. Implementation, full verification,
-  browser checks and independent review are complete. Commit and push await
-  approval. Check the separate mobile item-detail work is merged before phase 3.
+- Phase 3, "Item detail", is implemented. The header shows the item title,
+  playbook and creation date. The next-action hero shows one due date and
+  numeric day count. Desktop owns its complete, skip and eligible due-date
+  controls. On phones the hero is informational and one sticky bar owns the
+  controls. The global Create button is hidden on item-detail routes on phones.
+- The workflow keeps domain order. A localized progress count and bar appear at
+  every width; the vertical list is the only place that shows step names and
+  controls. Per-action dialogs and controls remain in the workflow. The
+  featured action's primary controls appear only in the hero or phone bar.
+- Fields are grouped by type in full-width cards. Each group has two columns at
+  480px and wider, and one column on smaller screens. Long values stay on one
+  line with an ellipsis and full-value tooltip. Empty values use a collapsed,
+  localized disclosure. Archived items remain read-only.
+- Document display names use one-line ellipses and full-value tooltips. The
+  original filename appears only after a rename. Metadata wraps cleanly, and
+  dates stay together. Documents, related items and newest-first history sit
+  in the desktop side column and stack below on phones.
+- Section heading gaps are shared across the fields panel and More options.
+- `npm run verify` passed with 119 test files and 997 tests. The full
+  `npm run test:e2e` suite passed all 155 tests.
+- Built-app checks passed in 18 cases: active, empty and archived items in
+  light and dark themes at 390px and 1280px, plus layout checks at 641px,
+  767px and 768px. Due-date and snooze dialogs opened. There
+  was no horizontal overflow, console error, page error or CSP violation.
+  The phone sticky bar stayed above the tab bar. The desktop sidebar reached
+  the bottom of the long page. Sample data and browser screenshots stay in the
+  ignored supervisor scratch directory.
+- Empty-state and cycle-completion hero hints meet the 4.5:1 contrast target
+  in light and dark themes. Sentence-case headings and uniform touch targets
+  are covered by the item-detail E2E tests.
+- Independent OpenAI Sol review passed. The final English
+  `screenshots/item-detail.png` was captured after review with realistic
+  scratchpad sample data. Phase 4, "Inbox", remains pending on phase 3 merge.
 
 ## Node 26 runtime metadata
 

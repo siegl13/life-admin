@@ -40,15 +40,15 @@ test('overriding a derived action due date survives a field recalculation and ca
 	const step = page.locator('.timeline__step').filter({
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 	});
-	await expect(dueMeta(step, '1. Dezember 2025')).toBeVisible(); // -1 month, calculated suggestion
+	await expect(page.locator('.next-up__state')).toContainText('1. Dezember 2025'); // featured date appears once in the hero
 
 	// Override the due date.
-	await step.getByRole('button', { name: 'Termin ändern' }).click();
+	await page.locator('.next-up').getByRole('button', { name: 'Termin ändern' }).click();
 	await step.locator('input[name="dueDate"]').fill('2026-01-15');
 	await step.getByRole('button', { name: 'Termin speichern' }).click();
 	await expect(page).toHaveURL(itemUrl);
 
-	await expect(dueMeta(step, '15. Januar 2026')).toBeVisible();
+	await expect(page.locator('.next-up__state')).toContainText('15. Januar 2026');
 	await expect(step.getByText('Eigener Termin')).toBeVisible();
 	await expect(step.getByText('Vorschlag: 1. Dezember 2025')).toBeVisible();
 
@@ -60,14 +60,14 @@ test('overriding a derived action due date survives a field recalculation and ca
 	await page.locator('#next_inspection').fill('2026-02-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
-	await expect(dueMeta(step, '15. Januar 2026')).toBeVisible(); // override still effective
+	await expect(page.locator('.next-up__state')).toContainText('15. Januar 2026'); // override still effective
 	await expect(step.getByText('Vorschlag: 1. Januar 2026')).toBeVisible(); // new suggestion shown
 
 	// Reset to the (now-current) suggestion.
 	await step.getByRole('button', { name: 'Auf Vorschlag zurücksetzen' }).click();
 	await expect(page).toHaveURL(itemUrl);
 
-	await expect(dueMeta(step, '1. Januar 2026')).toBeVisible();
+	await expect(page.locator('.next-up__state')).toContainText('1. Januar 2026');
 	await expect(step.getByText('Eigener Termin')).toHaveCount(0);
 });
 

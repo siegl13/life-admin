@@ -37,6 +37,7 @@
 
 <div class="document-list">
 	{#each attachments as attachment (attachment.id)}
+		{@const displayName = attachmentDisplayName(attachment)}
 		<div class="document-row" id={`attachment-${attachment.id}`}>
 			<a
 				class="document-row__preview"
@@ -56,23 +57,35 @@
 			<span class="document-row__text">
 				<a
 					class="document-row__title"
+					title={displayName}
 					href={resolve('/items/[id]/attachments/[attachmentId]', {
 						id: itemId,
 						attachmentId: attachment.id
 					})}
 				>
-					{attachmentDisplayName(attachment)}
+					{displayName}
 				</a>
-				<span class="document-row__original">
-					{t('items.detail.attachmentOriginalFilename')}: {attachment.filename}
-				</span>
+				{#if displayName !== attachment.filename}
+					<span class="document-row__original" title={attachment.filename}>
+						{t('items.detail.attachmentOriginalFilename')}: {attachment.filename}
+					</span>
+				{/if}
 				<span class="meta document-row__meta">
-					{t(TYPE_LABEL_KEY[attachment.mimeType])} · {formatByteSize(attachment.byteSize)} · {formatDate(
-						attachment.uploadedAt.slice(0, 10)
-					)}{#if attachment.cycleId && cycleSequences[attachment.cycleId]}
-						· {t('items.detail.attachmentCycle', {
-							sequence: String(cycleSequences[attachment.cycleId])
-						})}{/if}
+					<span>{t(TYPE_LABEL_KEY[attachment.mimeType])}</span>
+					<span aria-hidden="true">·</span>
+					<span>{formatByteSize(attachment.byteSize)}</span>
+					<span aria-hidden="true">·</span>
+					<time class="document-row__date" datetime={attachment.uploadedAt.slice(0, 10)}>
+						{formatDate(attachment.uploadedAt.slice(0, 10))}
+					</time>
+					{#if attachment.cycleId && cycleSequences[attachment.cycleId]}
+						<span aria-hidden="true">·</span>
+						<span
+							>{t('items.detail.attachmentCycle', {
+								sequence: String(cycleSequences[attachment.cycleId])
+							})}</span
+						>
+					{/if}
 				</span>
 			</span>
 			<a

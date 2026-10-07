@@ -24,10 +24,8 @@ async function completeTuvCycle(page: import('@playwright/test').Page): Promise<
 		'Hauptuntersuchung durchführen',
 		'Neue HU eintragen'
 	]) {
-		await page
-			.locator('.timeline__step', { hasText: action })
-			.getByRole('button', { name: 'Erledigen' })
-			.click();
+		await expect(page.locator('.next-up__action')).toHaveText(action);
+		await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
 	}
 }
 
