@@ -32,6 +32,12 @@
 	let undoFormAction = $derived(
 		data.filter === 'all' ? '?/undoAction' : `?/undoAction&filter=${data.filter}`
 	);
+
+	function keepFocusedFilterVisible(event: { target: unknown }): void {
+		if (event.target instanceof HTMLElement && event.target.classList.contains('filter-chip')) {
+			event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+		}
+	}
 </script>
 
 <div class="page-head">
@@ -51,7 +57,7 @@
 	</form>
 {/if}
 
-<nav class="filter-bar" aria-label={t('whatsNext.title')}>
+<nav class="filter-bar" aria-label={t('whatsNext.title')} onfocusin={keepFocusedFilterVisible}>
 	{#each FILTERS as filterOption (filterOption.value)}
 		<a
 			href={filterOption.value === 'all' ? resolve('/') : resolve(`/?filter=${filterOption.value}`)}

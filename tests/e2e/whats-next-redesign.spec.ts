@@ -569,3 +569,69 @@ test('a What’s Next section heading keeps the shared --space-3 gap to its acti
 	);
 	expect(headingGap).toBeCloseTo(resolvedSpace3, 0);
 });
+
+test('375px: filter chips stay on one scrollable row in German and English', async ({ page }) => {
+	await page.setViewportSize({ width: 375, height: 844 });
+	const languageButton = (language: 'de' | 'en' | 'browser') =>
+		page.locator(`#g-language form button[value="${language}"]`);
+
+	try {
+		for (const language of ['de', 'en'] as const) {
+			await page.goto('/settings');
+			await languageButton(language).click();
+			await expect(page.locator('html')).toHaveAttribute('lang', language);
+			await page.goto('/');
+
+			const filterBar = page.locator('.filter-bar');
+			const chips = filterBar.locator('.filter-chip');
+			await expect(chips).toHaveCount(4);
+
+			const layout = await page.evaluate(() => {
+				const bar = document.querySelector<HTMLElement>('.filter-bar')!;
+				const chipRects = Array.from(bar.querySelectorAll<HTMLElement>('.filter-chip')).map(
+					(chip) => chip.getBoundingClientRect().toJSON()
+				);
+				return {
+					paddingLeft: parseFloat(getComputedStyle(bar).paddingLeft),
+					paddingRight: parseFloat(getComputedStyle(bar).paddingRight),
+					clientWidth: bar.clientWidth,
+					scrollWidth: bar.scrollWidth,
+					overflowX: getComputedStyle(bar).overflowX,
+					pageScrollWidth: document.documentElement.scrollWidth,
+					chipTops: chipRects.map((rect) => rect.top)
+				};
+			});
+
+			expect(new Set(layout.chipTops).size).toBe(1);
+			expect(layout.overflowX).toBe('auto');
+			expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
+			expect(layout.pageScrollWidth).toBeLessThanOrEqual(375);
+
+			await chips.nth(2).focus();
+			await page.keyboard.press('Tab');
+			const focusedChip = page.locator('.filter-chip:focus-visible');
+			await expect(focusedChip).toHaveCount(1);
+			await expect(focusedChip).toHaveCSS('outline-style', 'solid');
+			const focusPosition = await focusedChip.evaluate((chip) => {
+				const chipRect = chip.getBoundingClientRect();
+				const bar = chip.closest('.filter-bar')!;
+				const barRect = bar.getBoundingClientRect();
+				const style = getComputedStyle(bar);
+				return {
+					left: chipRect.left - barRect.left,
+					right: barRect.right - chipRect.right,
+					paddingLeft: parseFloat(style.paddingLeft),
+					paddingRight: parseFloat(style.paddingRight)
+				};
+			});
+			expect(focusPosition.left).toBeGreaterThanOrEqual(focusPosition.paddingLeft);
+			expect(focusPosition.right).toBeGreaterThanOrEqual(focusPosition.paddingRight);
+			expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+				375
+			);
+		}
+	} finally {
+		await page.goto('/settings');
+		await languageButton('browser').click();
+	}
+});

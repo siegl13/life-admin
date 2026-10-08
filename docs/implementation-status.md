@@ -232,7 +232,7 @@ pass.**
   control geometry and shared Settings/Search/auth controls.
 - `npm run verify` passed with 119 files and 1,003 unit tests. Focused review
   regressions passed 32/32, and the final full `npm run test:e2e` passed
-  185/185.
+  186/186, including the 375px German/English filter-chip check.
 - Built-app browser checks passed 78 route, viewport and theme combinations at
   390px, 1280px and 1920px. They covered all top-level pages, active and
   archived Items views, active and archived Item detail, the Inbox with an

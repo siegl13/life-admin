@@ -3410,6 +3410,30 @@ mark {
 	border-color: var(--color-inverse-bg);
 }
 
+@media (max-width: 767px) {
+	.filter-bar {
+		flex-wrap: nowrap;
+		max-width: 100%;
+		margin-bottom: calc(var(--space-5) - 8px);
+		padding: 4px;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scroll-padding-inline: 4px;
+		scrollbar-width: none;
+		overscroll-behavior-inline: contain;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.filter-bar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.filter-chip {
+		flex: 0 0 auto;
+		scroll-margin-inline: 4px;
+	}
+}
+
 .undo-notice {
 	display: flex;
 	align-items: center;
