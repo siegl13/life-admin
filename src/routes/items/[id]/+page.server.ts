@@ -30,8 +30,11 @@ import { parsePlaybookSnapshot } from '$lib/domain/playbook/snapshot';
 import { newerVersionAvailable } from '$lib/domain/playbook/version';
 import type { Item } from '$lib/domain/item/item';
 import {
+	applyGuardedDueOverride,
 	applyGuardedTransition,
+	isDueOverrideEligible,
 	isTransitionFailure,
+	parseDueOverrideFormData,
 	parseTransitionFormData
 } from '$lib/server/http/actionTransition';
 import {
@@ -41,10 +44,6 @@ import {
 	readSnooze,
 	setSnooze
 } from '$lib/application/notify/snooze';
-import {
-	InvalidDueOverrideDateError,
-	setActionDueOverride
-} from '$lib/application/actions/setActionDueOverride';
 import { addCustomField, FieldLabelRequiredError } from '$lib/application/items/addCustomField';
 import { getItemDetail } from '$lib/application/items/getItemDetail';
 import { getItemWorkflow } from '$lib/application/items/getItemWorkflow';
@@ -67,7 +66,6 @@ import {
 	UnknownFieldError,
 	updateItemFields
 } from '$lib/application/items/updateItemFields';
-import { ActionNotMutableError } from '$lib/server/db/repositories/actionRepository';
 import { CannotRemovePlaybookFieldError } from '$lib/server/db/repositories/fieldRepository';
 import { ItemNotWritableError } from '$lib/server/db/repositories/writeGuards';
 import {
@@ -240,6 +238,15 @@ export const load: PageServerLoad = ({ params, url }) => {
  *  ADR's Security section). */
 function isItemArchived(itemId: string): boolean {
 	return itemsPort.getItemById(itemId)?.status === 'ARCHIVED';
+}
+
+function currentDueOverrideEligibility(itemId: string, actionId: string): boolean {
+	const workflow = getItemWorkflow(
+		{ cycles: cyclesPort, actions: actionsPort, events: eventsPort, fields: fieldsPort },
+		itemId
+	);
+	const action = workflow?.find((entry) => entry.action.id === actionId)?.action ?? null;
+	return isDueOverrideEligible(action);
 }
 
 export const actions: Actions = {
@@ -669,41 +676,17 @@ export const actions: Actions = {
 	setActionDueOverride: async ({ request, params }) => {
 		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
 		const formData = await request.formData();
-		const actionId = formData.get('actionId')?.toString();
-		if (!actionId) return fail(400, { error: 'missing actionId' });
-		const dueDate = formData.get('dueDate')?.toString() ?? null;
+		const parsed = parseDueOverrideFormData(formData, { requireItemId: false });
+		if (!parsed) return fail(400, { error: 'missing actionId' });
 
-		try {
-			setActionDueOverride({ actions: actionsPort }, { itemId: params.id, actionId, dueDate });
-		} catch (err) {
-			if (err instanceof InvalidDueOverrideDateError) {
-				return fail(400, {
-					error: err.message,
-					context: 'dueOverride' as const,
-					actionId,
-					dueDate
-				});
-			}
-			if (err instanceof ActionNotMutableError) {
-				return fail(400, {
-					error: t('items.detail.actionNotMutable'),
-					context: 'dueOverride' as const,
-					actionId,
-					dueDate
-				});
-			}
-			throw err;
-		}
-
-		recordHistoryEvent(
-			{ history: itemHistoryPort, ids: idsPort, clock },
-			{
-				itemId: params.id,
-				actorKind: 'OWNER',
-				eventType: 'ACTION_DUE_OVERRIDE_SET',
-				payload: { actionId }
-			}
+		const result = applyGuardedDueOverride(
+			{ actions: actionsPort, history: itemHistoryPort, ids: idsPort, clock },
+			{ itemId: params.id, actionId: parsed.actionId, dueDate: parsed.dueDate },
+			'ACTION_DUE_OVERRIDE_SET',
+			t('items.detail.actionNotMutable'),
+			() => currentDueOverrideEligibility(params.id, parsed.actionId)
 		);
+		if (isTransitionFailure(result)) return result;
 
 		redirect(303, `/items/${params.id}`);
 	},
@@ -711,30 +694,17 @@ export const actions: Actions = {
 	resetActionDueOverride: async ({ request, params }) => {
 		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
 		const formData = await request.formData();
-		const actionId = formData.get('actionId')?.toString();
-		if (!actionId) return fail(400, { error: 'missing actionId' });
+		const parsed = parseDueOverrideFormData(formData, { requireItemId: false });
+		if (!parsed) return fail(400, { error: 'missing actionId' });
 
-		try {
-			setActionDueOverride(
-				{ actions: actionsPort },
-				{ itemId: params.id, actionId, dueDate: null }
-			);
-		} catch (err) {
-			if (err instanceof ActionNotMutableError) {
-				return fail(400, { error: t('items.detail.actionNotMutable') });
-			}
-			throw err;
-		}
-
-		recordHistoryEvent(
-			{ history: itemHistoryPort, ids: idsPort, clock },
-			{
-				itemId: params.id,
-				actorKind: 'OWNER',
-				eventType: 'ACTION_DUE_OVERRIDE_CLEARED',
-				payload: { actionId }
-			}
+		const result = applyGuardedDueOverride(
+			{ actions: actionsPort, history: itemHistoryPort, ids: idsPort, clock },
+			{ itemId: params.id, actionId: parsed.actionId, dueDate: null },
+			'ACTION_DUE_OVERRIDE_CLEARED',
+			t('items.detail.actionNotMutable'),
+			() => currentDueOverrideEligibility(params.id, parsed.actionId)
 		);
+		if (isTransitionFailure(result)) return result;
 
 		redirect(303, `/items/${params.id}`);
 	},

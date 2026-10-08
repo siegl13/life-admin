@@ -107,6 +107,7 @@
 										itemTitle={group.title}
 										today={data.today}
 										filter={data.filter}
+										{form}
 									/>
 								</article>
 							{/each}

@@ -313,6 +313,7 @@ export const en: Record<TranslationKey, string> = {
 	'items.detail.dueOverrideSuggestion': 'Suggestion: {date}',
 	'items.detail.dueOverrideSuggestionUnresolved': 'No suggestion available yet',
 	'items.detail.resetDueOverride': 'Reset to suggestion',
+	'items.detail.dueDateInvalid': 'Please enter a valid date.',
 
 	'items.archived.title': 'Archive',
 	'items.archived.show': 'Show archive',

@@ -138,7 +138,7 @@ test('completing a DERIVED action from root blocks its dependent again after und
 	}
 });
 
-test('native menu date-change link reaches the DERIVED action and its own date editor', async ({
+test('native menu date-change link targets the DERIVED action anchor and sits beside a legible skip control', async ({
 	page
 }) => {
 	const title = `Menu ${Date.now()}`;
@@ -171,26 +171,14 @@ test('native menu date-change link reaches the DERIVED action and its own date e
 				);
 			});
 		expect(skipContrast).toBeGreaterThanOrEqual(4.5);
+		// The href stays the Item detail action anchor even though a click
+		// with JavaScript enabled opens the on-page dialog instead (see
+		// whats-next-due-date-dialog.spec.ts) — this is the no-JavaScript
+		// fallback target, asserted directly rather than by following it.
 		await expect(link).toHaveAttribute('href', new RegExp(`/items/${itemId}#action-`));
-		await link.click();
-		await expect(page).toHaveURL(new RegExp(`/items/${itemId}#action-`));
 
-		// The link lands on the exact step, and that step's own date editor
-		// (DERIVED-only) is reachable — proving this is not a manual Action.
-		const step = page.locator('.timeline__step').filter({
-			has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
-		});
-		const dueTrigger = page.locator('.next-up').getByRole('button', { name: 'Termin ändern' });
-		await expect(dueTrigger).toBeVisible();
-		await dueTrigger.click();
-		await expect(step.getByRole('dialog', { name: 'Termin ändern' })).toBeVisible();
-
-		await page.goto('/');
-		const group2 = page.locator('.item-group', { hasText: title });
-		const row2 = group2.locator('.action-row', { hasText: 'HU-Termin planen' });
-		await row2.locator('summary').click();
-		await row2.getByRole('button', { name: 'Überspringen' }).click();
-		await expect(group2.locator('.action-row', { hasText: 'HU-Termin planen' })).toHaveCount(0);
+		await row.getByRole('button', { name: 'Überspringen' }).click();
+		await expect(group.locator('.action-row', { hasText: 'HU-Termin planen' })).toHaveCount(0);
 	} finally {
 		await archiveItem(page, itemId);
 	}
@@ -498,7 +486,10 @@ test('375px: a long item title and an open action menu do not overflow the viewp
 		await page.goto('/');
 		const row = page.locator('.action-row', { hasText: 'Narrow task' });
 		await row.locator('summary').click();
-		await expect(row.getByRole('link', { name: 'Datum ändern' })).toBeVisible();
+		// "Narrow task" is a MANUAL action, so it never offers the change-due-
+		// date link — the menu's always-present skip control is what this
+		// overflow check actually exercises.
+		await expect(row.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 		const done = await row.getByRole('button', { name: 'Erledigen: Narrow task' }).boundingBox();
 		const label = await row.locator('.action-row__label').boundingBox();
 		const more = await row.locator('summary').boundingBox();

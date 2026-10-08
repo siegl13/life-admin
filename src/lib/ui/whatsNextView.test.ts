@@ -8,24 +8,33 @@ import {
 import type { WhatsNextGroup } from '$lib/domain/whatsnext/whatsNext';
 import { setLocaleProvider } from '$lib/i18n';
 
+function action(overrides: {
+	actionId: string;
+	label: string;
+	dueDate: string | null;
+	bucket: 0 | 1 | 2;
+}): WhatsNextGroup['actions'][number] {
+	return overrides;
+}
+
 const groups: WhatsNextGroup[] = [
 	{
 		itemId: 'item-1',
 		title: 'Overdue-only item',
-		actions: [{ actionId: 'a1', label: 'Overdue task', dueDate: '2020-01-01', bucket: 0 }]
+		actions: [action({ actionId: 'a1', label: 'Overdue task', dueDate: '2020-01-01', bucket: 0 })]
 	},
 	{
 		itemId: 'item-2',
 		title: 'Mixed item',
 		actions: [
-			{ actionId: 'a2', label: 'Overdue part', dueDate: '2020-01-02', bucket: 0 },
-			{ actionId: 'a3', label: 'Ready part', dueDate: null, bucket: 1 }
+			action({ actionId: 'a2', label: 'Overdue part', dueDate: '2020-01-02', bucket: 0 }),
+			action({ actionId: 'a3', label: 'Ready part', dueDate: null, bucket: 1 })
 		]
 	},
 	{
 		itemId: 'item-3',
 		title: 'Later-only item',
-		actions: [{ actionId: 'a4', label: 'Future task', dueDate: '2099-01-01', bucket: 2 }]
+		actions: [action({ actionId: 'a4', label: 'Future task', dueDate: '2099-01-01', bucket: 2 })]
 	}
 ];
 
@@ -100,16 +109,16 @@ describe('projectWhatsNextSections', () => {
 				itemId: 'later-item',
 				title: 'Later item',
 				actions: [
-					{ actionId: 'late', label: 'Later', dueDate: '2026-09-01', bucket: 2 },
-					{ actionId: 'ready-1', label: 'Ready 1', dueDate: null, bucket: 1 },
-					{ actionId: 'soon', label: 'Soon', dueDate: '2026-06-20', bucket: 2 },
-					{ actionId: 'ready-2', label: 'Ready 2', dueDate: null, bucket: 1 }
+					action({ actionId: 'late', label: 'Later', dueDate: '2026-09-01', bucket: 2 }),
+					action({ actionId: 'ready-1', label: 'Ready 1', dueDate: null, bucket: 1 }),
+					action({ actionId: 'soon', label: 'Soon', dueDate: '2026-06-20', bucket: 2 }),
+					action({ actionId: 'ready-2', label: 'Ready 2', dueDate: null, bucket: 1 })
 				]
 			},
 			{
 				itemId: 'middle-item',
 				title: 'Middle item',
-				actions: [{ actionId: 'middle', label: 'Middle', dueDate: '2026-07-01', bucket: 2 }]
+				actions: [action({ actionId: 'middle', label: 'Middle', dueDate: '2026-07-01', bucket: 2 })]
 			}
 		];
 		const sections = projectWhatsNextSections(input, 'all');

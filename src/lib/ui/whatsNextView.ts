@@ -54,9 +54,13 @@ export function countWhatsNextActions(groups: readonly WhatsNextGroup[]): WhatsN
 	return { all: overdue + now + later, overdue, now, later };
 }
 
-export interface WhatsNextSection {
+export type SingleActionGroup<TGroup extends WhatsNextGroup> = Omit<TGroup, 'actions'> & {
+	actions: Array<TGroup['actions'][number]>;
+};
+
+export interface WhatsNextSection<TGroup extends WhatsNextGroup = WhatsNextGroup> {
 	bucket: WhatsNextBucket;
-	groups: WhatsNextGroup[];
+	groups: Array<SingleActionGroup<TGroup>>;
 }
 
 /**
@@ -71,10 +75,10 @@ export interface WhatsNextSection {
  * filter returns exactly that one section, even if empty, so the caller
  * can render a "nothing matches this filter" state.
  */
-export function projectWhatsNextSections(
-	groups: readonly WhatsNextGroup[],
+export function projectWhatsNextSections<TGroup extends WhatsNextGroup>(
+	groups: readonly TGroup[],
 	filter: WhatsNextFilter
-): WhatsNextSection[] {
+): WhatsNextSection<TGroup>[] {
 	const buckets: WhatsNextBucket[] = filter === 'all' ? [0, 1, 2] : [BUCKET_OF_FILTER[filter]];
 	return buckets.map((bucket) => {
 		const rows = groups.flatMap((group) =>
