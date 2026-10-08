@@ -40,7 +40,7 @@
 	}
 </script>
 
-<div class="inbox-page">
+<div class="inbox-page page-container page-container--wide">
 	<div class="inbox-page-head">
 		<div class="page-head inbox-page-head__copy">
 			<h1>{t('inbox.title')}</h1>

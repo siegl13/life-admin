@@ -38,8 +38,7 @@ async function deleteIfPending(
 	}
 	await expect(inboxDetail(page).getByRole('heading', { name: filename, level: 2 })).toBeVisible();
 	const deleteButton = inboxDetail(page).locator('button[formaction="?/delete"]');
-	await deleteButton.focus();
-	await deleteButton.press('Enter');
+	await deleteButton.click();
 	await expect(row).toHaveCount(0);
 }
 

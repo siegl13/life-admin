@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	formatCurrencyDisplay,
+	formatDate,
 	formatDueDayCount,
 	formatRelativeDue,
-	formatRelativeTime
+	formatRelativeTime,
+	formatTime
 } from './format';
 import { setLocaleProvider, t } from '$lib/i18n';
 
@@ -20,6 +22,35 @@ describe('formatCurrencyDisplay', () => {
 
 	it('returns the raw string unchanged when it is not a valid stored currency value', () => {
 		expect(formatCurrencyDisplay('not a currency value')).toBe('not a currency value');
+	});
+
+	it('renders the same stored EUR value in English locale format', () => {
+		setLocaleProvider(() => 'en');
+		expect(formatCurrencyDisplay('7485.00 EUR')).toBe('€7,485.00');
+	});
+});
+
+describe('formatDate', () => {
+	it('renders German dates unchanged (day. month year)', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatDate('2026-12-22')).toBe('22. Dezember 2026');
+	});
+
+	it('renders English dates as day month year, no comma', () => {
+		setLocaleProvider(() => 'en');
+		expect(formatDate('2026-12-22')).toBe('22 December 2026');
+	});
+});
+
+describe('formatTime', () => {
+	it('renders a 24-hour HH:mm time, identical for German and English', () => {
+		const iso = '2026-12-22T15:10:00.000Z';
+		setLocaleProvider(() => 'de');
+		const german = formatTime(iso);
+		setLocaleProvider(() => 'en');
+		const english = formatTime(iso);
+		expect(german).toMatch(/^\d{2}:\d{2}$/);
+		expect(english).toBe(german);
 	});
 });
 
@@ -44,6 +75,19 @@ describe('formatRelativeDue', () => {
 	it('counts days overdue, including across a year boundary', () => {
 		expect(formatRelativeDue('2026-06-10', today)).toBe('5 Tage überfällig');
 		expect(formatRelativeDue('2025-12-31', '2026-01-02')).toBe('2 Tage überfällig');
+	});
+
+	it('labels today, tomorrow and yesterday in English', () => {
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeDue('2026-06-15', today)).toBe('Today');
+		expect(formatRelativeDue('2026-06-16', today)).toBe('Tomorrow');
+		expect(formatRelativeDue('2026-06-14', today)).toBe('Yesterday');
+	});
+
+	it('counts days in English, future and overdue', () => {
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeDue('2026-06-20', today)).toBe('In 5 days');
+		expect(formatRelativeDue('2026-06-10', today)).toBe('5 days overdue');
 	});
 });
 
@@ -120,7 +164,7 @@ describe('formatRelativeTime', () => {
 
 		setLocaleProvider(() => 'en');
 		expect(formatRelativeTime(hoursBefore(6 * 24), now)).toBe('6 days ago');
-		expect(formatRelativeTime(hoursBefore(7 * 24), now)).toBe('8. Juni 2026');
+		expect(formatRelativeTime(hoursBefore(7 * 24), now)).toBe('8 June 2026');
 	});
 });
 

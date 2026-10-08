@@ -9,6 +9,134 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Part A - Locale formatting and intrinsic page widths (`part-a-locale-layout`)
+
+**Status: IMPLEMENTED AND VERIFIED.** `npm run verify`, the full
+`npm run test:e2e` run, browser matrix, README screenshots, manual checks,
+and Docker check all pass (attempt 05, after the F-01/F-02/F-03 corrections
+below). Independent implementation review passed (round 03). Full backup ZIP
+validity and detailed Docker preflight/startup/health/log/cleanup evidence
+remain independently unproven in the inspected artifacts (see the note
+below) — that is an operational-evidence limitation, not an open
+implementation or review finding.
+
+- Locale formatting: `src/lib/i18n/index.ts` adds one shared mapping,
+  `toIntlLocale()` (`de` → `de-DE`, `en` → `en-GB`), read from the existing
+  `getCurrentLocale()` used by `t()` (so SSR and hydration already agree, no
+  new wiring needed). `src/lib/ui/format.ts`'s `formatDate` and
+  `formatCurrencyDisplay` now build their `Intl.DateTimeFormat`/
+  `Intl.NumberFormat` from this mapping (cached per locale tag) instead of a
+  hardcoded `de-DE` constant. A new `formatTime` (24-hour `HH:mm`, locale-
+  mapped) replaces `ItemHistory.svelte`'s local `toLocaleTimeString(undefined,
+...)`, which previously followed the browser's locale instead of the saved
+  UI language. German output is unchanged (`22. Dezember 2026`,
+  `351,00 €`); English now reads `22 December 2026`, `€7,485.00`. Only
+  display formatting changed; input parsing, storage and domain logic are
+  untouched.
+- Notification text: no scheduler/dispatch/persistence change was needed.
+  `src/lib/application/notify/message.ts` already calls `t()` and
+  `formatDate()`, and `src/lib/server/notify/scheduler.ts` already wraps
+  dispatch in `runWithLocale(locale, ...)` with `hooks.server.ts` wiring
+  `getCurrentLocale()` to that same request-scoped store. Fixing `formatDate`
+  was therefore sufficient to make background notification text follow the
+  saved app language; no further notification code changed.
+- Layout: `src/app.css` adds `--page-max-list` (`60rem`) and
+  `--page-max-wide` (`77.5rem`) size tokens, plus the matching
+  `.page-container--list` and `.page-container--wide` variants. The `.app-shell`
+  is centered in the area to the right of the sidebar and reserves its gutters
+  around the wide variant. Pages select a variant on their own root: `/`,
+  `/items`, `/items/new`, `/upcoming`, `/suche`, and `/settings` use the list
+  variant; Item detail and `/inbox` use the wide variant. Login/Setup are
+  unauthenticated, sidebar-less pages and use the shell default. Item detail
+  uses flex wrapping: the main column has a larger basis than the side column,
+  which is capped at `22rem`; it stacks when both columns do not fit. Facts use
+  `repeat(auto-fit, minmax(14rem, 1fr))`. Inbox switches its list/detail grid
+  using a container query and retains independent list height with
+  `align-items: start`.
+- Item detail "More options" (Archive/manual-action cards) moved inside
+  `.item-detail-main` so it aligns with the main column instead of spanning
+  the full wide container; it stacks intrinsically with the rest of the main
+  column on narrow screens, same as before. The wrapper and card max-widths
+  now allow both cards to fill the main column and align with the facts cards.
+- Upload styling: `InboxUpload.svelte`'s scoped styles (`.upload-form`,
+  `.upload-picker`, `.upload-form-group`, `.upload-form__submit`) moved to
+  global `app.css` so `AttachmentUploadForm.svelte` can reuse them. The Item
+  upload form keeps its existing action (`?/addAttachment`), field name
+  (`file`), and no-JavaScript behavior; only its visual treatment changed to
+  the shared dashed picker.
+- Copy: Archive card paragraphs wrap in `.archive-copy` (tight
+  `gap: var(--space-1)`, `margin: 0`) instead of two browser-default
+  paragraph gaps. `items.detail.archiveOpenWarning` in `de.ts`/`en.ts` now
+  reads "Also possible while work is still open. The item is archived
+  without changing the cycle." (and the German equivalent), replacing the
+  em dash. Two other UI copy em dashes in `de.ts`/`en.ts`
+  (`settings.ai.noAutoSave`, `search.noneBody`) were replaced with normal
+  punctuation. The generic "Ohne Vorlage"/"No playbook" pill on the Items
+  list (`src/routes/items/+page.svelte`) gets a new `.pill--neutral` class
+  (`surface-hover`/`text-body`); a real Playbook pill is unaffected.
+- Tests: `src/lib/ui/format.test.ts` adds English `formatDate`,
+  `formatCurrencyDisplay`, `formatRelativeDue` and `formatTime` coverage and
+  fixes a pre-existing bug where the 7-day `formatRelativeTime` fallback
+  asserted a German date (`8. Juni 2026`) even in the English-locale test
+  case. `src/lib/application/notify/message.test.ts` adds a test that the
+  notification body date follows `setLocaleProvider`, in German and English.
+  `src/lib/server/notify/scheduler.test.ts` adds a saved-German/saved-English
+  test through `createNotificationTick` itself (a mocked `appSettingsPort`
+  plus the production `setLocaleProvider(() => getRequestLocale() ?? 'de')`
+  wiring, not a direct `setLocaleProvider` substitute), proving the
+  scheduler's own `runWithLocale` context, not just the formatter.
+  `tests/e2e/language-selection.spec.ts` adds one formatted-date check per
+  language on Item detail. `tests/e2e/app-shell.spec.ts` replaces the
+  "sidebar-to-content gap stays constant" (flush-left) test with assertions
+  measured against the sidebar-to-viewport-edge area (not just `.app-shell`,
+  which a reverted `margin: 0` could still satisfy): centered list-variant
+  width on all list pages, including `/suche`, and a `page-container--wide`
+  width/centering assertion on Item detail and Inbox, each reaching its
+  60rem/77.5rem cap once the area is wide enough to afford it.
+  `tests/e2e/item-detail-redesign.spec.ts` checks auto-fit fact columns,
+  intrinsic main/side wrapping, and matching facts/More options card edges at
+  1280px and 1920px.
+  `tests/e2e/progressive-item.spec.ts` adds a neutral-pill assertion on the
+  Items list. `tests/e2e/attachments.spec.ts` adds a `.upload-picker`
+  presence/field-name assertion on the Item upload form.
+- Final `npm run verify` passed: lint, Svelte check (0 errors and warnings),
+  Playbook validation, production build, 119 test files, and 1,012 unit tests.
+- The built-app browser matrix passed 192 route, viewport, language, and theme
+  combinations. It covered `/`, `/upcoming`, `/items`, `/suche`, `/settings`,
+  `/items/new`, Item detail, and `/inbox` at 390, 768, 1280, 1440, 1920, and
+  2560px in German and English, light and dark. There was no horizontal overflow,
+  console error, page error, or CSP error. Matrix screenshots are in
+  `.agent/supervisor/life-admin-part-a-locale-layout/tmp/browser-evidence/`.
+- The manual acceptance checks passed for setup/login, What's Next, Upcoming,
+  Playbook Item creation, Item fields/actions/dates, Search, attachment upload
+  and image viewing, related Items, change history, valid ZIP backup, and
+  application logs. Scratch data uses the run-owned directory, not `.data/`.
+- All six README screenshots were refreshed at 1440px, except mobile at 390px.
+  Each PNG is under 200 KB: `screenshots/whats-next.png` (118,113 bytes),
+  `screenshots/whats-next-dark.png` (119,575), `screenshots/item-detail.png`
+  (121,827), `screenshots/inbox.png` (121,681), `screenshots/new-item.png`
+  (47,219), and `screenshots/mobile.png` (81,664).
+- Dedicated Docker verification passed: the local image built, the isolated
+  Compose service became healthy, `/healthz` returned `{"status":"ok"}`, and
+  scoped cleanup removed its container, volume, network, and image.
+- Final `npm run test:e2e` passed all 192 tests, including full parsing of the
+  downloaded backup ZIP.
+  Attempt 05's supervisor verification log is
+  `.agent/supervisor/life-admin-part-a-locale-layout/part-a-locale-layout/verification/attempt-05-command-02.log`.
+  Historical note: three earlier attempts (01-03) stopped before Playwright
+  started because port 4173 was occupied by `node build` in the
+  already-merged `ui-redesign` worktree; that process released the port
+  before attempt 04, which ran clean (191 tests), and attempt 05 ran clean
+  again after the F-02/F-03 test corrections.
+- Independent implementation review passed (round 03), after the F-01/F-02/
+  F-03 corrections above. The backup E2E test fully reads and unpacks the
+  downloaded archive with `fflate`, then checks that `manifest.json` parses.
+  The final Docker check used an empty project and free port, built the local
+  image, waited for a healthy container, confirmed `/healthz` returned
+  `{"status":"ok"}`, and inspected startup logs. Scoped Compose cleanup
+  removed the container, volume, and network; the locally built image was
+  removed, and all four resources were confirmed absent afterward.
+
 ## UI redesign phase 1 - App shell
 
 **Status: IMPLEMENTED AND VERIFIED.**
@@ -50,9 +178,8 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   no navigation counts, no sidebar item-area
   list, no Cmd+K (all explicitly deferred). Mobile header integration
   into each page's own header is deferred, with no phase assigned yet.
-- Follow-up, outside this change: date and currency formatting still uses
-  `de-DE` regardless of UI language. English pages can show dates such as
-  "13. Oktober 2026". Make formatting follow the selected UI language separately.
+- The locale-aware date/currency formatting follow-up noted here is resolved;
+  see "Part A - Locale formatting and intrinsic page widths" below.
 
 ## Phase 2 - What's next redesign
 
@@ -101,11 +228,11 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   row per action, with its linked Item name below the task title. Dates are
   shown once as a relative pill and exact date; undated actions say "No date".
 - Deferred, same as phase 1: mobile header integration, inline due-date
-  editing on this page, swipe actions, Cmd+K, a week strip, app-wide
-  locale-aware date/currency formatting (still `de-DE` regardless of UI
-  language), and the side panel ("this week" / inbox count) the original
-  spec lists for this page. No side panel exists yet and no extra
-  domain/persistence query was added for it.
+  editing on this page, swipe actions, Cmd+K, a week strip, and the side
+  panel ("this week" / inbox count) the original spec lists for this page.
+  No side panel exists yet and no extra domain/persistence query was added
+  for it. (App-wide locale-aware date/currency formatting, listed here
+  previously, is resolved; see "Part A" below.)
 - Focused unit tests cover the shared transition helper (guarded
   rejection, success + history, no history on failure, a post-write
   history failure still propagating), the undo cookie's size bound
@@ -241,9 +368,10 @@ pass.**
   Screenshots are in the local polish scratchpad.
 - The README screenshots for What's Next, new-item and Item detail were
   refreshed because the shared content alignment and Item detail facts changed.
-- Follow-ups: locale-specific date and currency formatting for English;
-  What's Next side panel; mobile header integration into page headers; inline
-  due-date editing; Inbox preview endpoint; drag-and-drop upload.
+- Follow-ups: What's Next side panel; mobile header integration into page
+  headers; inline due-date editing; Inbox preview endpoint; drag-and-drop
+  upload. (Locale-specific date/currency formatting for English, listed here
+  previously, is resolved; see "Part A" below.)
 
 ## Node 26 runtime metadata
 

@@ -51,6 +51,29 @@ test('Settings -> change language -> save -> UI changes -> persisted selection v
 	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
+test('a formatted date on Item detail follows the selected UI language, not a fixed locale', async ({
+	page
+}) => {
+	// Starts in browser mode, which this file pins to en-US (see test.use
+	// above): English labels/formatting apply without an explicit switch.
+	await page.goto('/items/new');
+	await page.getByLabel('Title').fill(`Language format check ${Date.now()}`);
+	await page.getByRole('button', { name: 'Create' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+	const itemUrl = page.url();
+
+	const createdOn = page.locator('.page-head__context');
+	// English: day, full month name, year, no trailing period after the day.
+	await expect(createdOn).toHaveText(/^Created \d{1,2} \p{L}+ \d{4}$/u);
+
+	await page.goto('/settings');
+	await languageButton(page, 'de').click();
+	await page.goto(itemUrl);
+	await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+	// German: day with a trailing period, then month and year.
+	await expect(createdOn).toHaveText(/^Angelegt \d{1,2}\. \p{L}+ \d{4}$/u);
+});
+
 test('changing UI language does not change playbook country/domain selection', async ({ page }) => {
 	await page.goto('/settings');
 	const tuvRow = page.locator('#g-playbook-de\\.vehicle\\.tuv');

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { buildNotificationMessage } from './message';
+import { setLocaleProvider } from '$lib/i18n';
+
+afterEach(() => setLocaleProvider(() => 'de'));
 
 const reminder = {
 	itemId: 'item-1',
@@ -33,6 +36,16 @@ describe('buildNotificationMessage', () => {
 			{ minimalContent: false, origin: null }
 		);
 		expect(message.body).toContain('Überfällig');
+	});
+
+	it('follows the saved UI language through the existing locale context, not a fixed locale', () => {
+		setLocaleProvider(() => 'de');
+		const german = buildNotificationMessage(reminder, { minimalContent: false, origin: null });
+		expect(german.body).toContain('1. Oktober 2026');
+
+		setLocaleProvider(() => 'en');
+		const english = buildNotificationMessage(reminder, { minimalContent: false, origin: null });
+		expect(english.body).toContain('1 October 2026');
 	});
 
 	it('removes all item context in minimal mode', () => {

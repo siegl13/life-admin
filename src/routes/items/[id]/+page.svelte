@@ -51,7 +51,7 @@
 	let attachmentsManageOpenByDefault = $derived(data.attachments.length === 0);
 </script>
 
-<div class="item-detail-page">
+<div class="item-detail-page page-container page-container--wide">
 	<div class="page-head">
 		<a class="backlink" href={resolve('/')}>← {t('nav.whatsNext')}</a>
 		<div class="page-head__row">
@@ -273,6 +273,19 @@
 					<p class="note-text">{data.item.note}</p>
 				</section>
 			{/if}
+
+			<!-- 7 · Bearbeiten: aligned with the main column, not spanning the
+			     full width/side column, so it reads as part of the same content
+			     flow rather than a page-wide footer. -->
+			{#if !isArchived}
+				<section class="section" aria-labelledby="more-label">
+					<h2 class="section__label" id="more-label">{t('items.detail.more')}</h2>
+					<div class="form-stack">
+						<ManualActionForm />
+						<ArchiveItemForm />
+					</div>
+				</section>
+			{/if}
 		</div>
 
 		<!-- Desktop side column: documents, related items, history. Stacks below
@@ -348,15 +361,4 @@
 			/>
 		</div>
 	</div>
-
-	<!-- 7 · Bearbeiten -->
-	{#if !isArchived}
-		<section class="section" aria-labelledby="more-label">
-			<h2 class="section__label" id="more-label">{t('items.detail.more')}</h2>
-			<div class="form-stack">
-				<ManualActionForm />
-				<ArchiveItemForm />
-			</div>
-		</section>
-	{/if}
 </div>

@@ -260,32 +260,96 @@ test.describe('desktop sidebar', () => {
 	});
 });
 
-test.describe('content column keeps a fixed gutter after the sidebar on wide screens', () => {
-	for (const width of [1280, 1440, 1920, 2560]) {
-		test(`the sidebar-to-content gap stays constant at ${width}px on / and /settings`, async ({
-			page
-		}) => {
+test.describe('content column is centered in the area right of the sidebar on wide screens', () => {
+	const listRoutes = ['/', '/upcoming', '/items', '/suche', '/settings'];
+	const LIST_MAX = 60 * 16; // 960px
+
+	for (const width of [390, 768, 1280, 1440, 1920, 2560]) {
+		test(`list pages center their 60rem container at ${width}px`, async ({ page }) => {
 			await page.setViewportSize({ width, height: 900 });
 
-			const gaps: number[] = [];
-			for (const route of ['/', '/settings']) {
+			for (const route of listRoutes) {
 				await page.goto(route);
-				const gap = await page.evaluate(() => {
+				const layout = await page.evaluate(() => {
 					const sidebar = document.querySelector('.app-sidebar');
-					const shell = document.querySelector('.app-shell');
-					if (!sidebar || !shell) return null;
-					return shell.getBoundingClientRect().left - sidebar.getBoundingClientRect().right;
+					const container = document.querySelector('.page-container--list');
+					if (!container) return null;
+					const containerRect = container.getBoundingClientRect();
+					// The content area right of the sidebar, not the shell itself:
+					// a left-aligned `.app-shell` (e.g. `margin: 0`) would still pass
+					// a shell-relative check while visibly hugging the sidebar.
+					const areaLeft = sidebar ? sidebar.getBoundingClientRect().right : 0;
+					const areaRight = window.innerWidth;
+					return {
+						areaLeft,
+						areaRight,
+						containerLeft: containerRect.left,
+						containerRight: containerRect.right,
+						containerWidth: containerRect.width
+					};
 				});
-				expect(gap).not.toBeNull();
-				gaps.push(gap!);
+				expect(layout).not.toBeNull();
+				// The 60rem list-page-container variant, not a page-specific width.
+				expect(layout!.containerWidth).toBeLessThanOrEqual(961);
+				// Centered relative to the sidebar-to-viewport-edge area (desktop
+				// sidebar present at >=768px), not just inside whatever box the
+				// shell itself occupies.
+				if (width >= 768) {
+					const leftGap = layout!.containerLeft - layout!.areaLeft;
+					const rightGap = layout!.areaRight - layout!.containerRight;
+					expect(Math.abs(leftGap - rightGap)).toBeLessThan(2);
+				}
+				// Once the sidebar-to-viewport-edge area is wide enough, the
+				// container actually reaches the 60rem cap, not just "narrower
+				// than 961px" (which an unrelated, smaller width would also satisfy).
+				const areaWidth = layout!.areaRight - layout!.areaLeft;
+				if (areaWidth >= LIST_MAX + 64) {
+					expect(layout!.containerWidth).toBeGreaterThanOrEqual(LIST_MAX - 1);
+				}
 			}
-			// Same fixed gutter regardless of route (shell-wide, not
-			// page-specific), and nowhere near half the extra width a
-			// `margin: 0 auto` centered column would leave at this viewport.
-			expect(Math.abs(gaps[0] - gaps[1])).toBeLessThan(1);
-			expect(gaps[0]).toBeLessThan(80);
 		});
 	}
+});
+
+test.describe('item detail uses the 77.5rem wide page-container variant', () => {
+	test('Item detail and Inbox use the centered 77.5rem wide variant', async ({ page }) => {
+		await page.setViewportSize({ width: 1920, height: 900 });
+		await page.goto('/items/new');
+		await page.getByLabel('Titel').fill(`Wide layout check ${Date.now()}`);
+		await page.getByRole('button', { name: 'Anlegen' }).click();
+		await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+		const itemUrl = page.url();
+		const itemId = itemUrl.split('/').pop()!;
+
+		for (const route of [itemUrl, '/inbox']) {
+			await page.goto(route);
+			const layout = await page.evaluate(() => {
+				const sidebar = document.querySelector('.app-sidebar');
+				const container = document.querySelector('.page-container--wide');
+				if (!sidebar || !container) return null;
+				const containerRect = container.getBoundingClientRect();
+				const areaLeft = sidebar.getBoundingClientRect().right;
+				const areaRight = window.innerWidth;
+				return {
+					leftGap: containerRect.left - areaLeft,
+					rightGap: areaRight - containerRect.right,
+					containerWidth: containerRect.width
+				};
+			});
+			expect(layout).not.toBeNull();
+			expect(layout!.containerWidth).toBeGreaterThan(961);
+			expect(layout!.containerWidth).toBeLessThanOrEqual(77.5 * 16 + 1);
+			// At 1920px, 77.5rem (1240px) comfortably fits the sidebar-to-
+			// viewport-edge area, so the container both reaches the cap and is
+			// centered within that area, not just within the shell box.
+			expect(layout!.containerWidth).toBeGreaterThanOrEqual(77.5 * 16 - 1);
+			expect(Math.abs(layout!.leftGap - layout!.rightGap)).toBeLessThan(2);
+		}
+		await page.request.post(`/items/${itemId}?/archiveItem`, {
+			form: {},
+			headers: { accept: 'text/html', origin: new URL(page.url()).origin }
+		});
+	});
 });
 
 test.describe('mobile shell', () => {

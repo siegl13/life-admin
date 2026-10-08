@@ -24,6 +24,23 @@ test('a generic item (no playbook) can be created with only a title', async ({ p
 
 	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
 	await expect(page.getByRole('heading', { name: 'Mallorca Trip' })).toBeVisible();
+
+	// The items list gives a generic "no playbook" pill a neutral
+	// surface-hover/text-body treatment, not the accented real-playbook pill.
+	await page.goto('/items');
+	const pill = page.locator('.items-list__row', { hasText: 'Mallorca Trip' }).locator('.pill');
+	await expect(pill).toHaveClass(/pill--neutral/);
+	const neutralSurface = await page.evaluate(() => {
+		const probe = document.createElement('span');
+		probe.style.backgroundColor = getComputedStyle(document.documentElement)
+			.getPropertyValue('--color-surface-hover')
+			.trim();
+		document.body.append(probe);
+		const resolved = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return resolved;
+	});
+	await expect(pill).toHaveCSS('background-color', neutralSurface);
 });
 
 test('an item can be created from a playbook, saved with the date field empty, then reopened and filled in', async ({

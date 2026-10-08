@@ -24,6 +24,12 @@ test('a document can be uploaded, downloaded, and removed from an item', async (
 	await createItem(page, 'Attachment Upload Test');
 	await expect(page.getByRole('heading', { name: 'Dokumente', level: 2 })).toBeVisible();
 
+	// Item documents share the Inbox's dashed upload-picker styling, not a
+	// plain file input, while keeping the same form action and field name.
+	const uploadForm = page.locator('form[action="?/addAttachment"]');
+	await expect(uploadForm.locator('.upload-picker')).toBeVisible();
+	await expect(uploadForm.locator('input[type="file"]')).toHaveAttribute('name', 'file');
+
 	// "Dokumente verwalten" defaults open on a fresh item (nothing to show
 	// read-only yet) — no click needed to reach the upload form.
 	await page

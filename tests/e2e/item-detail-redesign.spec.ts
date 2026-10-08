@@ -418,7 +418,7 @@ test('facts are grouped by type, only populated values show once, empty ones col
 	);
 	expect(labelFontSize).toBeLessThan(valueFontSize);
 
-	for (const width of [1280, 390]) {
+	for (const width of [390, 768, 1280, 1440, 1920, 2560]) {
 		await page.setViewportSize({ width, height: 900 });
 		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
 		const factsWidth = await page
@@ -456,10 +456,19 @@ test('facts are grouped by type, only populated values show once, empty ones col
 		for (const group of await groups.all()) {
 			const groupWidth = await group.evaluate((node) => node.getBoundingClientRect().width);
 			expect(groupWidth).toBeCloseTo(factsWidth, 0);
-			const columns = await group
-				.locator('.data-list')
-				.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length);
-			expect(columns).toBe(width < 480 ? 1 : 2);
+			const grid = await group.locator('.data-list').evaluate((node) => {
+				const style = getComputedStyle(node);
+				return {
+					columns: style.gridTemplateColumns
+						.split(' ')
+						.map((value) => Number.parseFloat(value))
+						.filter((value) => value > 0),
+					columnGap: Number.parseFloat(style.columnGap),
+					width: node.clientWidth
+				};
+			});
+			expect(grid.columns.length).toBeGreaterThan(0);
+			for (const columnWidth of grid.columns) expect(columnWidth).toBeGreaterThanOrEqual(223);
 		}
 	}
 
@@ -553,6 +562,39 @@ test('desktop side column holds documents, related items and history in that ord
 	await expect(page.locator('.item-detail-main .timeline-bar')).toHaveCount(0);
 });
 
+test('item detail columns wrap based on available width, with the side column narrower when both fit', async ({
+	page
+}) => {
+	const itemId = await createTuvItem(page, 'Intrinsic Item Detail Layout Test');
+
+	for (const width of [390, 768, 1024, 1280, 1440, 1920, 2560]) {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto(`/items/${itemId}`);
+		const layout = await page.evaluate(() => {
+			const grid = document.querySelector('.item-detail-layout');
+			const main = document.querySelector('.item-detail-main');
+			const side = document.querySelector('.item-detail-side');
+			if (!grid || !main || !side) return null;
+			const gridStyle = getComputedStyle(grid);
+			const mainRect = main.getBoundingClientRect();
+			const sideRect = side.getBoundingClientRect();
+			return {
+				availableWidth: grid.getBoundingClientRect().width,
+				minimumTwoColumnWidth: 35 * 16 + 18 * 16 + Number.parseFloat(gridStyle.columnGap),
+				mainWidth: mainRect.width,
+				sideWidth: sideRect.width,
+				mainBottom: mainRect.bottom,
+				sideTop: sideRect.top
+			};
+		});
+		expect(layout).not.toBeNull();
+		const shouldStack = layout!.availableWidth < layout!.minimumTwoColumnWidth;
+		expect(layout!.sideTop >= layout!.mainBottom - 1).toBe(shouldStack);
+		if (!shouldStack) expect(layout!.mainWidth).toBeGreaterThan(layout!.sideWidth);
+		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
+	}
+});
+
 test('a long item detail keeps the desktop sidebar at the document bottom', async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await createTuvItem(page, 'Redesign Long Detail Test');
@@ -637,12 +679,12 @@ test('item detail section headings and the final More options section keep share
 	expect(formBox).not.toBeNull();
 	const fieldsGap = formBox!.y - (summaryBox!.y + summaryBox!.height);
 	const moreSection = page.locator('#more-label').locator('..');
-	const layout = page.locator('.item-detail-layout');
-	const layoutBox = await layout.boundingBox();
+	const fieldsSection = fieldsPanel.locator('..');
+	const fieldsSectionBox = await fieldsSection.boundingBox();
 	const moreBox = await moreSection.boundingBox();
-	expect(layoutBox).not.toBeNull();
+	expect(fieldsSectionBox).not.toBeNull();
 	expect(moreBox).not.toBeNull();
-	const moreTopGap = moreBox!.y - (layoutBox!.y + layoutBox!.height);
+	const moreTopGap = moreBox!.y - (fieldsSectionBox!.y + fieldsSectionBox!.height);
 	const sectionGap = await page
 		.locator('#workflow-label')
 		.locator('..')
@@ -654,6 +696,33 @@ test('item detail section headings and the final More options section keep share
 	// Section-to-section gap: its own consistent (larger) token, unrelated
 	// to the heading-to-content spacing above.
 	expect(moreTopGap).toBeCloseTo(sectionGap, 0);
+});
+
+test('More options cards match the item detail facts-card width at wide desktop sizes', async ({
+	page
+}) => {
+	await createTuvItem(page, 'Redesign More Options Width Test');
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('input[type="date"]').first().fill('2026-01-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+
+	const factsCard = page.locator('.facts-group').first();
+	const moreCards = page.locator('#more-label').locator('..').locator('.disclosure');
+	await expect(factsCard).toBeVisible();
+	await expect(moreCards).toHaveCount(2);
+
+	for (const width of [1280, 1920]) {
+		await page.setViewportSize({ width, height: 900 });
+		const factsBox = await factsCard.boundingBox();
+		expect(factsBox).not.toBeNull();
+
+		for (const card of await moreCards.all()) {
+			const cardBox = await card.boundingBox();
+			expect(cardBox).not.toBeNull();
+			expect(cardBox!.x).toBeCloseTo(factsBox!.x, 0);
+			expect(cardBox!.x + cardBox!.width).toBeCloseTo(factsBox!.x + factsBox!.width, 0);
+		}
+	}
 });
 
 async function resolvedSpace3(page: import('@playwright/test').Page): Promise<number> {
