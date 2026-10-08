@@ -11,9 +11,12 @@ for non-commercial use ([details below](#license)). **Contributing:** see
 
 ## Screenshots
 
-![What's Next: overdue and upcoming actions grouped by Item](screenshots/whats-next.png)
+![What's next showing overdue, ready now, and later actions for sample items](screenshots/whats-next.png)
+![What's next in dark mode with the same overdue, ready now, and later actions](screenshots/whats-next-dark.png)
 ![Item detail showing the next action, workflow steps, and field values](screenshots/item-detail.png)
+![Inbox with an AI suggestion for the selected document and a second document in the list](screenshots/inbox.png)
 ![New item form with a title and a Playbook selected](screenshots/new-item.png)
+<img src="screenshots/mobile.png" width="300" alt="What's next on mobile with the header, first action rows, and tab bar">
 
 All data shown is fictional test data, not a real booking or contract.
 
@@ -64,6 +67,13 @@ hostname, a different port, a reverse proxy), you must set `ORIGIN` in
 - Backup and restore as a single ZIP archive
 - Optional AI-assisted document field extraction (off by default)
 - Optional notifications via ntfy or Slack (off by default)
+
+On screens at least 768px wide, the sidebar links to What's Next, Upcoming,
+Items and Inbox. Search, New Item, Settings and Sign out are also in the sidebar.
+On smaller screens, four bottom tabs provide navigation. Search and Settings
+are in the header. The account menu contains Sign out. The floating plus opens
+New Item and is hidden on the new-item form. Navigation and sign out work
+without JavaScript.
 
 ## Key concepts
 

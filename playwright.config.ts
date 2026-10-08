@@ -1,4 +1,11 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
+
+// The E2E process and its webServer must address the same disposable SQLite
+// file. An absolute path avoids different working directories resolving the
+// relative `.data-e2e` path to separate empty databases.
+const e2eDataDir = path.resolve('.data-e2e');
+process.env.LIFEADMIN_DATA_DIR = e2eDataDir;
 
 export default defineConfig({
 	testDir: 'tests/e2e',
@@ -33,7 +40,7 @@ export default defineConfig({
 		port: 4173,
 		env: {
 			PORT: '4173',
-			LIFEADMIN_DATA_DIR: '.data-e2e',
+			LIFEADMIN_DATA_DIR: e2eDataDir,
 			// Required by adapter-node's CSRF origin check (defaults to
 			// assuming HTTPS otherwise) — must match baseURL exactly, or
 			// every form-based test fails with a 403.

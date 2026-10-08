@@ -28,13 +28,13 @@ test('installs, offers, and removes a pasted playbook without changing its item'
 	await page.getByLabel('Titel').fill(`Installed ${id}`);
 	await page.getByLabel('Vorlage').selectOption({ label: id });
 	await page.getByRole('button', { name: 'Anlegen' }).click();
-	await expect(page.getByText(`Angelegt aus der Vorlage: ${id}`)).toBeVisible();
+	await expect(page.locator('.page-head .pill')).toHaveText(id);
 	const itemUrl = page.url();
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Entfernen' }).last().click();
 	await expect(page.getByText(id)).toHaveCount(0);
 	await page.goto(itemUrl);
-	await expect(page.getByText(`Angelegt aus der Vorlage: ${id}`)).toBeVisible();
+	await expect(page.locator('.page-head .pill')).toHaveText(id);
 });
 
 test('rejects ambiguous playbook sources without installing either', async ({ page }) => {

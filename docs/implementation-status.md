@@ -9,6 +9,242 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## UI redesign phase 1 - App shell
+
+**Status: IMPLEMENTED AND VERIFIED.**
+
+- Scope: responsive application navigation. Desktop gets a non-sticky left
+  sidebar (brand, search link, four destinations, primary create link,
+  Settings and sign-out) at >=768px. Below 768px: a thin mobile header
+  (search icon, Settings icon, native `<details>` account menu with a
+  POST sign-out form), a four-destination bottom tab bar, and a floating
+  create button (hidden on `/items/new`, where it would sit on the
+  form's own submit button). Exactly two layouts; no intermediate
+  stacked-sidebar state. No page content redesign (deferred to later
+  phases).
+- `--mobile-floating-reserve` (shared by `.app-shell`'s bottom padding
+  and `scroll-padding-bottom`) keeps the tab bar and create button clear
+  of every field and submit control, including mid-page controls
+  scrolled into view and the full-page bottom scroll, verified in
+  `tests/e2e/app-shell.spec.ts` across `/items/new`, `/settings`, a
+  populated item detail page, and both inbox destinations, with both
+  rectangle-overlap and pointer hit-test assertions.
+- After the sidebar-height correction, `npm run verify` passed (936 unit
+  tests across 115 files, no Svelte errors or warnings). The full
+  `npm run test:e2e` suite passed all 120 tests including setup and the new
+  long-page sidebar regression. Initial built-app browser checks: 32
+  route/theme/viewport checks (all seven top-level routes plus a
+  generated item detail page, light/dark, 390px/1280px), plus 375/767/768
+  boundary checks, zero console, page, or CSP errors.
+- README screenshots show the English interface with fictional Items,
+  tasks and populated details. Sample data is created only in a scratch
+  data directory. Unreferenced shell screenshots were removed.
+- Sidebar entries and mobile account-menu rows use the same text size,
+  weight and control height. Settings and Sign out have matching icons.
+  Current Light/Dark browser checks at 1280px and 390px confirmed uniform
+  typography, 44px rows, no horizontal overflow and no console or CSP errors.
+- The desktop sidebar stretches to the full document height. Its background
+  and border continue to the page bottom. Settings and Sign out stay at the
+  sidebar bottom. The sidebar remains in normal flow, without sticky positioning.
+- Deviations from the original spec, per the user's approved amendments:
+  no navigation counts, no sidebar item-area
+  list, no Cmd+K (all explicitly deferred). Mobile header integration
+  into each page's own header is deferred, with no phase assigned yet.
+- Follow-up, outside this change: date and currency formatting still uses
+  `de-DE` regardless of UI language. English pages can show dates such as
+  "13. Oktober 2026". Make formatting follow the selected UI language separately.
+
+## Phase 2 - What's next redesign
+
+**Status: IMPLEMENTED AND VERIFIED.**
+
+- The root page now splits each Item's available actions by bucket
+  (overdue/ready/future) instead of filing the whole Item under its most
+  urgent one: the same Item can appear in more than one section, each
+  action exactly once. Server-side `?filter=all|overdue|now|later` links
+  show full-working-set action counts and mark the active filter with
+  `aria-current`; an unknown filter falls back to `all`.
+- Each action row has a round "done" control (labelled "Erledigen:
+  `<action>`" for assistive tech) and a native `<details>` "more actions"
+  menu with skip and a link to the action's spot on the item detail page
+  (`#action-<id>`, added to `WorkflowTimeline`). No inline due-date editor
+  on the root page; date changes stay on the item detail page.
+- A shared server-only helper (`src/lib/server/http/actionTransition.ts`)
+  owns parsing, the guarded state transition, history recording, AND the
+  rejected-transition error mapping for the item-detail route, the root
+  route's complete/skip/reopen actions, and the root's cookie-based undo,
+  with one mapping for rejected transitions. The detail route keeps its
+  existing archive check and redirect. The root page also supports reopening (`?/reopenAction`, same
+  itemId+actionId contract as complete/skip): completing an action sets a
+  bounded (120s), httpOnly flash cookie carrying the completed action's
+  own id/label (length-capped, by Unicode code point, so neither a very
+  long nor a multibyte label can grow the cookie past browser limits).
+  The cookie is read-only on every page view until the user clicks
+  "Undo" (which consumes and deletes it) or its 120s `maxAge` elapses.
+  a GET never invalidates the undo a following POST still needs. A
+  rejected or stale undo (already reopened, unknown/deleted action,
+  archived item) renders a clear 400 error instead of a 500. The active
+  `?filter=` is preserved across complete/skip/reopen/undo by carrying it
+  in the form `action` query (navigation state, not a hidden business
+  field) and re-validating it server-side through `parseWhatsNextFilter`
+  before building the post-action redirect.
+  Undo submits the displayed action's identity too. If another tab replaces
+  the cookie, the older notice fails without reopening or consuming the newer
+  action. Matching IDs still pass through the shared guarded transition.
+- Due dates show a relative pill next to the existing exact-date text:
+  "Today"/"In 5 days"/"3 days overdue" etc. for a dated action, and a
+  "Ready now" pill for an undated one, so every row has a pill, not only
+  dated ones. Computed from the server clock's `today` (never the
+  browser's), so hydration cannot disagree with the server-rendered date.
+- Dated actions sort by due date within each bucket, oldest first. Undated
+  ready actions keep their existing order. What's next now uses one compact
+  row per action, with its linked Item name below the task title. Dates are
+  shown once as a relative pill and exact date; undated actions say "No date".
+- Deferred, same as phase 1: mobile header integration, inline due-date
+  editing on this page, swipe actions, Cmd+K, a week strip, app-wide
+  locale-aware date/currency formatting (still `de-DE` regardless of UI
+  language), and the side panel ("this week" / inbox count) the original
+  spec lists for this page. No side panel exists yet and no extra
+  domain/persistence query was added for it.
+- Focused unit tests cover the shared transition helper (guarded
+  rejection, success + history, no history on failure, a post-write
+  history failure still propagating), the undo cookie's size bound
+  (long-ASCII and multibyte labels), the filter/count/section projection
+  (including the mixed-bucket split), and the relative due text
+  (today/tomorrow/yesterday, day counts across month/year boundaries).
+  `tests/e2e/whats-next-redesign.spec.ts` covers the round done/undo
+  flow with JavaScript disabled, a DERIVED action's dependency
+  re-blocking after undo, the native menu's skip and date-change link
+  (landing on a real DERIVED date editor), filter count deltas/unknown-
+  filter fallback/a mismatched-filter empty view, the mixed-section
+  grouping, rendered relative-plus-exact dates, stale/unknown/archived
+  undo attempts, and a populated 375px layout.
+- `npm run verify` passed with 118 test files and 962 tests, no Svelte
+  errors or warnings. The full `npm run test:e2e` suite passed all 130 tests.
+  Fresh-data browser checks passed for empty and long lists in light/dark
+  at 390px and 1280px. No console, page or CSP errors were observed.
+  Filtered-empty and complete/undo journeys also worked without JavaScript.
+  The desktop sidebar reached the document bottom on the long list.
+  Independent review passed. The final English README screenshot was captured
+  after review, with overdue, ready-now and later actions from scratch data.
+
+## Phase 3 - Item detail redesign
+
+**Status: IMPLEMENTED AND VERIFIED.**
+
+- The header shows the item title,
+  playbook and creation date. The next-action hero shows one due date and
+  numeric day count. Desktop owns its complete, skip and eligible due-date
+  controls. On phones the hero is informational and one sticky bar owns the
+  controls. The global Create button is hidden on item-detail routes on phones.
+- The workflow keeps domain order. A localized progress count and bar appear at
+  every width; the vertical list is the only place that shows step names and
+  controls. Per-action dialogs and controls remain in the workflow. The
+  featured action's primary controls appear only in the hero or phone bar.
+- Fields are grouped by type in full-width cards. Each group has two columns at
+  480px and wider, and one column on smaller screens. Multiword values wrap;
+  unbroken identifiers stay on one line with an ellipsis and full-value tooltip.
+  Empty values use a collapsed, localized disclosure. Archived items remain
+  read-only.
+- Document display names use one-line ellipses and full-value tooltips. The
+  original filename appears only after a rename. Metadata wraps cleanly, and
+  dates stay together. Documents, related items and newest-first history sit
+  in the desktop side column and stack below on phones.
+- Section heading gaps are shared across the fields panel and More options.
+- `npm run verify` passed with 119 test files and 997 tests. The full
+  `npm run test:e2e` suite passed all 155 tests.
+- Built-app checks passed in 18 cases: active, empty and archived items in
+  light and dark themes at 390px and 1280px, plus layout checks at 641px,
+  767px and 768px. Due-date and snooze dialogs opened. There
+  was no horizontal overflow, console error, page error or CSP violation.
+  The phone sticky bar stayed above the tab bar. The desktop sidebar reached
+  the bottom of the long page. Sample data and browser screenshots stay in the
+  ignored local scratch directory.
+- Empty-state and cycle-completion hero hints meet the 4.5:1 contrast target
+  in light and dark themes. Sentence-case headings and uniform touch targets
+  are covered by the item-detail E2E tests.
+- Independent review passed. The final English
+  `screenshots/item-detail.png` was captured after review with realistic
+  scratchpad sample data.
+
+## Phase 4 - Inbox redesign
+
+**Status: IMPLEMENTED. Full verification, browser checks and independent review
+pass.**
+
+- `src/routes/inbox/+page.svelte` uses `InboxUpload`, `InboxDocumentList` and
+  `InboxRouteForm` components in `src/lib/components/inbox/`. An Inbox-only
+  `src/app.css` section styles the compact document list and selected detail
+  panel. Desktop uses side-by-side panels. At widths under 768px, the selected
+  detail appears first. `?view=list` returns to the list without JavaScript.
+  At 768px, responsive columns and wrapping prevent overflow.
+- Each document row is one link with a translated accessible name. Filenames use
+  one-line ellipsis and retain the full name in `title`. The suggested badge can
+  wrap inside its radio label. List and destination pills use the same title-case
+  term in each language. The suggestion panel uses a quiet surface and normal-case
+  section headings. The active row uses the soft accent surface and accent border.
+- `?doc=<id>` selects a document. Missing, empty, unknown and stale IDs select the
+  newest pending document. After routing or deleting a document, the next pending
+  document is selected. An empty inbox shows its upload state.
+- Upload and routing use native forms and links. Destination radios, confirmation,
+  status pills and existing POST actions keep their current contracts. Suggested
+  items and playbooks are preselected. No domain, persistence, AI or endpoint changes.
+- The detail shows file type, name, size and upload date. It does not preview the
+  file or move item field extraction into the Inbox. Labels and count text use
+  English and German singular/plural forms. Controls have visible focus and 44px
+  targets. The German list link reads "Zurück zur Liste".
+- Automated checks: `npm run verify` passed with 118 test files and 974 unit tests.
+  The final `npm run test:e2e` passed all 153 tests. Focused Inbox E2E checks passed
+  26/26, including long filenames at 390px and 1280px, the 375px suggested badge,
+  and both destination panels at 768px in light and dark. The browser check passed
+  at 375px, 390px, 768px, 1024px and 1280px in both themes, with empty and populated
+  Inbox data and a long filename. No console, page, CSP or horizontal overflow
+  errors were observed. Native upload and URL navigation passed without JavaScript.
+  Screenshots and observation data remain in the local scratchpad.
+- An earlier full E2E run had two unrelated timeout failures. The final full run
+  passed without those failures.
+- Follow-ups: Inbox preview needs a content endpoint; drag-and-drop is optional;
+  three equal destination cards need a form-contract decision; extracted value chips
+  need Inbox extraction data.
+- Integrated with Phase 3 by merge commit `7ad043bf`. Phase 3 details and
+  verification remain in the separate section above.
+
+## Final polish
+
+**Status: IMPLEMENTED AND VERIFIED. Independent review passed.**
+
+- Relative-time labels share one formatter with an explicit server-provided
+  `now`. German and English labels scale from “just now” through minutes, hours
+  and days, then use the date. Unit tests cover scale boundaries and both
+  languages. Inbox E2E verifies the server time stays stable through hydration.
+- The content column uses a fixed gutter after the sidebar at wide sizes. The
+  Items archive control is inline with its heading, keeps a 44px target at
+  desktop and mobile widths, and wraps without horizontal overflow on phones.
+  Items rows are compact with Playbook pills; a long custom Playbook name
+  bounds to the row width and ellipsizes instead of overflowing. Upcoming
+  keeps its ranges and data, with section dots/counts and state pills.
+- Inbox lists size to their contents. Multiword Item facts wrap; long
+  unbroken values keep a full-value tooltip and ellipsis. Section headings
+  share the same spacing on What's Next, Item detail and Inbox, including the
+  closed fields disclosure next to the populated read-only facts view.
+- Review corrections bound long Playbook names to their row, keep the closed
+  fields disclosure to one section gap, and add focused checks for archive
+  control geometry and shared Settings/Search/auth controls.
+- `npm run verify` passed with 119 files and 1,003 unit tests. Focused review
+  regressions passed 32/32, and the final full `npm run test:e2e` passed
+  186/186, including the 375px German/English filter-chip check.
+- Built-app browser checks passed 78 route, viewport and theme combinations at
+  390px, 1280px and 1920px. They covered all top-level pages, active and
+  archived Items views, active and archived Item detail, the Inbox with an
+  older document, the real Setup form, and unauthenticated Login and closed
+  Setup. There were no console, page, CSP or horizontal-overflow errors.
+  Screenshots are in the local polish scratchpad.
+- The README screenshots for What's Next, new-item and Item detail were
+  refreshed because the shared content alignment and Item detail facts changed.
+- Follow-ups: locale-specific date and currency formatting for English;
+  What's Next side panel; mobile header integration into page headers; inline
+  due-date editing; Inbox preview endpoint; drag-and-drop upload.
+
 ## Node 26 runtime metadata
 
 **Status: VERIFICATION PASSED.**
@@ -106,11 +342,11 @@ src/lib/application/upcoming/loadUpcoming.test.ts` (6 tests), the extended
   repository check with `src/lib/server/db/repositories/whatsNextRepository.test.ts`
   (13 tests total), `npm run check`, `npm run lint`, `npm run build`, and
   `npx playwright test tests/e2e/upcoming.spec.ts --project=chromium` (2 tests).
-- Supervisor E2E verification found an ambiguous global `Jetzt möglich` locator in
+- E2E verification found an ambiguous global `Jetzt möglich` locator in
   `tests/e2e/upcoming.spec.ts`; the assertion now scopes the state check to the
   created Upcoming row. A focused run immediately before the correction passed
   with 2 tests; formatter and ESLint checks pass after the correction.
-- Supervisor verification attempt 05 passed `npm run verify` (898 Vitest tests)
+- Verification attempt 05 passed `npm run verify` (898 Vitest tests)
   and `npm run test:e2e` (91 browser tests). The shared-database count assertion
   now scopes action coverage to the created Item and compares each range count
   with its rendered rows. The final independent review found no remaining
@@ -205,7 +441,7 @@ src/lib/application/upcoming/loadUpcoming.test.ts` (6 tests), the extended
 
 **Status: COMPLETE.**
 
-- Supervisor verification attempt 01 stopped at Prettier checks for the
+- Verification attempt 01 stopped at Prettier checks for the
   lifecycle-limited Slice 15 design handoff bundle. The bundle is a read-only
   specification and includes generated reference files, so
   `.prettierignore` now preserves it verbatim, matching the existing Slice 14
@@ -234,70 +470,70 @@ src/lib/application/upcoming/loadUpcoming.test.ts` (6 tests), the extended
   pairs, constraints, duplicate/self/missing/archived rejection, list/unlink/cleanup behavior,
   overview selection, restore validation, normal and archived UI, disclosure,
   no-JavaScript forms, mobile overflow, and anonymous access.
-- Focused checks run through the Slice 15 supervisor wrapper: targeted Prettier
+- Focused checks run through the Slice 15 verification wrapper: targeted Prettier
   write passed; focused Vitest relation, migration, and restore tests passed;
   `npm run check` passed; `npm run build` passed; and `npx playwright test
 tests/e2e/related-items.spec.ts --project=chromium` passed with 5 browser tests
   plus the authenticated setup project. A first expanded E2E attempt found only
   selector assertions against collapsed disclosure DOM and duplicate visible title
   text; the assertions were corrected and the final focused E2E run passed.
-- Supervisor verification attempt 02 stopped at one typed-route lint violation
+- Verification attempt 02 stopped at one typed-route lint violation
   for the empty relation-state link. The link now resolves the current Item
   route with its Item id. Focused ESLint, Prettier, and Svelte checks passed
   after the correction.
-- Supervisor verification attempt 03 passed lint and Svelte checks, then
+- Verification attempt 03 passed lint and Svelte checks, then
   stopped before playbook validation because `tsx` could not bind its IPC socket
-  under the supervisor's long temporary-path name (`EINVAL`). The equivalent
+  under the long temporary-path name (`EINVAL`). The equivalent
   focused `node --import tsx scripts/validate-playbooks.ts` check passed; no
   Slice 15 source finding was reported.
-- Supervisor verification attempt 04 passed `npm run verify` with 103 unit-test
+- Verification attempt 04 passed `npm run verify` with 103 unit-test
   files and 824 tests, and `npm run test:e2e` with 76 browser tests. Independent
   review found follow-up implementation coverage and overview styling gaps.
 
-- Supervisor verification attempt 05 passed `npm run verify` with 103 unit-test
+- Verification attempt 05 passed `npm run verify` with 103 unit-test
   files and 825 tests, and `npm run test:e2e` with 77 browser tests. The
   correction added overview styling, empty-projection and next-Action coverage,
   backup/restore relation round-trip coverage, and focused relation-route coverage.
   At that point, manual browser and Docker verification had not yet run.
-- Supervisor verification attempt 06 passed `npm run verify` with 103 unit-test
+- Verification attempt 06 passed `npm run verify` with 103 unit-test
   files and 825 tests, and `npm run test:e2e` with 77 browser tests. Manual
   browser and Docker verification had not yet run.
-- Supervisor verification attempt 07 passed `npm run verify` with 104 unit-test
+- Verification attempt 07 passed `npm run verify` with 104 unit-test
   files and 829 tests, and `npm run test:e2e` with 76 browser tests. Manual
   browser, Docker, and independent review gates had not yet run.
-- Supervisor verification attempt 08 found horizontal overflow in the existing
+- Verification attempt 08 found horizontal overflow in the existing
   attachment mobile-boundary test at 640px. The shared attachment and topbar
   mobile rules include 640px, restoring the compact header and document-row
   layout at that boundary. The focused attachment E2E check passed after the
   correction.
-- Supervisor verification attempt 09 passed `npm run verify` with 104 unit-test
+- Verification attempt 09 passed `npm run verify` with 104 unit-test
   files and 833 tests, and `npm run test:e2e` with 79 browser tests. Manual
   browser, Docker, and independent review gates had not yet run.
-- Supervisor verification attempt 10 passed `npm run verify` with 104 unit-test
+- Verification attempt 10 passed `npm run verify` with 104 unit-test
   files and 833 tests, and `npm run test:e2e` with 79 browser tests. Manual
   browser, Docker, and independent review gates had not yet run.
-- Supervisor verification attempt 11 corrected the Slice 15-specific mobile
+- Verification attempt 11 corrected the Slice 15-specific mobile
   breakpoint to stop at 639px, so the related-items rows and controls retain
   their 640px desktop layout. It passed `npm run verify` with 104 unit-test
   files and 833 tests, and `npm run test:e2e` with 79 browser tests. Manual
   browser, Docker, and independent review gates had not yet run.
-- Supervisor verification attempt 12 passed `npm run verify` with 104 unit-test
+- Verification attempt 12 passed `npm run verify` with 104 unit-test
   files and 833 tests, and `npm run test:e2e` with 79 browser tests. At that
   time, subsequent independent gate reviews found additional implementation
   issues, so manual browser, Docker, and final review gates were pending.
-- Supervisor verification attempt 13 passed `npm run verify` and `npm run
+- Verification attempt 13 passed `npm run verify` and `npm run
  test:e2e`. The completed production-browser, restart-persistence, Docker, and
   independent Product, Architecture, and Security gates are recorded in
   `docs/reviews/slice-15-review-gates.md`.
-- Supervisor verification attempt 14 passed `npm run verify`, but `npm run
+- Verification attempt 14 passed `npm run verify`, but `npm run
 test:e2e` stopped during adapter-node's final cleanup of the shared `build/`
   directory with `ENOTEMPTY`, before Playwright started. The focused `npm run
 build` rerun passed, so no Slice 15 source or test defect was reproduced.
-- Supervisor verification attempt 15 passed `npm run verify` and `npm run
+- Verification attempt 15 passed `npm run verify` and `npm run
 test:e2e`.
-- Supervisor verification attempt 16 passed `npm run verify` and `npm run
+- Verification attempt 16 passed `npm run verify` and `npm run
 test:e2e`.
-- Supervisor verification attempt 17 passed `npm run verify` and `npm run
+- Verification attempt 17 passed `npm run verify` and `npm run
 test:e2e`.
 - The required historical `npm run verify` result after each of the five ordered
   implementation steps was not captured. Focused checks and repeated full-suite
@@ -308,9 +544,9 @@ test:e2e`.
 
 **Status: COMPLETE.**
 
-- Supervisor verification attempt 05 passed `npm run verify` with 99 test files
+- Verification attempt 05 passed `npm run verify` with 99 test files
   and 809 tests, and `npm run test:e2e` with 69 tests. The complete logs are in
-  `.agent/supervisor/life-admin-slice-14-better-document-experience/slice-14-better-document-experience/verification/attempt-05-command-01.log`
+  local verification log `attempt-05-command-01.log`
   and `attempt-05-command-02.log`. Architecture and automated security review
   gates also passed.
 - The production-browser matrix passed on 2026-09-15 against the production build
@@ -337,14 +573,14 @@ test:e2e`.
   headers. Attempt 04 passed the automated verification gates, and the later manual
   browser and Docker matrices passed.
 
-- Supervisor verification attempt 02 stopped at eight Svelte lint violations
+- Verification attempt 02 stopped at eight Svelte lint violations
   in the new document components and viewer. The navigation links now resolve
   their typed routes directly, including the download query parameter, and
   literal separator mustaches are plain text. Focused `npm run lint` and
   `npm run check` passed after the correction (`focused-checks/check-48.log`
-  and `focused-checks/check-49.log`); the supervisor still owns complete
-  verification.
-- Supervisor verification attempt 01 stopped at Prettier formatting in the
+  and `focused-checks/check-49.log`); full verification was still pending
+  at that point.
+- Verification attempt 01 stopped at Prettier formatting in the
   lifecycle-limited Slice 14 design handoff. Attempt 04 later passed full
   automated verification, and all five protected handoff files were restored
   to their pre-unit hashes.
@@ -371,7 +607,7 @@ src/lib/server/http/attachmentContentHeaders.test.ts src/hooks.server.test.ts
 src/lib/server/backup/restore.test.ts` passed (step 4,
   `focused-checks/check-40.log`); and `npm run check` passed (step 5,
   `focused-checks/check-41.log`). All artifacts are under
-  `.agent/supervisor/life-admin-slice-14-better-document-experience/slice-14-better-document-experience/focused-checks/`.
+  local focused-check artifacts.
 - ADR 0009 is the current Attachment route authority. ADR 0006's old Attachment
   path is a historical example superseded by Slice 14.
 - Historical note: Slice 15 - Related Items + Item Overview was the next pending
@@ -398,7 +634,7 @@ src/lib/server/backup/restore.test.ts` passed (step 4,
   `npm run test:e2e` (65 tests) both pass after these changes. This was a
   UI-only correction; the separate manual production-browser and Docker
   acceptance matrices recorded below were not rerun for it.
-- Post-correction supervisor verification repeatedly passed `npm run verify`
+- Post-correction verification repeatedly passed `npm run verify`
   (97 test files, 781 unit tests) and `npm run test:e2e` (65 tests). Attempts
   19 through 23 measured the warmed 1,000-Item query between 24.87 ms and
   106.43 ms, below the approved 250 ms local threshold. Each plan used indexed
@@ -406,7 +642,7 @@ src/lib/server/backup/restore.test.ts` passed (step 4,
   Review rounds 08 through 10 had metadata-only findings caused by each retry
   creating a newer passing attempt after the preceding attempt number was
   recorded; they found no implementation or test regression.
-- Supervisor verification attempt 20 passed `npm run verify` (97 test files,
+- Verification attempt 20 passed `npm run verify` (97 test files,
   781 unit tests) and `npm run test:e2e` (65 tests). The warmed 1,000-Item
   query completed in 106.43 ms, below the approved 250 ms local threshold.
   Its plan used indexed Item, cycle, field, and Action access and contained no
@@ -429,7 +665,7 @@ life-admin-slice-13-global-search up -d --build` started a healthy service,
   dedicated Compose project, volume, network, and three exact images created by
   the run were removed; post-cleanup checks returned empty.
 
-- Supervisor verification attempt 19 passed `npm run verify` (97 test files,
+- Verification attempt 19 passed `npm run verify` (97 test files,
   781 unit tests) and `npm run test:e2e` (65 tests). The warmed 1,000-Item
   bound SQLite search completed in 24.87 ms. `EXPLAIN QUERY PLAN` used
   `ix_items_status_created` and `ix_cycles_item_status` for every source,
@@ -440,79 +676,79 @@ life-admin-slice-13-global-search up -d --build` started a healthy service,
   production/browser and Docker verification had not yet been recorded, so
   Slice 13 remained incomplete.
 
-- Supervisor verification attempt 18 passed `npm run verify` (781 unit tests),
+- Verification attempt 18 passed `npm run verify` (781 unit tests),
   but both delayed stale-response browser scenarios timed out before the
   intercepted request started. Each scenario initially loaded `q=alpha`, then
   entered a value that normalizes to the same URL. SvelteKit correctly made no
   redundant navigation, so the test waited for a request that cannot exist.
   The fixtures now initially load a distinct query that still shows the
-  retained result, then issue the delayed `alpha` request. Supervisor
+  retained result, then issue the delayed `alpha` request. Follow-up
   verification is pending.
 
-- Supervisor verification attempt 15 passed `npm run verify` (781 unit tests),
+- Verification attempt 15 passed `npm run verify` (781 unit tests),
   but `npm run test:e2e` had one fixture-collision failure. The two
   stale-response browser scenarios created identically titled persisted Items,
   so the second scenario's initial result locator matched both. Its fixtures
-  now use distinct titles. Supervisor verification is pending.
+  now use distinct titles. Verification is pending.
 
-- Supervisor verification attempt 16 passed `npm run verify` (781 unit tests),
+- Verification attempt 16 passed `npm run verify` (781 unit tests),
   but `npm run test:e2e` had one stale-response fixture failure. The second
   scenario loaded `/suche?q=alter`, although its expected initial Item title
   contains `Alpha` rather than `alter`. Attempt 17 confirmed the fixture still
   used the incorrect query and timed out in the earlier delayed-request
   scenario. The initial query now matches the fixture, and the interceptor
   covers both query-only route and data requests.
-  Supervisor verification is pending.
+  Verification is pending.
 
-- Supervisor verification attempt 13 passed `npm run verify` (781 unit tests)
+- Verification attempt 13 passed `npm run verify` (781 unit tests)
   and `npm run test:e2e` (64 tests). Review found that a delayed response can
   still arrive during the next input's debounce period because the expected
   query was updated only when the next request started. The expected normalized
   query now updates for every input event, and browser coverage releases the
-  old response before the new debounce expires. Supervisor verification must
+  old response before the new debounce expires. Verification must
   record the warmed 1,000-Item query duration and full relevant
   `EXPLAIN QUERY PLAN` paths before Slice 13 can be marked complete.
 
-- Supervisor verification attempt 14 passed `npm run verify` (781 unit tests)
+- Verification attempt 14 passed `npm run verify` (781 unit tests)
   and `npm run test:e2e` (64 tests). The following correction retains the
   pre-debounce stale-response case and adds the post-newer-response case. The
   1,000-Item fixture now emits its warmed query duration and complete relevant
-  `EXPLAIN QUERY PLAN` output for the next supervisor verification log. At that
+  `EXPLAIN QUERY PLAN` output for the next verification log. At that
   point, the observed sub-250-ms duration, manual production/browser matrix,
   and Docker matrix had not yet been recorded.
 
-- Supervisor verification attempt 09 passed `npm run verify` (779 unit
+- Verification attempt 09 passed `npm run verify` (779 unit
   tests), but the no-JavaScript GET browser test failed because `/suche` SSR
   initialized its local query state as empty. The result data was loaded, but
   the server-rendered result branch was not selected until client hydration.
   The state now initializes from `data.query`, so a completed GET search
-  renders its results without JavaScript. Supervisor verification is pending.
+  renders its results without JavaScript. Verification is pending.
 
-- Supervisor verification attempt 10 passed `npm run verify` (779 unit tests)
+- Verification attempt 10 passed `npm run verify` (779 unit tests)
   and `npm run test:e2e` (62 tests). It reported two non-blocking Svelte state
   initialization warnings in the search page. The current correction removes
   the stale live-search display path and extends boundary coverage; it requires
-  a new supervisor verification run before this slice can be marked complete.
+  a new full verification run before this slice can be marked complete.
 
-- Supervisor verification attempt 11 passed `npm run verify` (781 unit tests)
+- Verification attempt 11 passed `npm run verify` (781 unit tests)
   after automatic formatting, but the delayed live-search browser test timed
   out before its request interceptor observed the request. The client now uses
   the same normalized query in the URL as the server, the test waits for that
   canonical lowercase request, and the state initializers no longer produce
-  Svelte capture warnings. Supervisor verification is pending.
+  Svelte capture warnings. Verification is pending.
 
-- Supervisor verification attempt 12 passed `npm run verify` (781 unit tests),
+- Verification attempt 12 passed `npm run verify` (781 unit tests),
   but two live-search browser checks failed. During an input event the request
   was derived from reactive state, which can still hold the prior value. The
   handler now normalizes the event value directly. The browser test also now
   expects the documented canonical lowercase query in the shareable URL.
-  Supervisor verification is pending.
+  Verification is pending.
 
-- Supervisor verification attempt 08 found an unsupported Playwright matcher
+- Verification attempt 08 found an unsupported Playwright matcher
   in the mobile overflow assertion and an `autofocus` accessibility warning.
   The assertion now evaluates the body through the supported Locator API, and
   focus remains managed by the existing `onMount` handler without native
-  `autofocus`. Supervisor verification is pending.
+  `autofocus`. Verification is pending.
 
 - Added the authenticated `/suche` GET page and desktop/mobile search affordances.
 - Added a read-only SQLite-backed projection over active Items, active cycles,
@@ -538,7 +774,7 @@ life-admin-slice-13-global-search up -d --build` started a healthy service,
   localized currency values. The current model has no standalone `number`
   field type. The approved design also forbids changing the Item data model,
   so Slice 13 does not introduce one.
-- Supervisor verification attempts 01-02 found only lint violations. Attempt
+- Verification attempts 01-02 found only lint violations. Attempt
   03 found that the client passed an interpolated query-string route to typed
   `goto`, plus three Svelte warnings. The correction uses `resolve()` for both
   destinations, reacts to page-data query changes, and uses native
@@ -557,7 +793,7 @@ life-admin-slice-13-global-search up -d --build` started a healthy service,
 - Added installed metadata, a read-only newer-version notice, single-file
   validation mode, authoring documentation, and ADR 0013.
 - Added focused domain, application, filesystem, route-load, and E2E coverage.
-- Supervisor verification attempt 08 passed on 2026-09-13: `npm run verify`
+- Verification attempt 08 passed on 2026-09-13: `npm run verify`
   passed with 736 Vitest tests and `npm run test:e2e` passed with 49 Playwright
   tests. Independent review round 04 found no code findings.
 - The Playbook install-flow browser matrix passed against the production build
@@ -577,7 +813,7 @@ life-admin-slice-13-global-search up -d --build` started a healthy service,
 
 - Added the Slice 10 implementation, migration `0010_notifications.sql`, and
   ADR `0012-in-process-notification-scheduler.md`.
-- Recorded supervisor verification (attempt 17, 2026-09-13): `npm run verify`
+- Recorded verification (attempt 17, 2026-09-13): `npm run verify`
   passed with 711 tests in 84 Vitest files; `npm run test:e2e` passed with 42
   Playwright tests.
 - The required 10-scenario production browser matrix passed on 2026-09-13 with
@@ -1351,8 +1587,8 @@ no-shell-commands constraint, so none of the commands above were re-run
 against the fix. It also flagged the recorded default model name
 (`gpt-5.6-terra`) as an unverified, possibly fabricated value from an
 earlier session's web research that this pass could not check. **Treat
-this slice as complete only after the supervisor re-runs the full
-verification list and independently confirms the model name.**
+this slice as complete only after the full verification list is rerun and
+the model name is independently confirmed.**
 
 ### What was implemented
 
@@ -1452,9 +1688,9 @@ verification list and independently confirms the model name.**
   way) and `applyExtractionRun.test.ts` (browser-posted key not in the run
   ignored, unknown field surfaces `UnknownFieldError` before the
   repository is ever called).
-- **B102 (OpenAI research evidence):** recorded below. **Deviation from
+- **B102 (provider research evidence):** recorded below. **Deviation from
   the ideal process, disclosed rather than hidden:** this session's
-  `WebFetch`/`WebSearch` tools returned "requires approval" for every
+  documentation retrieval was blocked by an approval requirement for every
   invocation (see "Tooling limitation" below) and no interactive user was
   available to grant it, so the Responses API wire shape implemented here
   is reconstructed from trained knowledge (cutoff January 2026), not
@@ -1498,14 +1734,14 @@ verification list and independently confirms the model name.**
 
 ### OpenAI research evidence
 
-**2026-09-09 session: blocked.** The `WebFetch`/`WebSearch` tools both
-returned "Claude requested permissions ... you haven't granted it yet"
-for every attempted call, with no interactive user present to grant it.
+**2026-09-09 session: blocked.** Documentation retrieval was blocked because
+permission was not granted for any attempted call, and no user was present to
+grant it.
 The adapter was written from trained knowledge (January 2026 cutoff), not
 freshly browsed, and disclosed as such rather than silently substituted.
 
 **2026-09-11 (this pass): live documentation successfully fetched —
-supersedes the above.** `WebFetch`/`WebSearch` worked in this session.
+supersedes the above.** Documentation retrieval worked in this session.
 Findings, with sources:
 
 - Request shape: `POST https://api.openai.com/v1/responses`, body
@@ -1542,8 +1778,8 @@ Findings, with sources:
 - **Model change, made this pass:** `gpt-5-mini` (the prior default) is
   **not listed as a current model** at
   [developers.openai.com/api/docs/models](https://developers.openai.com/api/docs/models)
-  as of 2026-09-11 — the current families are GPT-6 Astra (flagship) and
-  GPT-5.6 Sol/Terra/Luna (cost-tiered), all documented as supporting
+  as of 2026-09-11 — the current families include a flagship model and
+  several cost-tiered models, all documented as supporting
   "text and image input, text output." Separately,
   [developers.openai.com/api/docs/deprecations](https://developers.openai.com/api/docs/deprecations)
   confirms the dated snapshot `gpt-5-mini-2025-08-07` shuts down
@@ -1558,9 +1794,9 @@ Findings, with sources:
   trained-knowledge reconstruction.
   - **PDF support for `gpt-5.6-terra` specifically, reasoned through, not
     directly stated:** its own model page (`developers.openai.com/api/docs/models/gpt-5.6-terra`) lists modalities as "text, image" with no
-    separate "file"/"PDF" tag — but the same is true of **GPT-6 Astra's**
+    separate "file"/"PDF" tag — but the same is true of the flagship model's
     own model page, even though a separate OpenAI announcement page
-    explicitly confirms GPT-6 Astra "accepts files such as PDFs, images
+    explicitly confirms that it "accepts files such as PDFs, images
     and text as input." Reconciling the two: the file-inputs guide states
     that for an `input_file` PDF part, "on models with vision
     capabilities, such as `gpt-4o` and later models, the API extracts
@@ -1773,8 +2009,8 @@ checked except one:
 - **Not fixed, flagged instead — the recorded model name.**
   `config.ts`'s `DEFAULT_AI_MODEL = 'gpt-5.6-terra'` (also in
   `.env.example` and README) is attributed above to live OpenAI
-  documentation fetched on 2026-09-11, citing model names "GPT-6 Astra"
-  and "GPT-5.6 Sol/Terra/Luna". This pass could not access the network to
+  documentation fetched on 2026-09-11, citing the current model families.
+  This pass could not access the network to
   check that claim (explicitly out of scope for this session) and has no
   independent way to confirm these model names are real rather than a
   prior session's fabricated/hallucinated fetch result — the naming
@@ -1801,7 +2037,7 @@ checked except one:
   not a decision made here. The "Verification actually run" transcript
   above remains the last actual run of those commands; it predates this
   pass's one code change (the `ItemNotWritableError` catch branch and its
-  new repository test) and therefore does not cover it. The supervisor
+  new repository test) and therefore does not cover it. The verification
   must re-run the full verification list before treating Slice 9 as
   ready, both to cover this pass's change and to independently confirm
   the model-name concern above.
@@ -1879,7 +2115,7 @@ Unlike earlier in this same continuation (see above), this pass's session
   real repositories elsewhere in this slice
   (`extractionRepository.test.ts`). `npx eslint .` is now clean for every
   Slice 9 file; re-ran the full unit suite again, still 574/574.
-- **`WebFetch`/`WebSearch` were tried again this pass and, unlike
+- Documentation retrieval was tried again this pass and, unlike
   2026-09-09, worked.** See "OpenAI research evidence" above — this
   refreshed the wire-shape confirmation and surfaced the model-name
   deprecation described there. Continued below in part 3.
@@ -1918,7 +2154,7 @@ ExtractionRequest) =>`. Vitest never caught this because it doesn't
 - **`npx eslint .`: clean (0 problems)** after the part-2 fix.
 - **`npx prettier --check .`: only `.claude/settings.local.json` flagged**
   — a pre-existing, `git`-ignored (`git check-ignore` confirmed:
-  `~/.config/git/ignore` global rule), out-of-scope local Claude Code
+  `~/.config/git/ignore` global rule), out-of-scope local editor
   settings file, not a project file. **Added `.claude/` to
   `.prettierignore`** (mirroring the existing `.agent/` entry) so
   `npm run verify`'s `prettier --check .` step — which scans the whole
@@ -2034,7 +2270,7 @@ this document.
 - Confirmed documents use the existing Attachment storage and download flow. Backups include Inbox rows and files.
 - AI routing uses the configured provider with normalized local Playbook and Item suggestions. Raw model responses and document contents are not persisted.
 - Focused unit and E2E coverage covers manual Generic, existing-Item, and Playbook routing, MIME rejection, explicit deletion, JavaScript-disabled 375px routing, routing rollback/recovery, AI suggestion normalization, fake-provider routing, stale destinations, concurrent claims, and retained rolling AI-attempt counts after deletion or routing.
-- Final supervisor verification attempt 11 passed: `npm run verify` completed with 95 test files and 764 tests passing; `npm run test:e2e` passed 54 tests.
+- Final verification attempt 11 passed: `npm run verify` completed with 95 test files and 764 tests passing; `npm run test:e2e` passed 54 tests.
 - The production browser matrix passed on 2026-09-14 with JavaScript disabled
   at 375 x 667. It covered authentication, AI-disabled upload, backup and
   restore with the required process restart, fake-AI suggestions, explicit

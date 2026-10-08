@@ -4,6 +4,22 @@ const MINIMAL_PDF = Buffer.from('%PDF-1.4\n%%EOF');
 
 test.use({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
 
+function inboxRow(page: import('@playwright/test').Page, filename: string) {
+	return page
+		.getByRole('listitem')
+		.filter({ has: page.getByRole('heading', { name: filename, level: 3 }) });
+}
+
+function inboxDetail(page: import('@playwright/test').Page) {
+	return page.locator('.inbox-detail');
+}
+
+async function openRow(page: import('@playwright/test').Page, filename: string): Promise<void> {
+	const row = inboxRow(page, filename);
+	await activate(row.locator('a[href*="/inbox?doc="]'));
+	await expect(inboxDetail(page).getByRole('heading', { name: filename, level: 2 })).toBeVisible();
+}
+
 async function uploadInboxDocument(
 	page: import('@playwright/test').Page,
 	filename: string
@@ -16,17 +32,8 @@ async function uploadInboxDocument(
 		.locator('form[action="?/upload"]')
 		.getByRole('button', { name: 'In Eingang ablegen' })
 		.click();
-	await expect(page.getByRole('heading', { name: filename, level: 2 })).toBeVisible();
-	const document = inboxDocument(page, filename);
-	if ((await document.locator('form[action="?/route"]').count()) === 0) {
-		await activate(document.getByRole('link', { name: 'Zuordnen' }));
-	}
-}
-
-function inboxDocument(page: import('@playwright/test').Page, filename: string) {
-	return page
-		.getByRole('article')
-		.filter({ has: page.getByRole('heading', { name: filename, level: 2 }) });
+	await expect(inboxRow(page, filename)).toBeVisible();
+	await openRow(page, filename);
 }
 
 async function activate(control: import('@playwright/test').Locator): Promise<void> {
@@ -45,12 +52,10 @@ async function deleteIfPending(
 	filename: string
 ): Promise<void> {
 	await page.goto('/inbox');
-	const document = inboxDocument(page, filename);
-	if ((await document.count()) === 0) return;
-	if ((await document.locator('form[action="?/route"]').count()) === 0) {
-		await activate(document.getByRole('link', { name: 'Zuordnen' }));
-	}
-	await activate(inboxDocument(page, filename).getByRole('button', { name: 'Dokument löschen' }));
+	const row = inboxRow(page, filename);
+	if ((await row.count()) === 0) return;
+	await openRow(page, filename);
+	await activate(inboxDetail(page).getByRole('button', { name: 'Dokument löschen' }));
 }
 
 async function expectNoHorizontalOverflow(page: import('@playwright/test').Page): Promise<void> {
@@ -73,8 +78,7 @@ test.describe('Inbox routing without JavaScript at 390px', () => {
 		page
 	}) => {
 		await uploadInboxDocument(page, 'inbox-generic.pdf');
-		const routeForm = inboxDocument(page, 'inbox-generic.pdf').locator('form[action="?/route"]');
-		await expect(inboxDocument(page, 'inbox-generic.pdf').locator('form')).toHaveCount(1);
+		const routeForm = inboxDetail(page).locator('form[action="?/route"]');
 		await expect(routeForm).toHaveCount(1);
 		await expect(routeForm.locator('input[name="confirmed"]')).toHaveCount(1);
 		await expect(routeForm.locator('button.route-primary')).toHaveCount(1);
@@ -102,14 +106,13 @@ test('rejects a disguised unsupported Inbox upload', async ({ page }) => {
 		.getByRole('button', { name: 'In Eingang ablegen' })
 		.click();
 	await expect(page.getByRole('alert')).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'not-an-image.png', level: 2 })).toHaveCount(0);
+	await expect(inboxRow(page, 'not-an-image.png')).toHaveCount(0);
 });
 
 test('keeps explicit confirmation enforced by the server', async ({ page }) => {
 	try {
 		await uploadInboxDocument(page, 'inbox-confirmation.pdf');
-		const document = inboxDocument(page, 'inbox-confirmation.pdf');
-		const documentId = await document.locator('input[name="documentId"]').inputValue();
+		const documentId = await inboxDetail(page).locator('input[name="documentId"]').inputValue();
 		const response = await page.request.post('/inbox?/route', {
 			headers: { Origin: new URL(page.url()).origin, 'Accept-Language': 'de-DE' },
 			form: {
@@ -120,9 +123,7 @@ test('keeps explicit confirmation enforced by the server', async ({ page }) => {
 		});
 		expect(await response.text()).toContain('Bitte bestätige die Zuordnung.');
 		await page.reload();
-		await expect(
-			page.getByRole('heading', { name: 'inbox-confirmation.pdf', level: 2 })
-		).toBeVisible();
+		await expect(inboxRow(page, 'inbox-confirmation.pdf')).toBeVisible();
 	} finally {
 		await deleteIfPending(page, 'inbox-confirmation.pdf');
 	}
@@ -137,7 +138,7 @@ test('routes an Inbox document to an existing item and deletes an unneeded pendi
 	const itemUrl = page.url();
 
 	await uploadInboxDocument(page, 'inbox-existing.pdf');
-	const routeForm = inboxDocument(page, 'inbox-existing.pdf').locator('form[action="?/route"]');
+	const routeForm = inboxDetail(page).locator('form[action="?/route"]');
 	await checkVisible(routeForm.getByLabel('Als neues Element anlegen'));
 	await routeForm.getByLabel('Titel').fill('');
 	await checkVisible(routeForm.getByRole('radio', { name: 'Zu einem bestehenden Element' }));
@@ -149,14 +150,14 @@ test('routes an Inbox document to an existing item and deletes an unneeded pendi
 	);
 
 	await uploadInboxDocument(page, 'inbox-delete.pdf');
-	const document = inboxDocument(page, 'inbox-delete.pdf');
-	await activate(document.getByRole('button', { name: 'Dokument löschen' }));
-	await expect(page.getByRole('heading', { name: 'inbox-delete.pdf', level: 2 })).toHaveCount(0);
+	await activate(inboxDetail(page).getByRole('button', { name: 'Dokument löschen' }));
+	await expect(inboxRow(page, 'inbox-delete.pdf')).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: 'Eingang leer', level: 2 })).toBeVisible();
 });
 
 test('routes an Inbox document through an installed playbook', async ({ page }) => {
 	await uploadInboxDocument(page, 'inbox-playbook.pdf');
-	const routeForm = inboxDocument(page, 'inbox-playbook.pdf').locator('form[action="?/route"]');
+	const routeForm = inboxDetail(page).locator('form[action="?/route"]');
 	const playbookSelect = routeForm.locator('select[name="playbookId"]');
 	await checkVisible(routeForm.getByLabel('Als neues Element anlegen'));
 	await expect(
@@ -187,14 +188,15 @@ test('shows bounded fake AI suggestions without exposing document or provider co
 	await page.getByRole('button', { name: 'Einschalten' }).click();
 
 	await uploadInboxDocument(page, 'inbox-ai.pdf');
-	const document = inboxDocument(page, 'inbox-ai.pdf');
-	await activate(document.getByRole('button', { name: 'KI-Vorschlag erstellen' }));
-	await expect(document).toContainText('Vorschlag der Dokumenterkennung');
-	await expect(document).toContainText('Document candidate');
-	await expect(document).not.toContainText('%PDF-1.4');
-	await expect(document).not.toContainText('fake-v1');
+	const detail = inboxDetail(page);
+	await activate(detail.getByRole('button', { name: 'KI-Vorschlag erstellen' }));
+	await expect(detail).toContainText('Vorschlag');
+	await expect(detail).toContainText('Document candidate');
+	await expect(detail).not.toContainText('%PDF-1.4');
+	await expect(detail).not.toContainText('fake-v1');
+	await expect(inboxRow(page, 'inbox-ai.pdf')).toContainText('Vorschlag');
 
-	await activate(document.getByRole('button', { name: 'Dokument löschen' }));
+	await activate(detail.getByRole('button', { name: 'Dokument löschen' }));
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Ausschalten' }).click();
 });
@@ -204,16 +206,30 @@ test('opens only the selected pending document without JavaScript', async ({ pag
 		await uploadInboxDocument(page, 'inbox-first.pdf');
 		await uploadInboxDocument(page, 'inbox-second.pdf');
 
-		const first = inboxDocument(page, 'inbox-first.pdf');
-		const second = inboxDocument(page, 'inbox-second.pdf');
-		await expect(page.locator('article form[action="?/route"]')).toHaveCount(1);
-		await expect(second.locator('form[action="?/route"]')).toHaveCount(1);
-		await expect(first.locator('form[action="?/route"]')).toHaveCount(0);
+		const firstRow = inboxRow(page, 'inbox-first.pdf');
+		const secondRow = inboxRow(page, 'inbox-second.pdf');
+		await expect(page.locator('.inbox-detail form[action="?/route"]')).toHaveCount(1);
+		await expect(
+			inboxDetail(page).getByRole('heading', { name: 'inbox-second.pdf', level: 2 })
+		).toBeVisible();
+		await expect(
+			secondRow.getByRole('link', { name: 'Ausgewähltes Dokument öffnen: inbox-second.pdf' })
+		).toHaveCount(1);
+		await expect(
+			firstRow.getByRole('link', { name: 'Dokument öffnen: inbox-first.pdf' })
+		).toHaveCount(1);
 
-		await activate(first.getByRole('link', { name: 'Zuordnen' }));
+		await activate(firstRow.locator('a[href*="/inbox?doc="]'));
 		await expect(page).toHaveURL(/\/inbox\?doc=[0-9a-f-]+/);
-		await expect(second.locator('form[action="?/route"]')).toHaveCount(0);
-		await expect(first.locator('form[action="?/route"]')).toHaveCount(1);
+		await expect(
+			inboxDetail(page).getByRole('heading', { name: 'inbox-first.pdf', level: 2 })
+		).toBeVisible();
+		await expect(
+			firstRow.getByRole('link', { name: 'Ausgewähltes Dokument öffnen: inbox-first.pdf' })
+		).toHaveCount(1);
+		await expect(
+			secondRow.getByRole('link', { name: 'Dokument öffnen: inbox-second.pdf' })
+		).toHaveCount(1);
 	} finally {
 		await deleteIfPending(page, 'inbox-first.pdf');
 		await deleteIfPending(page, 'inbox-second.pdf');

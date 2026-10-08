@@ -40,6 +40,11 @@ test('a document can be uploaded, downloaded, and removed from an item', async (
 	// filename also exists (hidden) in the still-in-DOM manage list.
 	const row = page.locator('.fields-view .document-row', { hasText: 'vertrag.pdf' });
 	await expect(row).toBeVisible();
+	const displayTitle = row.locator('.document-row__title');
+	await expect(displayTitle).toHaveAttribute('title', 'vertrag.pdf');
+	await expect(row.locator('.document-row__original')).toHaveCount(0);
+	await expect(displayTitle).toHaveCSS('white-space', 'nowrap');
+	await expect(row.locator('.document-row__date')).toHaveCSS('white-space', 'nowrap');
 	await expect(page.getByRole('button', { name: 'Informationen erkennen' })).toHaveCount(0);
 
 	const href = await row.getByRole('link', { name: 'vertrag.pdf' }).getAttribute('href');
@@ -68,8 +73,10 @@ test('a document can be uploaded, downloaded, and removed from an item', async (
 	await page.getByRole('button', { name: 'Dokumentnamen speichern' }).click();
 	await expect(page.getByRole('heading', { name: 'Hausvertrag' })).toBeVisible();
 	await page.getByRole('link', { name: /Zurück zu/ }).click();
-	await expect(page.locator('.fields-view .document-row')).toContainText('Hausvertrag');
-	await expect(page.locator('.fields-view .document-row')).toContainText(
+	const renamedRow = page.locator('.fields-view .document-row');
+	await expect(renamedRow.locator('.document-row__title')).toHaveText('Hausvertrag');
+	await expect(renamedRow.locator('.document-row__title')).toHaveAttribute('title', 'Hausvertrag');
+	await expect(renamedRow.locator('.document-row__original')).toContainText(
 		'Originaldatei: vertrag.pdf'
 	);
 
@@ -253,17 +260,21 @@ test('document rows remain usable without horizontal overflow at mobile boundari
 		.getByRole('button', { name: 'Hinzufügen' })
 		.click();
 
-	for (const width of [375, 640]) {
+	for (const width of [375, 767]) {
 		await page.setViewportSize({ width, height: 800 });
-		await expect(page.locator('.app-topbar .button')).toHaveCount(1);
-		await expect(page.locator('.topbar-search-link')).toHaveAccessibleName('Suchen');
-		await expect(page.locator('.topbar-search-link')).toHaveText('');
-		await expect(page.locator('.topbar-logout')).toHaveAttribute('method', 'POST');
+		// The global Create FAB is hidden on item detail because the page's
+		// sticky primary action bar owns that bottom-right surface.
+		await expect(page.getByRole('link', { name: 'Neues Element' })).toHaveCount(0);
+		await expect(page.getByRole('link', { name: 'Suchen' })).toHaveAccessibleName('Suchen');
+		await expect(page.getByRole('link', { name: 'Suchen' })).toHaveText('');
+		await expect(page.locator('.app-account-menu form')).toHaveAttribute('method', 'POST');
 		expect(
 			await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth),
 			`page must not overflow at ${width}px`
 		).toBe(true);
-		const targets = page.locator('.app-topbar a, .app-topbar button, .document-row a');
+		const targets = page.locator(
+			'.app-mobile-header a, .app-mobile-header summary, .document-row a'
+		);
 		for (let index = 0; index < (await targets.count()); index++) {
 			const box = await targets.nth(index).boundingBox();
 			if (box) expect(box.height).toBeGreaterThanOrEqual(44);

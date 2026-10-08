@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
 	import { formatDate } from '$lib/ui/format';
+	import { canEditActionDueDate, formatWorkflowProgress } from '$lib/ui/itemDetail';
 	import { effectiveDueDate } from '$lib/domain/action/action';
 	import type { WorkflowAction } from '$lib/application/items/getItemWorkflow';
 	import type { NotificationSnooze } from '$lib/domain/notify/snooze';
@@ -18,13 +19,20 @@
 		snoozes = {},
 		today,
 		readOnly = false,
-		form = null
+		form = null,
+		featuredActionId = null
 	}: {
 		workflow: readonly WorkflowAction[];
 		snoozes?: Record<string, NotificationSnooze | null>;
 		today: string;
 		readOnly?: boolean;
 		form?: TimelineFormResult;
+		/** The action a hero/sticky bar elsewhere on the page already owns
+		 *  complete/skip for (mobile: always; desktop: none, since there the
+		 *  hero sits beside the timeline, not instead of its "now" controls).
+		 *  Its primary controls are hidden here so they are reachable once,
+		 *  not twice. */
+		featuredActionId?: string | null;
 	} = $props();
 
 	type StepState = 'done' | 'skipped' | 'now' | 'waiting';
@@ -44,6 +52,15 @@
 
 	let steps = $derived(workflow.map((entry) => ({ entry, state: stateOf(entry) })));
 
+	/* The progress header is a compact summary. The list below remains the
+	   only place that presents workflow step names and controls. */
+	let doneCount = $derived(
+		steps.filter(({ state }) => state === 'done' || state === 'skipped').length
+	);
+	let progressPercent = $derived(
+		steps.length > 0 ? Math.round((doneCount / steps.length) * 100) : 0
+	);
+
 	/**
 	 * The due date is editable for ANY open DERIVED action with a
 	 * resolved calculated date (or an existing override to manage) — not
@@ -55,11 +72,16 @@
 	 * changes availability itself — see effectiveDueDate's doc comment.
 	 */
 	function canEditDueDate(entry: WorkflowAction): boolean {
-		return (
-			entry.action.state === 'OPEN' &&
-			entry.action.dueKind === 'DERIVED' &&
-			(entry.action.dueDate !== null || entry.action.dueOverrideDate !== null)
-		);
+		return canEditActionDueDate(entry.action);
+	}
+
+	/** The hero/sticky bar already renders complete/skip/change-due triggers
+	 *  for this one action (see `featuredActionId` above) — its dialogs stay
+	 *  here (one editor per action, opened by id from either surface), but
+	 *  the timeline's own visible triggers are hidden so each control is
+	 *  reachable exactly once. */
+	function isFeatured(entry: WorkflowAction): boolean {
+		return entry.action.id === featuredActionId;
 	}
 
 	function canSnooze(entry: WorkflowAction): boolean {
@@ -125,6 +147,25 @@
 	});
 </script>
 
+<!-- The list below is the only step-name and control presentation. -->
+{#if steps.length > 0}
+	<div class="timeline-progress">
+		<span class="timeline-progress__count" aria-hidden="true">
+			{formatWorkflowProgress(doneCount, steps.length)}
+		</span>
+		<div
+			class="timeline-progress__track"
+			role="progressbar"
+			aria-label={t('items.detail.workflow')}
+			aria-valuemin="0"
+			aria-valuemax={steps.length}
+			aria-valuenow={doneCount}
+		>
+			<div class="timeline-progress__fill" style="width: {progressPercent}%"></div>
+		</div>
+	</div>
+{/if}
+
 <!--
 	A quiet vertical timeline, not a workflow editor: dot shape (filled /
 	ring / dashed), an explicit state word and a plain-language line of
@@ -132,7 +173,7 @@
 -->
 <ol class="timeline">
 	{#each steps as { entry, state } (entry.action.id)}
-		<li class="timeline__step timeline__step--{state}">
+		<li class="timeline__step timeline__step--{state}" id="action-{entry.action.id}">
 			<span class="timeline__rail" aria-hidden="true">
 				<span
 					class="timeline__dot"
@@ -205,7 +246,7 @@
 				     for every open step that has one — a MANUAL action's own
 				     due date included — independently of whether that date
 				     happens to be editable here (only DERIVED actions are). -->
-				{#if (state === 'now' || state === 'waiting') && effectiveDueDate(entry.action)}
+				{#if (state === 'now' || state === 'waiting') && !isFeatured(entry) && effectiveDueDate(entry.action)}
 					<span class="meta">
 						{t('whatsNext.dueOn')}
 						{formatDate(effectiveDueDate(entry.action)!)}
@@ -234,7 +275,7 @@
 					</span>
 				{/if}
 
-				{#if state === 'now' && !readOnly}
+				{#if state === 'now' && !readOnly && !isFeatured(entry)}
 					<form method="POST" action="?/completeAction" class="timeline__controls">
 						<input type="hidden" name="actionId" value={entry.action.id} />
 						<button type="submit" class="quiet">{t('whatsNext.done')}</button>
@@ -244,7 +285,7 @@
 					</form>
 				{/if}
 
-				{#if canEditDueDate(entry) && !readOnly}
+				{#if canEditDueDate(entry) && !readOnly && !isFeatured(entry)}
 					<button
 						type="button"
 						class="timeline__secondary-trigger"
@@ -252,6 +293,8 @@
 					>
 						{t('items.detail.changeDueDate')}
 					</button>
+				{/if}
+				{#if canEditDueDate(entry) && !readOnly}
 					<dialog
 						id={dueDialogId(entry.action.id)}
 						class="action-dialog"
@@ -309,7 +352,7 @@
 								date: formatDate(snoozes[entry.action.id]!.snoozedUntil)
 							})}
 						</span>
-						{#if effectiveDueDate(entry.action)}
+						{#if !isFeatured(entry) && effectiveDueDate(entry.action)}
 							<span class="meta">
 								{#if effectiveDueDate(entry.action)! < today}
 									{t('due.overdueSince', { date: formatDate(effectiveDueDate(entry.action)!) })}

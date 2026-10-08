@@ -19,3 +19,19 @@ describe('accepted suggestion history translations', () => {
 		}
 	);
 });
+
+describe('inbox document count translations', () => {
+	afterEach(() => setLocaleProvider(() => 'de'));
+
+	it.each([
+		{ locale: 'en', one: '1 document in the inbox', many: '4 documents in the inbox' },
+		{ locale: 'de', one: '1 Dokument im Eingang', many: '4 Dokumente im Eingang' }
+	] satisfies { locale: Locale; one: string; many: string }[])(
+		'formats singular and plural document counts in $locale',
+		({ locale, one, many }) => {
+			setLocaleProvider(() => locale);
+			expect(t('inbox.countOne', { count: '1' })).toBe(one);
+			expect(t('inbox.countMany', { count: '4' })).toBe(many);
+		}
+	);
+});

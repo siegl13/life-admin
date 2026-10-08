@@ -94,6 +94,7 @@ export const load: PageServerLoad = ({ url }) => {
 	const aiSettings = getAiSettings({ settings: appSettingsPort });
 	const notificationSettings = getNotificationSettings(getDb());
 	return {
+		now: clock.nowIso(),
 		theme: getThemePreference({ settings: appSettingsPort }),
 		language: getLanguagePreference({ settings: appSettingsPort }),
 		build: { version: buildInfo.version, revision: buildInfo.shortRevision },

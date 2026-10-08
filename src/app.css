@@ -2,26 +2,39 @@
 	color-scheme: light;
 
 	/* --- Farbe: neutral als Standard, Farbe nur für Bedeutung --- */
-	--color-bg: #f4f3f0;
+	--color-bg: #f6f7f8;
 	--color-surface: #ffffff;
-	--color-surface-hover: #faf9f7;
-	--color-border: #e5e3de;
-	--color-border-strong: #d8d5ce;
-	--color-hairline: #f0eee9;
-	--color-text: #1c1f1d;
-	--color-text-muted: #5b605b;
-	--color-text-faint: #8d918b;
-	--color-accent: #1c4f5c;
-	--color-accent-hover: #123a44;
-	--color-accent-quiet: #b9cdd2;
+	--color-surface-hover: #f1f3f4;
+	--color-border: #e4e7ea;
+	--color-border-strong: #d5dade;
+	--color-hairline: #eef0f2;
+	--color-text: #0f1a1d;
+	--color-text-muted: #56626a;
+	--color-text-faint: #626d73;
+	--color-accent: #0e5566;
+	--color-accent-hover: #093d49;
+	--color-accent-quiet: #b6d0d6;
 	--color-on-accent: #ffffff;
-	--color-danger: #a13a2c;
-	--color-success: #4f7a5f;
-	--color-warning: #c68c2e;
-	--color-text-body: #3c403c;
-	--color-rule: #dcdad4;
-	--color-strike: #c9c6bf;
-	--color-mark: #dfe9ec;
+	--color-danger: #a1301b;
+	--color-success: #2f7d4f;
+	--color-warning: #9a5c00;
+	--color-text-body: #3a464c;
+	--color-rule: #dcdfe2;
+	--color-strike: #b9c1c6;
+	--color-mark: #e3f0f2;
+	--color-accent-text: #0e5566;
+	--color-accent-soft: #e3f0f2;
+	--color-danger-soft: #fbe9e5;
+	--color-warning-text: #7a4f00;
+	--color-warning-soft: #fdf1d8;
+	--color-success-fill: #2f7d4f;
+	--color-sidebar: #fbfbfc;
+	--color-ring: #b9c1c6;
+	--color-inverse-bg: #0f1a1d;
+	--color-inverse-fg: #ffffff;
+	--color-hero-bg: #0f1a1d;
+	--color-hero-fg: #ffffff;
+	--color-hero-muted: #c9d2d6;
 
 	/* --- Abstände --- */
 	--space-1: 0.25rem;
@@ -37,6 +50,7 @@
 	--radius-sm: 8px;
 	--radius-md: 10px;
 	--radius-lg: 12px;
+	--radius-xl: 16px;
 	--radius-pill: 999px;
 
 	/* --- Maße --- */
@@ -45,8 +59,13 @@
 	--form-max: 560px;
 
 	/* --- Typografie --- */
-	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-	--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	/* Geist is bundled via @fontsource (see +layout.svelte), never loaded
+	   from a third-party host: the app is self-hosted and the CSP only
+	   allows font-src 'self'. */
+	--font-sans:
+		'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+		sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	--text-page: 1.5rem;
 	--text-section: 1.1875rem;
 	--text-action: 1.03rem;
@@ -68,26 +87,39 @@
 	:root {
 		color-scheme: dark;
 
-		--color-bg: #121314;
-		--color-surface: #191a1c;
-		--color-surface-hover: #202225;
-		--color-border: #2a2c2f;
-		--color-border-strong: #3a3d41;
-		--color-hairline: #232528;
-		--color-text: #f2f1ef;
-		--color-text-muted: #a2a5a3;
-		--color-text-faint: #8b8f8d;
-		--color-accent: #6fb3c4;
-		--color-accent-hover: #8fc9d8;
-		--color-accent-quiet: #2f4e57;
-		--color-on-accent: #0c1417;
-		--color-danger: #e0796a;
-		--color-success: #7fb08f;
-		--color-warning: #e0b467;
-		--color-text-body: #d5d4d1;
-		--color-rule: #32353a;
-		--color-strike: #5a5d60;
-		--color-mark: #2f4e57;
+		--color-bg: #0d1315;
+		--color-surface: #151e21;
+		--color-surface-hover: #1c2629;
+		--color-border: #253136;
+		--color-border-strong: #34424a;
+		--color-hairline: #1c2629;
+		--color-text: #eef2f3;
+		--color-text-muted: #9aa6ac;
+		--color-text-faint: #7d8a90;
+		--color-accent: #5db3c6;
+		--color-accent-hover: #8ccbd9;
+		--color-accent-quiet: #1f4750;
+		--color-on-accent: #06171c;
+		--color-danger: #f08c77;
+		--color-success: #6fcb94;
+		--color-warning: #e09a2e;
+		--color-text-body: #c4cdd1;
+		--color-rule: #2a363b;
+		--color-strike: #4a5960;
+		--color-mark: #12343c;
+		--color-accent-text: #7cc6d6;
+		--color-accent-soft: #12343c;
+		--color-danger-soft: #3a1a14;
+		--color-warning-text: #f2c46b;
+		--color-warning-soft: #3a2c10;
+		--color-success-fill: #2e7a4d;
+		--color-sidebar: #10181b;
+		--color-ring: #4a5960;
+		--color-inverse-bg: #eef2f3;
+		--color-inverse-fg: #0f1a1d;
+		--color-hero-bg: #16343b;
+		--color-hero-fg: #ffffff;
+		--color-hero-muted: #c9d2d6;
 	}
 }
 
@@ -101,51 +133,77 @@
 :root[data-theme='light'] {
 	color-scheme: light;
 
-	--color-bg: #f4f3f0;
+	--color-bg: #f6f7f8;
 	--color-surface: #ffffff;
-	--color-surface-hover: #faf9f7;
-	--color-border: #e5e3de;
-	--color-border-strong: #d8d5ce;
-	--color-hairline: #f0eee9;
-	--color-text: #1c1f1d;
-	--color-text-muted: #5b605b;
-	--color-text-faint: #8d918b;
-	--color-accent: #1c4f5c;
-	--color-accent-hover: #123a44;
-	--color-accent-quiet: #b9cdd2;
+	--color-surface-hover: #f1f3f4;
+	--color-border: #e4e7ea;
+	--color-border-strong: #d5dade;
+	--color-hairline: #eef0f2;
+	--color-text: #0f1a1d;
+	--color-text-muted: #56626a;
+	--color-text-faint: #626d73;
+	--color-accent: #0e5566;
+	--color-accent-hover: #093d49;
+	--color-accent-quiet: #b6d0d6;
 	--color-on-accent: #ffffff;
-	--color-danger: #a13a2c;
-	--color-success: #4f7a5f;
-	--color-warning: #c68c2e;
-	--color-text-body: #3c403c;
-	--color-rule: #dcdad4;
-	--color-strike: #c9c6bf;
-	--color-mark: #dfe9ec;
+	--color-danger: #a1301b;
+	--color-success: #2f7d4f;
+	--color-warning: #9a5c00;
+	--color-text-body: #3a464c;
+	--color-rule: #dcdfe2;
+	--color-strike: #b9c1c6;
+	--color-mark: #e3f0f2;
+	--color-accent-text: #0e5566;
+	--color-accent-soft: #e3f0f2;
+	--color-danger-soft: #fbe9e5;
+	--color-warning-text: #7a4f00;
+	--color-warning-soft: #fdf1d8;
+	--color-success-fill: #2f7d4f;
+	--color-sidebar: #fbfbfc;
+	--color-ring: #b9c1c6;
+	--color-inverse-bg: #0f1a1d;
+	--color-inverse-fg: #ffffff;
+	--color-hero-bg: #0f1a1d;
+	--color-hero-fg: #ffffff;
+	--color-hero-muted: #c9d2d6;
 }
 
 :root[data-theme='dark'] {
 	color-scheme: dark;
 
-	--color-bg: #121314;
-	--color-surface: #191a1c;
-	--color-surface-hover: #202225;
-	--color-border: #2a2c2f;
-	--color-border-strong: #3a3d41;
-	--color-hairline: #232528;
-	--color-text: #f2f1ef;
-	--color-text-muted: #a2a5a3;
-	--color-text-faint: #8b8f8d;
-	--color-accent: #6fb3c4;
-	--color-accent-hover: #8fc9d8;
-	--color-accent-quiet: #2f4e57;
-	--color-on-accent: #0c1417;
-	--color-danger: #e0796a;
-	--color-success: #7fb08f;
-	--color-warning: #e0b467;
-	--color-text-body: #d5d4d1;
-	--color-rule: #32353a;
-	--color-strike: #5a5d60;
-	--color-mark: #2f4e57;
+	--color-bg: #0d1315;
+	--color-surface: #151e21;
+	--color-surface-hover: #1c2629;
+	--color-border: #253136;
+	--color-border-strong: #34424a;
+	--color-hairline: #1c2629;
+	--color-text: #eef2f3;
+	--color-text-muted: #9aa6ac;
+	--color-text-faint: #7d8a90;
+	--color-accent: #5db3c6;
+	--color-accent-hover: #8ccbd9;
+	--color-accent-quiet: #1f4750;
+	--color-on-accent: #06171c;
+	--color-danger: #f08c77;
+	--color-success: #6fcb94;
+	--color-warning: #e09a2e;
+	--color-text-body: #c4cdd1;
+	--color-rule: #2a363b;
+	--color-strike: #4a5960;
+	--color-mark: #12343c;
+	--color-accent-text: #7cc6d6;
+	--color-accent-soft: #12343c;
+	--color-danger-soft: #3a1a14;
+	--color-warning-text: #f2c46b;
+	--color-warning-soft: #3a2c10;
+	--color-success-fill: #2e7a4d;
+	--color-sidebar: #10181b;
+	--color-ring: #4a5960;
+	--color-inverse-bg: #eef2f3;
+	--color-inverse-fg: #0f1a1d;
+	--color-hero-bg: #16343b;
+	--color-hero-fg: #ffffff;
+	--color-hero-muted: #c9d2d6;
 }
 
 * {
@@ -214,31 +272,31 @@ code {
 	padding: var(--space-2) var(--space-3);
 }
 
-.app-topbar {
-	background: var(--color-surface);
-	border-bottom: 1px solid var(--color-border);
-}
-
-.app-topbar__inner {
-	max-width: var(--content-max);
-	margin: 0 auto;
-	padding: 0 var(--space-5);
-	min-height: 60px;
+/* Two layouts only: a non-sticky left sidebar at >=768px, a mobile header
+   with a bottom tab bar and a floating create button below that. No
+   intermediate stacked-sidebar layout in between. */
+.app-shell-root {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-5);
-	flex-wrap: nowrap;
+	align-items: stretch;
 }
 
-.app-topbar__inner > .button {
-	min-height: var(--control-h);
+.app-sidebar {
+	flex: 0 0 248px;
+	min-height: 100svh;
+	box-sizing: border-box;
+	padding: var(--space-6) var(--space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	border-right: 1px solid var(--color-border);
+	background: var(--color-sidebar);
 }
 
 .app-brand {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
+	padding: 0 var(--space-2);
 	font-size: 0.9375rem;
 	font-weight: 600;
 	color: var(--color-text);
@@ -257,90 +315,348 @@ code {
 	background: var(--color-accent);
 }
 
-.app-nav {
+.app-sidebar-search {
 	display: flex;
-	flex: none;
-	gap: var(--space-5);
-	font-size: var(--text-body);
-}
-
-.topbar-search-link {
-	flex: none;
-	margin-left: auto;
-	display: inline-flex;
 	align-items: center;
-	width: var(--control-h);
-	height: var(--control-h);
-	justify-content: center;
-	border: 1px solid transparent;
-	border-radius: var(--radius-sm);
-	color: var(--color-text);
-	white-space: nowrap;
+	gap: var(--space-3);
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text-muted);
 }
 
-.topbar-search-link svg {
+.app-sidebar-search svg {
+	flex: none;
 	fill: none;
 	stroke: currentColor;
 	stroke-width: 1.8;
 	stroke-linecap: round;
 }
 
-.topbar-search-link:hover {
-	background: var(--color-surface-hover);
-	border-color: var(--color-border);
+.app-sidebar-search:hover {
+	color: var(--color-text);
 	text-decoration: none;
 }
 
-.topbar-logout {
-	flex: none;
+.app-nav {
 	display: flex;
-	align-items: center;
-	padding-left: var(--space-4);
-	border-left: 1px solid var(--color-border);
-}
-
-.topbar-logout button {
-	min-height: var(--control-h);
-	padding: 0;
-	border: 0;
-	background: none;
-	color: var(--color-text-muted);
-	font-weight: 500;
-}
-
-.topbar-logout button:hover {
-	border: 0;
-	background: none;
-	color: var(--color-text);
+	flex-direction: column;
+	gap: 2px;
+	font-size: var(--text-body);
 }
 
 .app-nav a {
-	color: var(--color-text-muted);
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border-radius: var(--radius-md);
+	color: var(--color-text-body);
 	font-weight: 500;
-	padding: var(--space-5) 0 calc(var(--space-5) - 2px);
-	border-bottom: 2px solid transparent;
+}
+
+.app-nav svg,
+.app-tabbar svg,
+.app-sidebar-footer svg,
+.app-account-menu__panel svg {
+	flex: none;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
 }
 
 .app-nav a:hover {
 	color: var(--color-text);
+	background: var(--color-surface-hover);
 	text-decoration: none;
 }
 
 .app-nav a[aria-current='page'] {
 	color: var(--color-text);
-	font-weight: 600;
-	border-bottom-color: var(--color-accent);
+	background: var(--color-surface);
+	box-shadow: 0 0 0 1px var(--color-border);
+}
+
+/* Beats .button's min-height: 40px (same specificity, defined later in
+   this file) so the primary create link keeps a 44px touch target. */
+a.app-sidebar-primary {
+	justify-content: flex-start;
+	min-height: var(--control-h);
+}
+
+.app-sidebar-footer {
+	margin-top: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--color-border);
+}
+
+.app-sidebar-footer a,
+.app-sidebar-footer button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text-muted);
+	font-weight: 500;
+	text-align: left;
+}
+
+.app-sidebar-footer a:hover,
+.app-sidebar-footer button:hover {
+	color: var(--color-text);
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-mobile-header {
+	display: none;
+}
+
+.app-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-h);
+	height: var(--control-h);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text);
+	cursor: pointer;
+}
+
+.app-icon-button svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+}
+
+.app-icon-button:hover {
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-account-menu {
+	position: relative;
+}
+
+.app-account-menu summary {
+	list-style: none;
+}
+
+.app-account-menu summary::-webkit-details-marker {
+	display: none;
+}
+
+.app-account-menu__panel {
+	position: absolute;
+	top: calc(100% + var(--space-2));
+	right: 0;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 10rem;
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	box-shadow: 0 10px 30px var(--color-border);
+}
+
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--color-text-body);
+	font-weight: 500;
+	text-align: left;
+}
+
+.app-account-menu__panel a:hover,
+.app-account-menu__panel button:hover {
+	color: var(--color-text);
+	background: var(--color-surface-hover);
+	text-decoration: none;
+}
+
+.app-sidebar-search,
+.app-nav a,
+a.app-sidebar-primary,
+.app-sidebar-footer a,
+.app-sidebar-footer button,
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	font-size: var(--text-body);
+	font-weight: 500;
+	line-height: 1.5;
+	min-height: var(--control-h);
+}
+
+.app-sidebar-footer a,
+.app-sidebar-footer button,
+.app-account-menu__panel a,
+.app-account-menu__panel button {
+	gap: var(--space-3);
 }
 
 .app-shell {
+	flex: 1 1 auto;
+	min-width: 0;
 	max-width: var(--content-max);
-	margin: 0 auto;
+	/* A fixed left gutter after the sidebar at every desktop width, not
+	   `margin: 0 auto` centering: centering grows the sidebar-to-content gap
+	   on wide screens instead of keeping it constant. */
+	margin: 0;
 	padding: var(--space-7) var(--space-5) var(--space-8);
 }
 
-/* Mobile Tab-Leiste: gleiche Ziele wie die Topbar-Navigation. */
+.app-fab {
+	display: none;
+}
+
+.app-fab svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+}
+
+/* Mobile tab bar: the same four destinations as the sidebar. */
 .app-tabbar {
 	display: none;
+}
+
+/* Below 768px: sidebar gives way to a thin header, a bottom tab bar and a
+   floating create button. Exactly two layouts, no intermediate stacked
+   sidebar in between. */
+@media (max-width: 767px) {
+	:root {
+		/* The floating create button sits above the tab bar, so it is the
+		   taller of the two: this is its top edge's distance from the
+		   bottom of the viewport, used wherever bottom space must be
+		   reserved so neither control covers page content. */
+		--mobile-floating-reserve: calc(
+			60px + env(safe-area-inset-bottom) + var(--space-3) + 56px + var(--space-3)
+		);
+	}
+
+	/* Without this, scrolling a focused control into view (keyboard focus,
+	   in-page anchors) can align it flush with the bottom of the layout
+	   viewport, which the browser doesn't know is covered by the fixed
+	   tab bar and create button. scroll-padding-bottom makes it reserve
+	   that space for any scroll-into-view, not just the end of the
+	   document. */
+	html {
+		scroll-padding-bottom: var(--mobile-floating-reserve);
+	}
+
+	.app-shell-root {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.app-sidebar {
+		display: none;
+	}
+
+	.app-mobile-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.app-mobile-header__actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.app-shell {
+		max-width: none;
+		margin: 0;
+		padding: var(--space-5) var(--space-4) var(--mobile-floating-reserve);
+	}
+
+	.app-tabbar {
+		display: flex;
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding-bottom: env(safe-area-inset-bottom);
+		background: var(--color-surface);
+		border-top: 1px solid var(--color-border);
+		z-index: 5;
+	}
+
+	.app-tabbar a {
+		flex: 1;
+		min-height: 60px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 2px;
+		padding: 0 2px;
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--color-text-muted);
+		border-top: 2px solid transparent;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	.app-tabbar a:hover {
+		text-decoration: none;
+	}
+
+	.app-tabbar a[aria-current='page'] {
+		color: var(--color-accent);
+		font-weight: 600;
+		border-top-color: var(--color-accent);
+	}
+
+	.app-fab {
+		display: flex;
+		position: fixed;
+		right: var(--space-4);
+		bottom: calc(60px + env(safe-area-inset-bottom) + var(--space-3));
+		width: 56px;
+		height: 56px;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-xl);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		box-shadow: 0 8px 20px var(--color-border-strong);
+		z-index: 6;
+	}
+
+	.app-fab:hover {
+		background: var(--color-accent-hover);
+		text-decoration: none;
+	}
 }
 
 /* ------------------------------------------------------------ typography */
@@ -365,6 +681,104 @@ code {
 	color: var(--color-text-muted);
 }
 
+/* .page-head is a flex column: without this, a direct .button child
+   inherits the column's stretch cross-axis sizing and renders full width
+   instead of content-width. */
+.page-head > .button {
+	align-self: flex-start;
+	min-height: var(--control-h);
+}
+
+/* Items heading row: the archive toggle sits inline next to the title on
+   desktop (wrapping below it only if the row runs out of width), instead of
+   always stacking under it. Element-qualified to beat .button's min-height:
+   40px (same specificity, defined later in this file; see a.app-sidebar-primary
+   above for the same pattern). */
+a.items-archive-toggle {
+	flex: none;
+	height: var(--control-h);
+	min-height: var(--control-h);
+}
+
+.page-head__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+}
+
+.page-head__row h1 {
+	margin: 0;
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.item-detail-page h1 {
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.page-head__context {
+	margin-top: var(--space-1);
+	font-size: var(--text-meta);
+	color: var(--color-text-muted);
+}
+
+.item-detail-page .pill {
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: break-word;
+}
+
+/* The playbook name, compact: one word of key context next to the title,
+   not a repeated "Provenance: …" sentence. */
+.pill {
+	font-size: var(--text-meta);
+	font-weight: 600;
+	color: var(--color-accent-text);
+	background: var(--color-accent-soft);
+	border-radius: 999px;
+	padding: 0.2em 0.75em;
+	white-space: nowrap;
+}
+
+.page-head__secondary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+.page-head__secondary .button {
+	min-height: var(--control-h);
+}
+
+/* Desktop two-column layout: documents/relations/history beside the main
+   flow. Below 768px this is unset back to a single stacked column (see
+   the max-width:767px override), in the same main-then-side DOM order. */
+.item-detail-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 20rem;
+	gap: var(--space-7);
+	align-items: start;
+}
+
+@media (max-width: 1023px) {
+	.item-detail-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.item-detail-side {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	position: static;
+}
+
+.item-detail-main {
+	min-width: 0;
+}
+
 .section {
 	margin-bottom: var(--space-7);
 }
@@ -383,6 +797,23 @@ code {
 	text-transform: uppercase;
 	font-weight: 600;
 	color: var(--color-text-faint);
+}
+
+.item-detail-page .section__label,
+.item-detail-page .facts-group__label,
+.item-detail-page .item-overview__label,
+.item-detail-page .next-up__label,
+.item-detail-page .fields-panel__title,
+.item-detail-page .fields-panel__active-label {
+	font-size: var(--text-body);
+	font-weight: 600;
+	letter-spacing: normal;
+	text-transform: none;
+	color: var(--color-text);
+}
+
+.item-detail-page .fields-panel__active-label {
+	color: var(--color-accent);
 }
 
 .section__label--overdue {
@@ -428,16 +859,9 @@ code {
 	background: var(--color-surface);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	overflow: hidden;
-}
-
-.item-group--overdue {
-	border-left: 3px solid var(--color-danger);
-}
-
-.item-group__context {
-	padding: var(--space-3) var(--space-5) 0;
-	font-size: var(--text-body);
+	/* Not `hidden`: a child ActionRow's native .action-menu popover must be
+	   able to float outside this box without being clipped. */
+	overflow: visible;
 }
 
 .item-group__context a {
@@ -452,20 +876,48 @@ code {
 /* ------------------------------------------------------------ action row */
 
 .action-row {
-	display: flex;
+	display: grid;
+	grid-template-columns: var(--control-h) minmax(0, 1fr) var(--control-h);
 	align-items: center;
-	flex-wrap: wrap;
-	gap: var(--space-3) var(--space-4);
-	padding: var(--space-2) var(--space-5) var(--space-4);
+	gap: var(--space-2);
+	min-height: 68px;
+	padding: 6px var(--space-3);
 }
 
 .action-row + .action-row {
-	padding-top: var(--space-4);
 	border-top: 1px solid var(--color-hairline);
 }
 
+.section__actions--whats-next {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: visible;
+}
+
+.section__actions--whats-next > .item-group {
+	display: contents;
+}
+
+.section__actions--whats-next .action-row {
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--color-hairline);
+	border-radius: 0;
+}
+
+.section__actions--whats-next > .item-group:first-child .action-row {
+	border-top: 1px solid var(--color-hairline);
+}
+
+.section__actions--whats-next > .item-group:last-child .action-row {
+	border-bottom: 0;
+}
+
 .action-row__text {
-	flex: 1 1 14rem;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
@@ -474,13 +926,22 @@ code {
 
 .action-row__label {
 	font-size: var(--text-action);
+	line-height: 1.2;
 	font-weight: 600;
 	color: var(--color-text);
 	text-wrap: pretty;
+	overflow-wrap: anywhere;
+}
+
+.action-row__item {
+	font-size: var(--text-meta);
+	line-height: 1.3;
+	color: var(--color-text-faint);
 }
 
 .action-row__due {
 	font-size: var(--text-meta);
+	line-height: 1.2;
 	color: var(--color-text-muted);
 	font-variant-numeric: tabular-nums;
 }
@@ -505,17 +966,37 @@ code {
 	padding: var(--space-5);
 }
 
+.surface.next-up {
+	background: var(--color-hero-bg);
+	color: var(--color-hero-fg);
+	border-color: var(--color-hero-bg);
+}
+
+.surface.next-up .next-up__label,
+.surface.next-up .next-up__state {
+	color: var(--color-hero-muted);
+}
+
+.surface.next-up .next-up__action {
+	color: var(--color-hero-fg);
+}
+
+.surface.next-up .hint {
+	color: var(--color-hero-muted);
+}
+
 .next-up__text {
 	flex: 1 1 14rem;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 }
 
 .next-up__label {
-	font-size: var(--text-label);
-	letter-spacing: 0.13em;
-	text-transform: uppercase;
+	font-size: var(--text-meta);
+	letter-spacing: normal;
+	text-transform: none;
 	font-weight: 600;
 	color: var(--color-text-faint);
 }
@@ -523,6 +1004,7 @@ code {
 .next-up__action {
 	font-size: 1.1875rem;
 	font-weight: 600;
+	overflow-wrap: break-word;
 }
 
 .next-up__state {
@@ -533,6 +1015,138 @@ code {
 
 .next-up__state--overdue {
 	color: var(--color-danger);
+}
+
+/* Desktop-only hero controls (complete/skip/change-due): the phone
+   equivalent is .sticky-action-bar below, so exactly one of the two is
+   ever visible. */
+.next-up__actions {
+	display: flex;
+}
+
+.next-up__actions .secondary {
+	background: transparent;
+	color: var(--color-hero-fg);
+	border-color: var(--color-hero-muted);
+}
+
+.next-up__actions .secondary:hover {
+	background: var(--color-surface-hover);
+	color: var(--color-text);
+}
+
+/* Phone-only sticky bar owning complete + a native secondary menu for the
+   featured action. Hidden on desktop, where .next-up__actions already
+   covers the same controls beside the hero text. */
+.sticky-action-bar {
+	display: none;
+}
+
+.facts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.facts-group {
+	min-width: 0;
+	width: 100%;
+	padding: var(--space-4);
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg, 0.75rem);
+}
+
+.facts-group .data-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-4) var(--space-6);
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+}
+
+.facts-group .data-row {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
+	gap: var(--space-1);
+	padding: 0;
+	border: 0;
+}
+
+.facts-group .data-row__key {
+	font-size: var(--text-meta);
+	font-weight: 400;
+	color: var(--color-text-muted);
+}
+
+.facts-group .facts-group__value {
+	display: block;
+	/* The facts data-row is a column flex container with
+	   align-items: flex-start, so a flex item otherwise sizes to its own
+	   (shrink-to-fit) content width instead of the row's full width — an
+	   ordinary multiword value could then stay on one line purely because
+	   it happens to fit, rather than reliably wrapping at the row width. */
+	width: 100%;
+	min-width: 0;
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: break-word;
+}
+
+/* An unbroken identifier (no ordinary spaces) stays single-line with an
+   ellipsis instead of wrapping; its full value remains in `title` and the
+   accessible name. */
+.facts-group .facts-group__value--unbroken {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	overflow-wrap: normal;
+}
+
+.facts-empty {
+	margin-top: var(--space-4);
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md, 0.5rem);
+}
+
+.facts-empty > summary {
+	min-height: var(--control-h);
+	display: flex;
+	align-items: center;
+	padding: var(--space-2) var(--space-4);
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.facts-empty > .data-list {
+	margin: 0 var(--space-4) var(--space-4);
+}
+
+.item-detail-page .fields-panel > summary {
+	margin-bottom: 0;
+}
+
+.item-detail-page .fields-panel:not([open]) > summary {
+	margin-bottom: 0;
+}
+
+.item-detail-page .section > .fields-panel + .fields-view {
+	margin-top: var(--space-3);
+}
+
+.item-detail-layout + .section {
+	margin-top: var(--space-7);
+}
+
+.item-detail-layout > .item-detail-main > .section:last-child,
+.item-detail-layout > .item-detail-side > .section:last-child {
+	margin-bottom: 0;
 }
 
 /* ------------------------------------------------------- item overview */
@@ -582,6 +1196,37 @@ code {
 }
 
 /* ------------------------------------------------------------ timeline */
+
+/* Compact workflow progress summary; step names are shown only in the list. */
+.timeline-progress {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+}
+
+.timeline-progress__count {
+	font-size: var(--text-meta);
+	font-weight: 600;
+	color: var(--color-text-faint);
+}
+
+.timeline-progress__track {
+	height: 4px;
+	border-radius: 999px;
+	background: var(--color-rule);
+	overflow: hidden;
+}
+
+.timeline-progress__track[role='progressbar'] {
+	outline-offset: 4px;
+}
+
+.timeline-progress__fill {
+	height: 100%;
+	background: var(--color-accent);
+	border-radius: inherit;
+}
 
 .timeline {
 	list-style: none;
@@ -651,6 +1296,7 @@ code {
 	flex-direction: column;
 	gap: 1px;
 	padding-bottom: var(--space-5);
+	min-width: 0;
 }
 
 .timeline__step:last-child .timeline__body {
@@ -658,9 +1304,11 @@ code {
 }
 
 .timeline__title {
+	min-width: 0;
 	font-size: var(--text-body);
 	font-weight: 500;
 	color: var(--color-text-muted);
+	overflow-wrap: break-word;
 }
 
 .timeline__step--now .timeline__title {
@@ -768,11 +1416,23 @@ code {
 	border-radius: var(--radius-lg);
 	background: var(--color-surface);
 	color: var(--color-text);
-	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+	box-shadow: 0 12px 32px var(--color-border-strong);
+}
+
+/* The #41 no-JavaScript fallback renders dialogs as open non-modal editors.
+   Keep those editors in document flow instead of letting several absolute
+   dialogs overlap and block each other's controls. showModal() moves the
+   interactive version to the top layer, where this selector no longer fits. */
+.action-dialog[open]:not(:modal) {
+	position: static;
+	inset: auto;
+	width: 100%;
+	max-width: none;
+	margin: var(--space-4) 0;
 }
 
 .action-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.35);
+	background: color-mix(in srgb, var(--color-text) 35%, transparent);
 }
 
 .action-dialog__title {
@@ -845,14 +1505,35 @@ code {
 }
 
 .data-row__value {
+	min-width: 0;
+	max-width: 100%;
 	font-size: var(--text-body);
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
+	overflow-wrap: break-word;
 }
 
 /* Fehlende empfohlene Angabe: ruhiger Hinweis, keine Fehlerdarstellung. */
 .data-row--empty .data-row__key {
 	color: var(--color-text-faint);
+}
+
+.facts-group__label {
+	font-size: var(--text-label);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	font-weight: 600;
+	color: var(--color-text-faint);
+	margin: 0 0 var(--space-2);
+}
+
+.facts-empty {
+	margin-top: var(--space-4);
+}
+
+.facts-empty > summary {
+	color: var(--color-text-muted);
+	cursor: pointer;
 }
 
 /* ---------------------------------------------------------------- forms */
@@ -1015,6 +1696,7 @@ select:hover {
    for these auth-style forms. */
 .form-panel > button {
 	width: 100%;
+	min-height: var(--control-h);
 }
 
 .fields-update-form > .form-actions {
@@ -1111,7 +1793,12 @@ select:hover {
 .fields-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-5);
+	gap: var(--space-3);
+}
+
+.fields-panel:not([open]) {
+	gap: 0;
+	padding-bottom: 0;
 }
 
 .fields-panel:not([open]) > :not(summary) {
@@ -1329,6 +2016,24 @@ button[disabled] {
 	font-weight: 600;
 }
 
+/* Items list: compact, What's Next-style rows with a small Playbook pill
+   instead of a plain hint line. */
+.items-list .link-list__row {
+	padding: var(--space-3) var(--space-5);
+	gap: var(--space-2) var(--space-3);
+}
+
+/* A valid custom Playbook name can be long; bound the pill to the row's
+   own width and ellipsize instead of overflowing on narrow rows. The full
+   name stays available via `title` on the element. */
+.items-list__playbook {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* --------------------------------------------------------- related items */
 
 .relations-empty-head {
@@ -1396,6 +2101,11 @@ button[disabled] {
 	font-size: var(--text-meta);
 	color: var(--color-text-muted);
 	overflow-wrap: anywhere;
+}
+
+.item-detail-page .related-row__title,
+.item-detail-page .related-row__meta {
+	overflow-wrap: break-word;
 }
 
 .related-row__arrow {
@@ -1533,26 +2243,69 @@ button.relation-unlink:hover {
 .document-row__title {
 	font-size: var(--text-action);
 	font-weight: 600;
-	overflow-wrap: anywhere;
+	min-width: 0;
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: var(--control-h);
 	min-height: var(--control-h);
-	display: inline-flex;
-	align-items: center;
+	display: block;
 }
 
 .document-row__original {
+	min-width: 0;
 	font-size: var(--text-meta);
 	color: var(--color-text-muted);
-	overflow-wrap: anywhere;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .document-row__meta {
-	overflow-wrap: anywhere;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: var(--space-1);
+	row-gap: 0;
+	word-break: normal;
+	overflow-wrap: break-word;
+	white-space: normal;
+}
+
+.document-row__date {
+	white-space: nowrap;
 }
 
 .document-row__open {
 	flex: none;
 	min-height: var(--control-h);
 	white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+	.item-detail-side .document-row {
+		display: grid;
+		grid-template-columns: 72px minmax(0, 1fr);
+		grid-template-areas:
+			'preview text'
+			'. open';
+		align-items: start;
+		gap: var(--space-2) var(--space-4);
+	}
+
+	.item-detail-side .document-row__preview {
+		grid-area: preview;
+	}
+
+	.item-detail-side .document-row__text {
+		grid-area: text;
+	}
+
+	.item-detail-side .document-row__open {
+		grid-area: open;
+		justify-self: start;
+	}
 }
 
 .attachment-manage-form {
@@ -1765,6 +2518,21 @@ mark {
 	border-bottom: 1px solid var(--color-hairline);
 }
 
+.upcoming-range__label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.upcoming-range__label::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--color-accent);
+	flex: none;
+}
+
 .upcoming-range__count {
 	min-width: 2rem;
 	padding: 0 var(--space-2);
@@ -1830,13 +2598,9 @@ mark {
 	text-align: right;
 }
 
-.upcoming-row__state {
-	font-weight: 600;
-	color: var(--color-success);
-}
-
-.upcoming-row--blocked .upcoming-row__state {
-	color: var(--color-warning);
+.upcoming-row__state--blocked {
+	color: var(--color-warning-text);
+	background: var(--color-warning-soft);
 }
 
 /* ------------------------------------------------------ states & notes */
@@ -1912,6 +2676,27 @@ mark {
 
 .notice--error {
 	border-left-color: var(--color-danger);
+}
+
+.item-detail-page .notice {
+	border-left: 1px solid var(--color-border);
+}
+
+.item-detail-page button,
+.item-detail-page summary {
+	min-height: var(--control-h);
+}
+
+.item-detail-page .backlink {
+	min-height: var(--control-h);
+	display: inline-flex;
+	align-items: center;
+}
+
+.item-detail-page .facts-empty .data-row > a {
+	min-height: var(--control-h);
+	display: inline-flex;
+	align-items: center;
 }
 
 .notice__title {
@@ -2162,76 +2947,13 @@ mark {
 		--text-page: 1.3125rem;
 	}
 
-	.app-topbar__inner {
-		padding: 0 var(--space-4);
-		min-height: 56px;
-		gap: var(--space-2);
-	}
-
-	.app-topbar__inner > .button {
-		padding-left: var(--space-2);
-		padding-right: var(--space-2);
-	}
-
-	/* Navigation wandert nach unten in Reichweite des Daumens. */
-	.app-nav {
-		display: none;
-	}
-
-	.topbar-search-link {
-		min-width: 44px;
-		min-height: 44px;
-		padding: 0;
-		justify-content: center;
-		border-color: var(--color-border-strong);
-	}
-	.app-brand {
-		font-size: 0;
-		gap: 0;
-	}
-
-	.topbar-logout {
-		padding-left: var(--space-2);
-	}
 	.search-page input {
 		font-size: 16px;
 	}
 
-	.app-shell {
-		padding: var(--space-5) var(--space-4) calc(60px + var(--space-7));
-	}
-
-	.app-tabbar {
-		display: flex;
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: var(--color-surface);
-		border-top: 1px solid var(--color-border);
-	}
-
-	.app-tabbar a {
-		flex: 1;
-		min-height: 60px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: var(--text-meta);
-		font-weight: 500;
-		color: var(--color-text-muted);
-		border-top: 2px solid transparent;
-		text-align: center;
-	}
-
-	.app-tabbar a:hover {
-		text-decoration: none;
-	}
-
-	.app-tabbar a[aria-current='page'] {
-		color: var(--color-accent);
-		font-weight: 600;
-		border-top-color: var(--color-accent);
+	.section__actions--whats-next .action-row {
+		padding-left: var(--space-3);
+		padding-right: var(--space-3);
 	}
 
 	.item-group__context,
@@ -2297,18 +3019,6 @@ mark {
 	.next-up .form-actions button {
 		flex: 1;
 		min-height: var(--control-h);
-	}
-
-	.timeline__step {
-		grid-template-columns: 20px 1fr;
-	}
-
-	.timeline__state {
-		display: none;
-	}
-
-	.timeline__status-inline {
-		display: inline-block;
 	}
 
 	.data-row {
@@ -2402,5 +3112,479 @@ mark {
 
 	.relation-search__controls {
 		flex-direction: column;
+	}
+}
+
+/* The mobile app shell starts below 768px. Item detail switches to its
+   informational hero and sticky action bar at that same breakpoint. */
+@media (max-width: 767px) {
+	.item-detail-page .next-up__actions {
+		display: none;
+	}
+
+	.item-detail-page .item-detail-layout {
+		display: block;
+	}
+
+	.item-detail-page .item-detail-side {
+		margin-top: var(--space-7);
+	}
+
+	.item-detail-page .timeline-progress {
+		display: flex;
+	}
+
+	.item-detail-page .sticky-action-bar {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		position: fixed;
+		left: var(--space-4);
+		right: var(--space-4);
+		bottom: calc(60px + env(safe-area-inset-bottom) + var(--space-3));
+		z-index: 5;
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg, 0.75rem);
+		box-shadow: 0 2px 10px var(--color-border-strong);
+	}
+
+	.item-detail-page .sticky-action-bar__primary {
+		flex: 1;
+		min-height: var(--control-h);
+	}
+
+	.item-detail-page .sticky-action-bar__more {
+		position: relative;
+	}
+
+	.item-detail-page .sticky-action-bar__more > summary {
+		list-style: none;
+		min-width: var(--control-h);
+		min-height: var(--control-h);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md, 0.5rem);
+		cursor: pointer;
+	}
+
+	.item-detail-page .sticky-action-bar__more > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.item-detail-page .sticky-action-bar__menu {
+		position: absolute;
+		right: 0;
+		bottom: calc(100% + var(--space-2));
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md, 0.5rem);
+		box-shadow: 0 2px 10px var(--color-border-strong);
+		min-width: 10rem;
+	}
+
+	.item-detail-page .sticky-action-bar__menu button {
+		min-height: var(--control-h);
+	}
+
+	.item-detail-page .timeline__step {
+		grid-template-columns: 20px 1fr;
+	}
+
+	.item-detail-page .timeline__state {
+		display: none;
+	}
+
+	.item-detail-page .timeline__status-inline {
+		display: inline-block;
+	}
+
+	.item-detail-page .data-row {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 2px;
+	}
+
+	.app-shell:has(.item-detail-page .sticky-action-bar) {
+		padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
+		scroll-padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
+	}
+}
+
+@media (max-width: 479px) {
+	.item-detail-page .facts-group .data-list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* ------------------------------------------------- What's Next (root) */
+
+/* Only the What's Next section headers drop the shared uppercase/tracked
+   style — every other `.section__label` on other pages is untouched. */
+.section__label--plain {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+.section__label--now {
+	color: var(--color-accent-text);
+}
+
+.section__label--later {
+	color: var(--color-text-body);
+}
+
+.section__label--now::before,
+.section__label--later::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.section__label__count {
+	margin-left: auto;
+	font-weight: 400;
+	color: var(--color-text-faint);
+}
+
+.due-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px var(--space-2);
+	border-radius: 999px;
+	font-size: var(--text-meta);
+	font-weight: 600;
+	margin-right: var(--space-2);
+}
+
+.due-pill--overdue {
+	color: var(--color-danger);
+	background: var(--color-danger-soft);
+}
+
+.due-pill--now {
+	color: var(--color-accent-text);
+	background: var(--color-accent-soft);
+}
+
+.due-pill--later {
+	color: var(--color-text-body);
+	background: var(--color-surface-hover);
+}
+
+.action-row__done-form {
+	flex: 0 0 auto;
+}
+
+/* The 22px ring sits inside a 44px round hit target. */
+.action-row__done {
+	width: var(--control-h);
+	height: var(--control-h);
+	padding: 0;
+	border: 0;
+	background: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+}
+
+.action-row__done-ring {
+	width: 22px;
+	height: 22px;
+	fill: none;
+	stroke: var(--color-text-faint);
+	stroke-width: 4;
+}
+
+.action-row--overdue .action-row__done-ring {
+	stroke: var(--color-danger);
+}
+
+.action-row__done:hover .action-row__done-ring,
+.action-row__done:focus-visible .action-row__done-ring {
+	stroke: var(--color-accent-text);
+}
+
+/* A native <details> used as a floating "more actions" menu, anchored to
+   its own summary button rather than pushed inline — `.item-group`'s
+   `overflow: visible` (see above) is what lets this panel escape the
+   card instead of being clipped. */
+.action-menu {
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.action-menu > summary {
+	list-style: none;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--control-h);
+	height: var(--control-h);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	font-weight: 700;
+}
+
+.action-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.action-menu__panel {
+	position: absolute;
+	right: 0;
+	top: calc(100% + var(--space-2));
+	z-index: 20;
+	min-width: 10rem;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2);
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	box-shadow: 0 4px 16px var(--color-border-strong);
+}
+
+.action-menu__panel a,
+.action-menu__panel button {
+	display: flex;
+	align-items: center;
+	min-height: var(--control-h);
+	text-align: left;
+	padding: var(--space-2) var(--space-3);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--color-text-body);
+	font-size: var(--text-body);
+	font-weight: 500;
+}
+
+.action-menu__panel button {
+	width: 100%;
+}
+
+.action-menu__panel a:hover,
+.action-menu__panel button:hover,
+.action-menu__panel a:focus-visible,
+.action-menu__panel button:focus-visible {
+	background: var(--color-surface-hover);
+}
+
+.filter-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-bottom: var(--space-5);
+}
+
+.filter-chip {
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control-h);
+	padding: 0 var(--space-4);
+	border-radius: 999px;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	color: var(--color-text-body);
+	font-size: var(--text-meta);
+	font-weight: 600;
+}
+
+.filter-chip[aria-current='page'] {
+	background: var(--color-inverse-bg);
+	color: var(--color-inverse-fg);
+	border-color: var(--color-inverse-bg);
+}
+
+@media (max-width: 767px) {
+	.filter-bar {
+		flex-wrap: nowrap;
+		max-width: 100%;
+		margin-bottom: calc(var(--space-5) - 8px);
+		padding: 4px;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scroll-padding-inline: 4px;
+		scrollbar-width: none;
+		overscroll-behavior-inline: contain;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.filter-bar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.filter-chip {
+		flex: 0 0 auto;
+		scroll-margin-inline: 4px;
+	}
+}
+
+.undo-notice {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	margin-bottom: var(--space-5);
+	border-radius: var(--radius-md);
+	background: var(--color-accent-soft);
+	color: var(--color-accent-text);
+	flex-wrap: wrap;
+}
+
+.undo-notice p {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Beats `button.link`'s own `min-height: 32px` (same specificity,
+   defined later here in source order) — the undo action needs a real
+   44px target, not the quiet inline-link sizing. */
+button.undo-notice__button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--control-h);
+	min-height: var(--control-h);
+}
+
+/* --------------------------------------------------------------- Inbox */
+/* Phase 4 Inbox redesign: the list/detail layout, scoped under the route's
+   own .inbox-page root since this lives in global app.css rather than the
+   component's scoped <style>. */
+
+.inbox-page .inbox-count {
+	margin: var(--space-1) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--text-meta);
+}
+
+.inbox-page .upload-form-group {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.inbox-page .inbox-upload__formats {
+	margin: 0;
+	color: var(--color-text-faint);
+	font-size: var(--text-meta);
+}
+
+.inbox-page .inbox-layout {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.inbox-page .inbox-list {
+	min-width: 0;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	order: 2;
+}
+
+.inbox-page .inbox-list ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.inbox-page .file-tile {
+	width: 34px;
+	height: 34px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+	background: var(--color-hairline);
+	color: var(--color-text-muted);
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	flex: none;
+}
+
+.inbox-page .inbox-detail {
+	min-width: 0;
+	order: 1;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-5);
+}
+
+.inbox-page .inbox-layout--list-first .inbox-list {
+	order: 1;
+}
+
+.inbox-page .inbox-layout--list-first .inbox-detail {
+	order: 2;
+}
+
+.inbox-page .inbox-back-link {
+	display: inline-flex;
+	min-height: var(--control-h);
+	align-items: center;
+	margin-bottom: var(--space-3);
+	font-size: var(--text-body);
+	font-weight: 600;
+}
+
+@media (min-width: 768px) {
+	.inbox-page .inbox-back-link {
+		display: none;
+	}
+
+	.inbox-page .inbox-layout {
+		display: grid;
+		grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+		/* Without this, the grid row's default stretch sizing makes the list
+		   panel as tall as the detail panel next to it (e.g. a long detail
+		   form); each panel should size to its own content instead. */
+		align-items: start;
+		gap: var(--space-5);
+	}
+
+	.inbox-page .inbox-list,
+	.inbox-page .inbox-detail {
+		order: unset;
+	}
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+	.inbox-page .inbox-page-head {
+		flex-direction: column;
+	}
+
+	.inbox-page .upload-form-group {
+		align-items: flex-start;
+	}
+
+	.inbox-page .inbox-layout {
+		grid-template-columns: minmax(180px, 210px) minmax(0, 1fr);
+		gap: var(--space-3);
+	}
+
+	.inbox-page .inbox-detail {
+		padding: var(--space-3);
 	}
 }

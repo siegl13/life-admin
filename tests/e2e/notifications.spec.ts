@@ -33,7 +33,9 @@ test('notification settings validate input, keep secrets hidden, and support tes
 	await ntfyForm.getByLabel('ntfy-Zugangsschlüssel').fill(token);
 	await ntfyForm.getByLabel('Erinnerungen einschalten').check();
 	await ntfyForm.getByRole('button', { name: 'Speichern' }).click();
-	await expect(page.getByText('Eingeschaltet', { exact: true })).toBeVisible();
+	await expect(
+		page.locator('#g-notifications').getByText('Eingeschaltet', { exact: true })
+	).toBeVisible();
 	// Successful save redirected with no form state; the channel closed.
 	await page.locator('#notify-channel-ntfy > summary').click();
 	await expect(page.getByText('Ein Zugangsschlüssel ist hinterlegt.')).toBeVisible();
@@ -120,7 +122,10 @@ test('snoozed actions retain overdue context and can be replaced directly', asyn
 	await expect(step.getByRole('button', { name: 'Morgen' })).toHaveCount(0);
 	await step.getByRole('button', { name: 'Später erinnern' }).click();
 	await step.getByRole('button', { name: 'Morgen' }).click();
-	await expect(step.getByText('Überfällig seit 1. Januar 2020')).toBeVisible();
+	// The featured action's due date is shown once in the hero. The step
+	// retains snooze state and controls without repeating that date.
+	await expect(page.locator('.next-up__state')).toContainText('1. Januar 2020');
+	await expect(step.locator('.timeline__body > .meta')).toHaveCount(0);
 	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
 	await step.getByRole('button', { name: 'Erinnerungsdatum ändern' }).click();
 	await step.getByRole('button', { name: 'In 7 Tagen' }).click();

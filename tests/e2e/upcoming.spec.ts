@@ -41,6 +41,18 @@ test('shows future manual actions in Upcoming and keeps the page usable on mobil
 		.filter({ hasText: 'Upcoming mobile item' })
 		.filter({ hasText: 'Wartet auf vorherigen Schritt' });
 	await expect(blockedActions).toHaveCount(2);
+
+	// Dot/label/count heading pattern, and the state text rendered as a pill,
+	// preserving the same ranges/counts/data checked above.
+	await expect(laterRange.locator('.upcoming-range__label')).toHaveText('Später');
+	const laterHeadingDotWidth = await laterRange
+		.locator('.upcoming-range__label')
+		.evaluate((node) => getComputedStyle(node, '::before').width);
+	expect(parseFloat(laterHeadingDotWidth)).toBeGreaterThan(0);
+	const availableStatePill = availableAction.locator('.upcoming-row__state');
+	await expect(availableStatePill).toHaveClass(/pill/);
+	const blockedStatePill = blockedActions.first().locator('.upcoming-row__state');
+	await expect(blockedStatePill).toHaveClass(/upcoming-row__state--blocked/);
 	await expect(
 		page.getByText('A very long manual action label that must remain readable on mobile')
 	).toBeVisible();

@@ -29,7 +29,11 @@ import { isCycleComplete } from '$lib/domain/cycle/completion';
 import { parsePlaybookSnapshot } from '$lib/domain/playbook/snapshot';
 import { newerVersionAvailable } from '$lib/domain/playbook/version';
 import type { Item } from '$lib/domain/item/item';
-import { setActionState } from '$lib/application/actions/setActionState';
+import {
+	applyGuardedTransition,
+	isTransitionFailure,
+	parseTransitionFormData
+} from '$lib/server/http/actionTransition';
 import {
 	clearSnooze,
 	IneligibleSnoozeError,
@@ -814,12 +818,6 @@ function relationRedirect(itemId: string, query: string): string {
 	return `/items/${itemId}?${params.toString()}#relations`;
 }
 
-const TRANSITION_EVENT_TYPE = {
-	DONE: 'ACTION_COMPLETED',
-	SKIPPED: 'ACTION_SKIPPED',
-	OPEN: 'ACTION_REOPENED'
-} as const;
-
 async function transitionAction(
 	request: Request,
 	itemId: string,
@@ -827,30 +825,21 @@ async function transitionAction(
 ) {
 	if (isItemArchived(itemId)) return fail(400, { error: t('items.detail.archivedReadOnly') });
 	const formData = await request.formData();
-	const actionId = formData.get('actionId')?.toString();
-	if (!actionId) return fail(400, { error: 'missing actionId' });
+	// itemId is this route's own `params.id`, never a form field — only
+	// actionId needs parsing here (same shared parser the root route uses).
+	const parsed = parseTransitionFormData(formData, { requireItemId: false });
+	if (!parsed) return fail(400, { error: 'missing actionId' });
 
-	try {
-		setActionState({ actions: actionsPort }, { itemId, actionId, newState });
-	} catch (err) {
-		if (err instanceof ActionNotMutableError) {
-			// Deliberately one message regardless of cause (wrong item,
-			// archived item, inactive cycle, stale id, invalid transition) —
-			// see the Slice 8 review, finding 1.
-			return fail(400, { error: t('items.detail.actionNotMutable') });
-		}
-		throw err;
-	}
-
-	recordHistoryEvent(
-		{ history: itemHistoryPort, ids: idsPort, clock },
-		{
-			itemId,
-			actorKind: 'OWNER',
-			eventType: TRANSITION_EVENT_TYPE[newState],
-			payload: { actionId }
-		}
+	// Deliberately one message regardless of cause (wrong item, archived
+	// item, inactive cycle, stale id, invalid transition) — see the
+	// Slice 8 review, finding 1. Mapping itself lives in the shared
+	// actionTransition helper so root and detail can never drift apart.
+	const result = applyGuardedTransition(
+		{ actions: actionsPort, history: itemHistoryPort, ids: idsPort, clock },
+		{ itemId, actionId: parsed.actionId, newState },
+		t('items.detail.actionNotMutable')
 	);
+	if (isTransitionFailure(result)) return result;
 
 	redirect(303, `/items/${itemId}`);
 }

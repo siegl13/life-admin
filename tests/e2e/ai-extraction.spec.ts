@@ -217,32 +217,58 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	const longValue = 'VIN' + '0123456789'.repeat(5);
 	await page.locator('#license_plate').fill(longValue);
 	await page.getByRole('button', { name: 'Speichern' }).click();
-	const overviewValues = page.locator('.item-overview__values');
-	const overviewValue = overviewValues.locator('.item-overview__value').first();
-	for (const width of [375, 390, 430]) {
+	const textFacts = page.locator('.facts-group').filter({
+		has: page.locator('.facts-group__label', { hasText: 'Weitere Angaben' })
+	});
+	const longValueCell = textFacts
+		.locator('.data-row', { hasText: longValue })
+		.locator('.data-row__value');
+	for (const width of [375, 390, 430, 1024]) {
 		await page.setViewportSize({ width, height: 800 });
-		await expect(overviewValue).toHaveCSS('flex-grow', '0');
-		await expect(overviewValue).toHaveCSS('flex-basis', 'auto');
-		await expect(overviewValues).toHaveCSS('flex-direction', 'column');
-		await expect(overviewValues).toHaveCSS('gap', '20px');
-		await expect(overviewValue.locator('.item-overview__content')).toHaveText(longValue);
-		await expect(overviewValue.locator('.item-overview__content')).toHaveCSS(
-			'overflow-wrap',
-			'anywhere'
+		await expect(longValueCell).toHaveText(longValue);
+		await expect(longValueCell).toHaveAttribute('title', longValue);
+		await expect(longValueCell).toHaveCSS('white-space', 'nowrap');
+		await expect(longValueCell).toHaveCSS('text-overflow', 'ellipsis');
+		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
+		const overflow = await page.evaluate(() =>
+			Array.from(document.querySelectorAll<HTMLElement>('*'))
+				.map((element) => ({
+					selector: `${element.tagName.toLowerCase()}.${element.className.toString().replace(/\s+/g, '.')}`,
+					left: Math.round(element.getBoundingClientRect().left),
+					right: Math.round(element.getBoundingClientRect().right),
+					width: Math.round(element.getBoundingClientRect().width)
+				}))
+				.filter((element) => element.right > innerWidth || element.left < 0)
+				.sort((a, b) => b.right - a.right)
 		);
-		await expect
-			.poll(() =>
-				overviewValue.locator('.item-overview__content').evaluate((element) => {
-					const content = element as HTMLElement;
-					return content.scrollWidth <= content.clientWidth;
-				})
-			)
-			.toBe(true);
+		const layout = await longValueCell.evaluate((value) => {
+			const chain = [];
+			for (
+				let element: HTMLElement | null = value as HTMLElement;
+				element;
+				element = element.parentElement
+			) {
+				const style = getComputedStyle(element);
+				const rect = element.getBoundingClientRect();
+				chain.push({
+					tag: element.tagName,
+					className: element.className,
+					width: rect.width,
+					maxWidth: style.maxWidth,
+					display: style.display,
+					flexDirection: style.flexDirection,
+					overflowWrap: style.overflowWrap,
+					whiteSpace: style.whiteSpace
+				});
+				if (element.tagName === 'MAIN') break;
+			}
+			return chain;
+		});
+		expect(
+			overflow.filter((element) => element.right > width),
+			JSON.stringify({ overflow, layout })
+		).toEqual([]);
 	}
-	await page.setViewportSize({ width: 1024, height: 800 });
-	await expect(overviewValue).toHaveCSS('flex-grow', '1');
-	await expect(overviewValue).toHaveCSS('flex-basis', '192px');
-	await expect(overviewValues).toHaveCSS('flex-direction', 'row');
 
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Ausschalten' }).click();

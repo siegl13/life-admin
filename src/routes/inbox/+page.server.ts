@@ -36,6 +36,7 @@ export const load: PageServerLoad = () => {
 	const items = listItems({ items: itemsPort });
 	const playbooks = playbooksPort.list();
 	return {
+		now: clock.nowIso(),
 		documents: inboxPort.listPending().map((document) => ({
 			...document,
 			suggestion: document.suggestion
