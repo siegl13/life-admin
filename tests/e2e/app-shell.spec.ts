@@ -260,6 +260,34 @@ test.describe('desktop sidebar', () => {
 	});
 });
 
+test.describe('content column keeps a fixed gutter after the sidebar on wide screens', () => {
+	for (const width of [1280, 1440, 1920, 2560]) {
+		test(`the sidebar-to-content gap stays constant at ${width}px on / and /settings`, async ({
+			page
+		}) => {
+			await page.setViewportSize({ width, height: 900 });
+
+			const gaps: number[] = [];
+			for (const route of ['/', '/settings']) {
+				await page.goto(route);
+				const gap = await page.evaluate(() => {
+					const sidebar = document.querySelector('.app-sidebar');
+					const shell = document.querySelector('.app-shell');
+					if (!sidebar || !shell) return null;
+					return shell.getBoundingClientRect().left - sidebar.getBoundingClientRect().right;
+				});
+				expect(gap).not.toBeNull();
+				gaps.push(gap!);
+			}
+			// Same fixed gutter regardless of route (shell-wide, not
+			// page-specific), and nowhere near half the extra width a
+			// `margin: 0 auto` centered column would leave at this viewport.
+			expect(Math.abs(gaps[0] - gaps[1])).toBeLessThan(1);
+			expect(gaps[0]).toBeLessThan(80);
+		});
+	}
+});
+
 test.describe('mobile shell', () => {
 	test.use({ viewport: { width: 390, height: 844 } });
 

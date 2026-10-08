@@ -27,7 +27,7 @@
 	{#each data.ranges as range (range.key)}
 		<details class="upcoming-range" open={range.actions.length > 0}>
 			<summary>
-				<span>{t(rangeLabels[range.key])}</span>
+				<span class="upcoming-range__label">{t(rangeLabels[range.key])}</span>
 				<span class="upcoming-range__count">{range.actions.length}</span>
 			</summary>
 			{#if range.actions.length > 0}
@@ -40,7 +40,10 @@
 							</a>
 							<div class="upcoming-row__meta">
 								<time datetime={action.dueDate}>{formatDate(action.dueDate)}</time>
-								<span class="upcoming-row__state">
+								<span
+									class="pill upcoming-row__state"
+									class:upcoming-row__state--blocked={!action.available}
+								>
 									{t(action.available ? stateLabels.available : stateLabels.blocked)}
 								</span>
 							</div>

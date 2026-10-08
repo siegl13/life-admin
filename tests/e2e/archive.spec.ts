@@ -178,6 +178,59 @@ test('an archived item detail page has no mutation buttons or forms anywhere, an
 	).toBeVisible();
 });
 
+test('the Items archive switch stays an inline, content-width control sharing the desktop heading row, not stretched full width or stacked below the title', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto('/items');
+	const toggle = page.locator('.items-archive-toggle');
+	const heading = page.locator('.page-head h1');
+	await expect(toggle).toBeVisible();
+
+	const [toggleBox, headingBox, pageHeadBox] = await Promise.all([
+		toggle.boundingBox(),
+		heading.boundingBox(),
+		page.locator('.page-head').first().boundingBox()
+	]);
+	expect(toggleBox).not.toBeNull();
+	expect(headingBox).not.toBeNull();
+	expect(pageHeadBox).not.toBeNull();
+	expect(toggleBox!.width).toBeLessThan(pageHeadBox!.width * 0.8);
+	expect(toggleBox!.height).toBeGreaterThanOrEqual(44);
+	// Rendered bounding-box height alone can be inflated by borders without
+	// the control's own box actually meeting the touch-target token, so
+	// also check the computed height.
+	const computedHeight = await toggle.evaluate((node) => parseFloat(getComputedStyle(node).height));
+	expect(computedHeight).toBeGreaterThanOrEqual(44);
+	// Shares the heading row on desktop: vertically overlapping, not stacked
+	// in a new row below the title.
+	expect(toggleBox!.y).toBeLessThan(headingBox!.y + headingBox!.height);
+	expect(toggleBox!.y + toggleBox!.height).toBeGreaterThan(headingBox!.y);
+
+	// Forward: active list -> archive view.
+	await toggle.click();
+	await expect(page).toHaveURL(/\?archived=1$/);
+	await expect(page.locator('.items-archive-toggle')).toBeVisible();
+	// Back: archive view -> active list.
+	await page.locator('.items-archive-toggle').click();
+	await expect(page).toHaveURL(/\/items$/);
+	await expect(page.locator('.items-archive-toggle')).toBeVisible();
+
+	// General check: no other direct `.page-head` action anywhere in the
+	// app renders wider than its heading column, i.e. nothing else is
+	// silently inheriting the flex-column stretch this fix addresses.
+	for (const route of ['/', '/upcoming', '/settings', '/suche', '/login', '/setup']) {
+		await page.goto(route);
+		const headButtons = page.locator('.page-head > .button, .page-head > a.button');
+		const count = await headButtons.count();
+		for (let i = 0; i < count; i++) {
+			const box = await headButtons.nth(i).boundingBox();
+			const headBox = await page.locator('.page-head').first().boundingBox();
+			if (box && headBox) expect(box.width).toBeLessThan(headBox.width);
+		}
+	}
+});
+
 /**
  * Slice 8 review, finding 1/2/7: UI hiding is not the security boundary —
  * a crafted POST straight at the form action must still be refused once
@@ -218,4 +271,102 @@ test('a crafted completeAction POST against an archived item is refused, not jus
 	await page.goto(itemUrl);
 	await page.getByRole('button', { name: 'Wieder aktivieren' }).click();
 	await expect(page.locator('.next-up').getByRole('button', { name: 'Erledigen' })).toBeVisible(); // still OPEN — the crafted POST never completed it
+});
+
+test('the Items list shows a compact row with a small Playbook pill', async ({ page }) => {
+	const title = `Items Compact Row Test ${Date.now()}`;
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill(title);
+	await page.getByLabel('Vorlage').selectOption({ label: 'TÜV / Hauptuntersuchung' });
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+
+	await page.goto('/items');
+	const row = page.locator('.link-list__row', { hasText: title });
+	await expect(row).toBeVisible();
+	const playbookPill = row.locator('.items-list__playbook');
+	await expect(playbookPill).toHaveText('TÜV / Hauptuntersuchung');
+	await expect(playbookPill).toHaveClass(/\bpill\b/);
+	const rowPadding = await row.evaluate((node) => getComputedStyle(node).paddingTop);
+	const resolvedSpace3 = await page.evaluate(() => {
+		const probe = document.createElement('div');
+		probe.style.paddingTop = 'var(--space-3)';
+		document.body.append(probe);
+		const resolved = getComputedStyle(probe).paddingTop;
+		probe.remove();
+		return resolved;
+	});
+	expect(rowPadding).toBe(resolvedSpace3);
+});
+
+test('the Items archive toggle keeps its 44px touch target and wraps without horizontal overflow at mobile width', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/items');
+	const toggle = page.locator('.items-archive-toggle');
+	await expect(toggle).toBeVisible();
+
+	const toggleBox = await toggle.boundingBox();
+	expect(toggleBox).not.toBeNull();
+	expect(toggleBox!.height).toBeGreaterThanOrEqual(44);
+	const computedHeight = await toggle.evaluate((node) => parseFloat(getComputedStyle(node).height));
+	expect(computedHeight).toBeGreaterThanOrEqual(44);
+
+	const overflowX = await page.evaluate(
+		() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+	);
+	expect(overflowX).toBe(false);
+
+	await toggle.click();
+	await expect(page).toHaveURL(/\?archived=1$/);
+	await expect(page.locator('.items-archive-toggle')).toBeVisible();
+	await page.locator('.items-archive-toggle').click();
+	await expect(page).toHaveURL(/\/items$/);
+});
+
+test('a long custom Playbook name wraps or truncates in the Items pill without overflowing the row at mobile width', async ({
+	page
+}) => {
+	const playbookId = `de.custom.longname-${Date.now()}`;
+	const longName =
+		'Jährliche Hauptuntersuchung und Abgasuntersuchung für den Firmenwagen mit erweitertem Prüfprotokoll und Dokumentenkontrolle';
+	const yaml = [
+		'schemaVersion: 1',
+		`id: ${playbookId}`,
+		'version: 1.0.0',
+		`name: "${longName}"`,
+		'fields: []',
+		'events: []',
+		'actions: []'
+	].join('\n');
+
+	await page.goto('/settings');
+	await page.locator('summary', { hasText: 'Vorlage hinzufügen' }).click();
+	await page.locator('#playbook-yaml').fill(yaml);
+	await page.getByRole('button', { name: 'Vorlage installieren' }).click();
+	await expect(page.locator(`[id="g-playbook-${playbookId}"]`)).toContainText(longName);
+
+	const title = `Long Playbook Pill Test ${Date.now()}`;
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill(title);
+	await page.getByLabel('Vorlage').selectOption({ label: longName });
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/items');
+	const row = page.locator('.link-list__row', { hasText: title });
+	await expect(row).toBeVisible();
+	const pill = row.locator('.items-list__playbook');
+	await expect(pill).toHaveAttribute('title', longName);
+
+	const [pillBox, rowBox] = await Promise.all([pill.boundingBox(), row.boundingBox()]);
+	expect(pillBox).not.toBeNull();
+	expect(rowBox).not.toBeNull();
+	expect(pillBox!.width).toBeLessThanOrEqual(rowBox!.width + 1);
+	const overflowX = await page.evaluate(
+		() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+	);
+	expect(overflowX).toBe(false);
 });

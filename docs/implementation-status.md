@@ -142,9 +142,10 @@ started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
   controls. Per-action dialogs and controls remain in the workflow. The
   featured action's primary controls appear only in the hero or phone bar.
 - Fields are grouped by type in full-width cards. Each group has two columns at
-  480px and wider, and one column on smaller screens. Long values stay on one
-  line with an ellipsis and full-value tooltip. Empty values use a collapsed,
-  localized disclosure. Archived items remain read-only.
+  480px and wider, and one column on smaller screens. Multiword values wrap;
+  unbroken identifiers stay on one line with an ellipsis and full-value tooltip.
+  Empty values use a collapsed, localized disclosure. Archived items remain
+  read-only.
 - Document display names use one-line ellipses and full-value tooltips. The
   original filename appears only after a rename. Metadata wraps cleanly, and
   dates stay together. Documents, related items and newest-first history sit
@@ -207,6 +208,42 @@ pass.**
   need Inbox extraction data.
 - Integrated with Phase 3 by merge commit `7ad043bf`. Phase 3 details and
   verification remain in the separate section above.
+
+## Final polish
+
+**Status: IMPLEMENTED AND VERIFIED. Independent review passed.**
+
+- Relative-time labels share one formatter with an explicit server-provided
+  `now`. German and English labels scale from “just now” through minutes, hours
+  and days, then use the date. Unit tests cover scale boundaries and both
+  languages. Inbox E2E verifies the server time stays stable through hydration.
+- The content column uses a fixed gutter after the sidebar at wide sizes. The
+  Items archive control is inline with its heading, keeps a 44px target at
+  desktop and mobile widths, and wraps without horizontal overflow on phones.
+  Items rows are compact with Playbook pills; a long custom Playbook name
+  bounds to the row width and ellipsizes instead of overflowing. Upcoming
+  keeps its ranges and data, with section dots/counts and state pills.
+- Inbox lists size to their contents. Multiword Item facts wrap; long
+  unbroken values keep a full-value tooltip and ellipsis. Section headings
+  share the same spacing on What's Next, Item detail and Inbox, including the
+  closed fields disclosure next to the populated read-only facts view.
+- Review corrections bound long Playbook names to their row, keep the closed
+  fields disclosure to one section gap, and add focused checks for archive
+  control geometry and shared Settings/Search/auth controls.
+- `npm run verify` passed with 119 files and 1,003 unit tests. Focused review
+  regressions passed 32/32, and the final full `npm run test:e2e` passed
+  185/185.
+- Built-app browser checks passed 78 route, viewport and theme combinations at
+  390px, 1280px and 1920px. They covered all top-level pages, active and
+  archived Items views, active and archived Item detail, the Inbox with an
+  older document, the real Setup form, and unauthenticated Login and closed
+  Setup. There were no console, page, CSP or horizontal-overflow errors.
+  Screenshots are in the local polish scratchpad.
+- The README screenshots for What's Next, new-item and Item detail were
+  refreshed because the shared content alignment and Item detail facts changed.
+- Follow-ups: locale-specific date and currency formatting for English;
+  What's Next side panel; mobile header integration into page headers; inline
+  due-date editing; Inbox preview endpoint; drag-and-drop upload.
 
 ## Node 26 runtime metadata
 

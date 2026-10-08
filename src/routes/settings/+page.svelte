@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t, resolveLabel } from '$lib/i18n';
+	import { formatRelativeTime } from '$lib/ui/format';
 	import type { PageData } from './$types';
 	import type { ActionData } from './$types';
 	import { resolve } from '$app/paths';
@@ -7,9 +8,7 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	function relativeTime(value: string): string {
-		const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60_000));
-		if (minutes < 1) return t('settings.notify.justNow');
-		return t('settings.notify.minutesAgo', { minutes: String(minutes) });
+		return formatRelativeTime(value, data.now);
 	}
 
 	function notificationFailureMessage(reason: string): string {

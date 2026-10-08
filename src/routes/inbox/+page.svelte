@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import type { AttachmentMimeType } from '$lib/domain/attachment/attachment';
-	import { formatDate } from '$lib/ui/format';
+	import { formatDate, formatRelativeTime } from '$lib/ui/format';
 	import { t } from '$lib/i18n';
 	import InboxDocumentList from '$lib/components/inbox/InboxDocumentList.svelte';
 	import InboxRouteForm from '$lib/components/inbox/InboxRouteForm.svelte';
@@ -21,11 +21,7 @@
 	let listFirst = $derived(page.url.searchParams.get('view') === 'list');
 
 	function relativeTime(value: string): string {
-		const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60_000));
-		if (minutes < 1) return t('settings.notify.justNow');
-		return t(minutes === 1 ? 'inbox.minutesAgoOne' : 'inbox.minutesAgoMany', {
-			minutes: String(minutes)
-		});
+		return formatRelativeTime(value, data.now);
 	}
 
 	function uploadDate(value: string): string {

@@ -549,3 +549,23 @@ test.describe('filter links without JavaScript', () => {
 		}
 	});
 });
+
+test('a What’s Next section heading keeps the shared --space-3 gap to its actions', async ({
+	page
+}) => {
+	await page.goto('/');
+	const label = page.locator('.section__label').first();
+	await expect(label).toBeVisible();
+	const resolvedSpace3 = await page.evaluate(() => {
+		const probe = document.createElement('div');
+		probe.style.marginBottom = 'var(--space-3)';
+		document.body.append(probe);
+		const resolved = parseFloat(getComputedStyle(probe).marginBottom);
+		probe.remove();
+		return resolved;
+	});
+	const headingGap = await label.evaluate((node) =>
+		parseFloat(getComputedStyle(node).marginBottom)
+	);
+	expect(headingGap).toBeCloseTo(resolvedSpace3, 0);
+});

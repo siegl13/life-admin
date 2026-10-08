@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { formatCurrencyDisplay, formatDueDayCount, formatRelativeDue } from './format';
+import {
+	formatCurrencyDisplay,
+	formatDueDayCount,
+	formatRelativeDue,
+	formatRelativeTime
+} from './format';
 import { setLocaleProvider, t } from '$lib/i18n';
 
 afterEach(() => setLocaleProvider(() => 'de'));
@@ -63,6 +68,59 @@ describe('formatDueDayCount', () => {
 	])('formats English numeric day distance $days', ({ days, expected }) => {
 		setLocaleProvider(() => 'en');
 		expect(formatDueDayCount(shiftDate('2026-06-15', days), '2026-06-15')).toBe(expected);
+	});
+});
+
+describe('formatRelativeTime', () => {
+	afterEach(() => setLocaleProvider(() => 'de'));
+
+	const now = '2026-06-15T12:00:00.000Z';
+
+	function minutesBefore(minutes: number): string {
+		return new Date(Date.parse(now) - minutes * 60_000).toISOString();
+	}
+
+	function hoursBefore(hours: number): string {
+		return minutesBefore(hours * 60);
+	}
+
+	it('reports just now for under a minute', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatRelativeTime(minutesBefore(0), now)).toBe('gerade eben');
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeTime(minutesBefore(0), now)).toBe('just now');
+	});
+
+	it('stays in minutes at 59 and switches to hours at 60', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatRelativeTime(minutesBefore(1), now)).toBe('vor 1 Minute');
+		expect(formatRelativeTime(minutesBefore(59), now)).toBe('vor 59 Minuten');
+		expect(formatRelativeTime(minutesBefore(60), now)).toBe('vor 1 Stunde');
+
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeTime(minutesBefore(1), now)).toBe('1 minute ago');
+		expect(formatRelativeTime(minutesBefore(59), now)).toBe('59 minutes ago');
+		expect(formatRelativeTime(minutesBefore(60), now)).toBe('1 hour ago');
+	});
+
+	it('stays in hours at 23 and switches to days at 24', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatRelativeTime(hoursBefore(23), now)).toBe('vor 23 Stunden');
+		expect(formatRelativeTime(hoursBefore(24), now)).toBe('vor 1 Tag');
+
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeTime(hoursBefore(23), now)).toBe('23 hours ago');
+		expect(formatRelativeTime(hoursBefore(24), now)).toBe('1 day ago');
+	});
+
+	it('stays in days up to 6 and falls back to the exact date at 7 full days', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatRelativeTime(hoursBefore(6 * 24), now)).toBe('vor 6 Tagen');
+		expect(formatRelativeTime(hoursBefore(7 * 24), now)).toBe('8. Juni 2026');
+
+		setLocaleProvider(() => 'en');
+		expect(formatRelativeTime(hoursBefore(6 * 24), now)).toBe('6 days ago');
+		expect(formatRelativeTime(hoursBefore(7 * 24), now)).toBe('8. Juni 2026');
 	});
 });
 

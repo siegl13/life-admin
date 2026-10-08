@@ -31,6 +31,13 @@
 		if (field.type === 'currency') return formatCurrencyDisplay(field.value);
 		return field.value;
 	}
+
+	// An unbroken identifier (no ordinary spaces) stays one line with an
+	// ellipsis, its full value only in `title`/accessible name. An ordinary
+	// multiword value wraps instead, so it stays fully readable in place.
+	function isUnbrokenValue(value: string): boolean {
+		return value.length > 0 && !/\s/u.test(value);
+	}
 </script>
 
 <div class="facts-view">
@@ -45,6 +52,7 @@
 								<span class="data-row__key">{field.label}</span>
 								<span
 									class="data-row__value facts-group__value"
+									class:facts-group__value--unbroken={isUnbrokenValue(displayValue(field))}
 									title={displayValue(field)}
 									aria-label={displayValue(field)}>{displayValue(field)}</span
 								>

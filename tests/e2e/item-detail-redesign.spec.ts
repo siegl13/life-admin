@@ -367,7 +367,9 @@ test('facts are grouped by type, only populated values show once, empty ones col
 		await fieldsPanel.locator(':scope > summary').click();
 	}
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
-	await page.getByLabel('Fahrzeug').fill('Beispielauto');
+	const fahrzeugValue =
+		'Beispiel Inspektionszentrum München Nord mit zusätzlichen Prüfstationen und Servicebereich für alle Fahrzeugtypen';
+	await page.getByLabel('Fahrzeug').fill(fahrzeugValue);
 	const vin = 'WVWZZZ' + '0123456789'.repeat(5);
 	await page.locator('#vin').fill(vin);
 	await page.locator('#field-c_preis input[type="text"]').fill('123.45');
@@ -383,10 +385,10 @@ test('facts are grouped by type, only populated values show once, empty ones col
 	await expect(groups.nth(1).locator('.facts-group__label')).toHaveText('Beträge');
 	await expect(groups.nth(1)).toContainText('123,45');
 	await expect(groups.nth(2).locator('.facts-group__label')).toHaveText('Weitere Angaben');
-	await expect(groups.nth(2)).toContainText('Beispielauto');
+	await expect(groups.nth(2)).toContainText(fahrzeugValue);
 	await expect(groups.nth(2)).toContainText(vin);
 	// Each populated fact renders exactly once across the page.
-	await expect(page.getByText('Beispielauto')).toHaveCount(1);
+	await expect(page.getByText(fahrzeugValue)).toHaveCount(1);
 	const vinValue = groups
 		.nth(2)
 		.locator('.data-row', { hasText: 'FIN' })
@@ -427,6 +429,30 @@ test('facts are grouped by type, only populated values show once, empty ones col
 			scrollWidth: node.scrollWidth
 		}));
 		expect(vinLayout.scrollWidth).toBeGreaterThan(vinLayout.clientWidth);
+		await expect(vinValue).toHaveCSS('white-space', 'nowrap');
+
+		// An ordinary multiword value wraps onto more than one line instead
+		// of truncating: its rendered text never overflows its own box, and
+		// it is visibly taller than one text line.
+		const fahrzeugValueLocator = groups
+			.nth(2)
+			.locator('.data-row', { hasText: 'Fahrzeug' })
+			.locator('.facts-group__value');
+		await expect(fahrzeugValueLocator).not.toHaveCSS('white-space', 'nowrap');
+		const fahrzeugLayout = await fahrzeugValueLocator.evaluate((node) => ({
+			clientWidth: node.clientWidth,
+			scrollWidth: node.scrollWidth,
+			height: node.getBoundingClientRect().height,
+			lineHeight: parseFloat(getComputedStyle(node).lineHeight)
+		}));
+		expect(fahrzeugLayout.scrollWidth).toBeLessThanOrEqual(fahrzeugLayout.clientWidth + 1);
+		if (width === 390) {
+			// The single-column mobile width is narrow enough that this value
+			// reliably wraps onto more than one line (unlike the wider desktop
+			// two-column layout, where it may still fit on one).
+			expect(fahrzeugLayout.height).toBeGreaterThan(fahrzeugLayout.lineHeight * 1.5);
+		}
+
 		for (const group of await groups.all()) {
 			const groupWidth = await group.evaluate((node) => node.getBoundingClientRect().width);
 			expect(groupWidth).toBeCloseTo(factsWidth, 0);
@@ -588,6 +614,18 @@ test('item detail section headings and the final More options section keep share
 	});
 	await fieldsPanel.locator(':scope > summary').click();
 
+	// The required token, resolved against this page's own root, not a
+	// value this test assumes: a passing comparison against another
+	// (possibly also wrong) on-page gap would not catch both being wrong.
+	const resolvedSpace3 = await page.evaluate(() => {
+		const probe = document.createElement('div');
+		probe.style.marginBottom = 'var(--space-3)';
+		document.body.append(probe);
+		const resolved = parseFloat(getComputedStyle(probe).marginBottom);
+		probe.remove();
+		return resolved;
+	});
+
 	const headingGap = await page
 		.locator('#workflow-label')
 		.evaluate((node) => parseFloat(getComputedStyle(node).marginBottom));
@@ -610,8 +648,57 @@ test('item detail section headings and the final More options section keep share
 		.locator('..')
 		.evaluate((node) => parseFloat(getComputedStyle(node).marginBottom));
 
-	expect(fieldsGap).toBeCloseTo(headingGap, 0);
+	// Heading-to-content gap: resolved against the actual --space-3 token.
+	expect(headingGap).toBeCloseTo(resolvedSpace3, 0);
+	expect(fieldsGap).toBeCloseTo(resolvedSpace3, 0);
+	// Section-to-section gap: its own consistent (larger) token, unrelated
+	// to the heading-to-content spacing above.
 	expect(moreTopGap).toBeCloseTo(sectionGap, 0);
+});
+
+async function resolvedSpace3(page: import('@playwright/test').Page): Promise<number> {
+	return page.evaluate(() => {
+		const probe = document.createElement('div');
+		probe.style.marginBottom = 'var(--space-3)';
+		document.body.append(probe);
+		const resolved = parseFloat(getComputedStyle(probe).marginBottom);
+		probe.remove();
+		return resolved;
+	});
+}
+
+async function assertClosedFieldsGap(
+	page: import('@playwright/test').Page,
+	itemUrl: string
+): Promise<void> {
+	await page.goto(itemUrl);
+	const fieldsPanel = page.locator('details.fields-panel').filter({
+		has: page.locator('#fields-label')
+	});
+	await expect(fieldsPanel).not.toHaveAttribute('open', '');
+	const summaryBox = await fieldsPanel.locator(':scope > summary').boundingBox();
+	const factsBox = await page.locator('div.fields-view').boundingBox();
+	expect(summaryBox).not.toBeNull();
+	expect(factsBox).not.toBeNull();
+	const gap = factsBox!.y - (summaryBox!.y + summaryBox!.height);
+	expect(gap).toBeCloseTo(await resolvedSpace3(page), 0);
+}
+
+test('the closed fields disclosure keeps a single --space-3 gap to the populated read-only facts view, at mobile and desktop widths', async ({
+	page
+}) => {
+	await createTuvItem(page, 'Redesign Closed Fields Gap Test');
+	const itemUrl = page.url();
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('input[type="date"]').first().fill('2026-01-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+	await expect(page.locator('div.fields-view')).toContainText('1. Januar 2026');
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await assertClosedFieldsGap(page, itemUrl);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await assertClosedFieldsGap(page, itemUrl);
 });
 
 test('mobile stacked columns keep the shared gap between facts and documents', async ({ page }) => {

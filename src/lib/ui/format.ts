@@ -83,6 +83,40 @@ export function formatRelativeDue(dueDate: IsoDate | null, todayIso: IsoDate): s
 	return t('due.relative.overdueByDays', { count: String(-diff) });
 }
 
+/**
+ * Shared relative-time presentation for an observed instant (Inbox upload,
+ * Settings notification activity): just now / minutes / hours / days, then
+ * the exact date formatter from day 7 on. Both `observedIso` and `nowIso`
+ * are explicit inputs — this never reads `Date.now()` — so a server route
+ * can compute `now` once and every relative-time render on that page
+ * (server and hydrated client alike) agrees.
+ */
+export function formatRelativeTime(observedIso: string, nowIso: string): string {
+	const diffMinutes = Math.max(
+		0,
+		Math.floor((Date.parse(nowIso) - Date.parse(observedIso)) / 60_000)
+	);
+	if (diffMinutes < 1) return t('relativeTime.justNow');
+	if (diffMinutes < 60) {
+		return t(diffMinutes === 1 ? 'relativeTime.minutesOne' : 'relativeTime.minutesMany', {
+			count: String(diffMinutes)
+		});
+	}
+	const diffHours = Math.floor(diffMinutes / 60);
+	if (diffHours < 24) {
+		return t(diffHours === 1 ? 'relativeTime.hoursOne' : 'relativeTime.hoursMany', {
+			count: String(diffHours)
+		});
+	}
+	const diffDays = Math.floor(diffHours / 24);
+	if (diffDays < 7) {
+		return t(diffDays === 1 ? 'relativeTime.daysOne' : 'relativeTime.daysMany', {
+			count: String(diffDays)
+		});
+	}
+	return formatDate(observedIso.slice(0, 10));
+}
+
 /** Numeric day distance for the Item detail hero. Unlike the short pill,
  *  this keeps the number visible for today and tomorrow too. */
 export function formatDueDayCount(dueDate: IsoDate, todayIso: IsoDate): string {

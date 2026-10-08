@@ -290,7 +290,9 @@ test.describe('Inbox redesign: selection fallback and mobile list/detail order',
 test.describe('Inbox redesign: desktop layout', () => {
 	test.use({ viewport: { width: 1280, height: 900 } });
 
-	test('the list sidebar reaches the same height as a long detail panel', async ({ page }) => {
+	test('a long list is not stretched to match the detail panel, and the sidebar still reaches the page bottom', async ({
+		page
+	}) => {
 		const names = Array.from({ length: 8 }, (_, i) => `inbox-long-list-${i}.pdf`);
 		try {
 			for (const name of names) await uploadInboxDocument(page, name);
@@ -299,10 +301,11 @@ test.describe('Inbox redesign: desktop layout', () => {
 			const detailBox = await inboxDetail(page).boundingBox();
 			expect(listBox).not.toBeNull();
 			expect(detailBox).not.toBeNull();
+			// The list sizes to its own 8 rows. It is no longer forced to the
+			// detail panel's height (the grid used to stretch both columns to
+			// the row's tallest member regardless of each panel's own content).
 			if (listBox && detailBox) {
-				expect(
-					Math.abs(listBox.y + listBox.height - (detailBox.y + detailBox.height))
-				).toBeLessThan(2);
+				expect(Math.abs(listBox.height - detailBox.height)).toBeGreaterThan(2);
 			}
 			const sidebarBox = await page.locator('.app-sidebar').boundingBox();
 			const pageBottom = await page.evaluate(() => document.documentElement.scrollHeight);

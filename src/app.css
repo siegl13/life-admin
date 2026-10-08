@@ -521,7 +521,10 @@ a.app-sidebar-primary,
 	flex: 1 1 auto;
 	min-width: 0;
 	max-width: var(--content-max);
-	margin: 0 auto;
+	/* A fixed left gutter after the sidebar at every desktop width, not
+	   `margin: 0 auto` centering: centering grows the sidebar-to-content gap
+	   on wide screens instead of keeping it constant. */
+	margin: 0;
 	padding: var(--space-7) var(--space-5) var(--space-8);
 }
 
@@ -676,6 +679,25 @@ a.app-sidebar-primary,
 	margin: 0;
 	font-size: var(--text-body);
 	color: var(--color-text-muted);
+}
+
+/* .page-head is a flex column: without this, a direct .button child
+   inherits the column's stretch cross-axis sizing and renders full width
+   instead of content-width. */
+.page-head > .button {
+	align-self: flex-start;
+	min-height: var(--control-h);
+}
+
+/* Items heading row: the archive toggle sits inline next to the title on
+   desktop (wrapping below it only if the row runs out of width), instead of
+   always stacking under it. Element-qualified to beat .button's min-height:
+   40px (same specificity, defined later in this file; see a.app-sidebar-primary
+   above for the same pattern). */
+a.items-archive-toggle {
+	flex: none;
+	height: var(--control-h);
+	min-height: var(--control-h);
 }
 
 .page-head__row {
@@ -1064,8 +1086,22 @@ a.app-sidebar-primary,
 
 .facts-group .facts-group__value {
 	display: block;
+	/* The facts data-row is a column flex container with
+	   align-items: flex-start, so a flex item otherwise sizes to its own
+	   (shrink-to-fit) content width instead of the row's full width — an
+	   ordinary multiword value could then stay on one line purely because
+	   it happens to fit, rather than reliably wrapping at the row width. */
+	width: 100%;
 	min-width: 0;
 	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: break-word;
+}
+
+/* An unbroken identifier (no ordinary spaces) stays single-line with an
+   ellipsis instead of wrapping; its full value remains in `title` and the
+   accessible name. */
+.facts-group .facts-group__value--unbroken {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1092,14 +1128,6 @@ a.app-sidebar-primary,
 	margin: 0 var(--space-4) var(--space-4);
 }
 
-.item-detail-page .section > .section__label {
-	margin-bottom: var(--space-4);
-}
-
-.item-detail-page .fields-panel {
-	gap: var(--space-4);
-}
-
 .item-detail-page .fields-panel > summary {
 	margin-bottom: 0;
 }
@@ -1109,7 +1137,7 @@ a.app-sidebar-primary,
 }
 
 .item-detail-page .section > .fields-panel + .fields-view {
-	margin-top: var(--space-4);
+	margin-top: var(--space-3);
 }
 
 .item-detail-layout + .section {
@@ -1668,6 +1696,7 @@ select:hover {
    for these auth-style forms. */
 .form-panel > button {
 	width: 100%;
+	min-height: var(--control-h);
 }
 
 .fields-update-form > .form-actions {
@@ -1764,7 +1793,12 @@ select:hover {
 .fields-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-5);
+	gap: var(--space-3);
+}
+
+.fields-panel:not([open]) {
+	gap: 0;
+	padding-bottom: 0;
 }
 
 .fields-panel:not([open]) > :not(summary) {
@@ -1980,6 +2014,24 @@ button[disabled] {
 .link-list__title {
 	font-size: 0.9375rem;
 	font-weight: 600;
+}
+
+/* Items list: compact, What's Next-style rows with a small Playbook pill
+   instead of a plain hint line. */
+.items-list .link-list__row {
+	padding: var(--space-3) var(--space-5);
+	gap: var(--space-2) var(--space-3);
+}
+
+/* A valid custom Playbook name can be long; bound the pill to the row's
+   own width and ellipsize instead of overflowing on narrow rows. The full
+   name stays available via `title` on the element. */
+.items-list__playbook {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* --------------------------------------------------------- related items */
@@ -2466,6 +2518,21 @@ mark {
 	border-bottom: 1px solid var(--color-hairline);
 }
 
+.upcoming-range__label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.upcoming-range__label::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--color-accent);
+	flex: none;
+}
+
 .upcoming-range__count {
 	min-width: 2rem;
 	padding: 0 var(--space-2);
@@ -2531,13 +2598,9 @@ mark {
 	text-align: right;
 }
 
-.upcoming-row__state {
-	font-weight: 600;
-	color: var(--color-success);
-}
-
-.upcoming-row--blocked .upcoming-row__state {
-	color: var(--color-warning);
+.upcoming-row__state--blocked {
+	color: var(--color-warning-text);
+	background: var(--color-warning-soft);
 }
 
 /* ------------------------------------------------------ states & notes */
@@ -3470,6 +3533,10 @@ button.undo-notice__button {
 	.inbox-page .inbox-layout {
 		display: grid;
 		grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+		/* Without this, the grid row's default stretch sizing makes the list
+		   panel as tall as the detail panel next to it (e.g. a long detail
+		   form); each panel should size to its own content instead. */
+		align-items: start;
 		gap: var(--space-5);
 	}
 
