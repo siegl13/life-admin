@@ -11,9 +11,12 @@ for non-commercial use ([details below](#license)). **Contributing:** see
 
 ## Screenshots
 
-![What's Next: overdue and upcoming actions grouped by Item](screenshots/whats-next.png)
+![What's next showing overdue, ready now, and later actions for sample items](screenshots/whats-next.png)
+![What's next in dark mode with the same overdue, ready now, and later actions](screenshots/whats-next-dark.png)
 ![Item detail showing the next action, workflow steps, and field values](screenshots/item-detail.png)
+![Inbox with an AI suggestion for the selected document and a second document in the list](screenshots/inbox.png)
 ![New item form with a title and a Playbook selected](screenshots/new-item.png)
+<img src="screenshots/mobile.png" width="300" alt="What's next on mobile with the header, first action rows, and tab bar">
 
 All data shown is fictional test data, not a real booking or contract.
 
