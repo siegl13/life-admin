@@ -1,27 +1,60 @@
 import type { IsoDate } from '$lib/domain/date/isoDate';
 import { parseCurrencyStorageValue } from '$lib/domain/field/field';
-import { t } from '$lib/i18n';
+import { t, toIntlLocale } from '$lib/i18n';
 
 /**
  * Presentation-only date helpers. No domain rules live here: the What's
  * Next bucket (and, on the detail page, the action state/availability)
  * already decides *what* a date means — these functions only decide how
- * it reads in German.
+ * it reads for the active UI language (`$lib/i18n`'s `toIntlLocale`).
  *
  * Dates are formatted in UTC so server-rendered and hydrated output are
- * identical regardless of the visitor's timezone.
+ * identical regardless of the visitor's timezone. Formatters are cached
+ * per Intl locale tag, not created fresh on every call.
  */
-const dateFormat = new Intl.DateTimeFormat('de-DE', {
-	day: 'numeric',
-	month: 'long',
-	year: 'numeric',
-	timeZone: 'UTC'
-});
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(): Intl.DateTimeFormat {
+	const locale = toIntlLocale();
+	let formatter = dateFormatters.get(locale);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric',
+			timeZone: 'UTC'
+		});
+		dateFormatters.set(locale, formatter);
+	}
+	return formatter;
+}
 
 export function formatDate(iso: IsoDate | string): string {
 	const [year, month, day] = iso.split('-').map(Number);
 	if (!year || !month || !day) return iso;
-	return dateFormat.format(new Date(Date.UTC(year, month - 1, day)));
+	return dateFormatter().format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Formats an observed instant as a 24-hour `HH:mm` time for the active UI
+ * language (e.g. `15:10`), in the visitor's local timezone (unlike
+ * `formatDate`, which pins UTC for calendar-date values with no time
+ * component).
+ */
+export function formatTime(iso: string): string {
+	const locale = toIntlLocale();
+	let formatter = timeFormatters.get(locale);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		});
+		timeFormatters.set(locale, formatter);
+	}
+	return formatter.format(new Date(iso));
 }
 
 /**
@@ -36,14 +69,23 @@ export function formatDate(iso: IsoDate | string): string {
  * storage rule in `$lib/domain/field/field.ts`). An unparsable value is
  * returned unchanged rather than thrown, matching `formatDate`.
  */
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
 export function formatCurrencyDisplay(raw: string): string {
 	const parsed = parseCurrencyStorageValue(raw);
 	if (!parsed) return raw;
+	const locale = toIntlLocale();
+	const cacheKey = `${locale}:${parsed.currencyCode}`;
 	try {
-		return new Intl.NumberFormat('de-DE', {
-			style: 'currency',
-			currency: parsed.currencyCode
-		}).format(Number(parsed.amount));
+		let formatter = currencyFormatters.get(cacheKey);
+		if (!formatter) {
+			formatter = new Intl.NumberFormat(locale, {
+				style: 'currency',
+				currency: parsed.currencyCode
+			});
+			currencyFormatters.set(cacheKey, formatter);
+		}
+		return formatter.format(Number(parsed.amount));
 	} catch {
 		return raw;
 	}

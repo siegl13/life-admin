@@ -263,7 +263,7 @@ export const de = {
 	'items.detail.archive': 'Archivieren',
 	'items.detail.archiveHint': 'Das Element verschwindet aus der Liste, bleibt aber einsehbar.',
 	'items.detail.archiveOpenWarning':
-		'Auch möglich, während noch Aufgaben offen sind — das Element wird archiviert, ohne den Zyklus zu ändern.',
+		'Auch möglich, während noch Aufgaben offen sind. Das Element wird archiviert, ohne den Zyklus zu ändern.',
 	'items.detail.unarchive': 'Wieder aktivieren',
 	'items.detail.archived': 'Archiviert',
 	'items.detail.archivedOn': 'Archiviert am {date}',
@@ -483,7 +483,7 @@ export const de = {
 	'settings.ai.neverLabel': 'Nie',
 	'settings.ai.neverBody': 'andere Elemente, andere Dokumente, Notizen oder Termine',
 	'settings.ai.noAutoSave':
-		'Erkannte Werte werden nie automatisch gespeichert — du entscheidest bei jedem einzelnen Wert.',
+		'Erkannte Werte werden nie automatisch gespeichert. Du entscheidest bei jedem einzelnen Wert.',
 	'settings.ai.canDisableAnytime': 'Lässt sich jederzeit wieder abschalten.',
 	'settings.ai.offlineAfterDisable': 'Danach arbeitet Life Admin wieder vollständig offline.',
 	'settings.ai.consent':
@@ -581,7 +581,7 @@ export const de = {
 		'Finde Elemente über Namen, Vertragsnummern, Anbieter, Kennzeichen und andere Angaben.',
 	'search.noneTitle': 'Keine Treffer für „{query}“',
 	'search.noneBody':
-		'Versuche einen anderen Suchbegriff — etwa den Namen des Anbieters oder einen Teil der Nummer.',
+		'Versuche einen anderen Suchbegriff, etwa den Namen des Anbieters oder einen Teil der Nummer.',
 	'search.cappedHint':
 		'Die 20 besten Treffer werden angezeigt. Ein genauerer Suchbegriff grenzt weiter ein.',
 	'search.oneMore': '· und eine weitere Angabe',

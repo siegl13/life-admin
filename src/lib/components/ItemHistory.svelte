@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
-	import { formatDate } from '$lib/ui/format';
+	import { formatDate, formatTime } from '$lib/ui/format';
 	import type { HistoryEventView } from '$lib/application/history/itemHistory';
 	import type { CycleHistoryEntry } from '$lib/application/cycles/getCycleHistory';
 	import type { HistoryEventType, HistoryEventPayload } from '$lib/domain/history/historyEvent';
@@ -152,11 +152,6 @@
 			default:
 				return '';
 		}
-	}
-
-	function formatTime(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 	}
 
 	/** Grows the visible window by one page. When that exceeds what the

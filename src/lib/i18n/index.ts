@@ -24,6 +24,18 @@ export function getCurrentLocale(): Locale {
 }
 
 /**
+ * Single shared mapping from the app's two UI languages to the `Intl`
+ * locale tag used for date/time/number formatting. `en` maps to `en-GB`
+ * (not `en-US`) so dates read day-month-year and times read 24-hour,
+ * matching the approved Part A examples.
+ */
+const INTL_LOCALES: Record<Locale, string> = { de: 'de-DE', en: 'en-GB' };
+
+export function toIntlLocale(locale: Locale = getCurrentLocale()): string {
+	return INTL_LOCALES[locale];
+}
+
+/**
  * `params` substitutes `{name}` placeholders with plain data (e.g. an
  * event or action label from the materialized playbook) — never with
  * another translation key, so wording stays swappable per locale while

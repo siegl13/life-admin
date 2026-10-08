@@ -259,7 +259,7 @@ export const en: Record<TranslationKey, string> = {
 	'items.detail.archive': 'Archive',
 	'items.detail.archiveHint': 'The item disappears from the list but stays viewable.',
 	'items.detail.archiveOpenWarning':
-		'Also possible while work is still open — the item is archived without changing the cycle.',
+		'Also possible while work is still open. The item is archived without changing the cycle.',
 	'items.detail.unarchive': 'Reactivate',
 	'items.detail.archived': 'Archived',
 	'items.detail.archivedOn': 'Archived on {date}',
@@ -467,7 +467,7 @@ export const en: Record<TranslationKey, string> = {
 	'settings.ai.neverLabel': 'Never',
 	'settings.ai.neverBody': 'other items, other documents, notes or dates',
 	'settings.ai.noAutoSave':
-		'Recognized values are never saved automatically — you decide on every single value.',
+		'Recognized values are never saved automatically. You decide on every single value.',
 	'settings.ai.canDisableAnytime': 'Can be switched off again at any time.',
 	'settings.ai.offlineAfterDisable': 'Life Admin then works fully offline again.',
 	'settings.ai.consent': 'I understand that selected documents are transmitted to OpenAI',

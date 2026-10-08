@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { unzipSync } from 'fflate';
 
 test('backup downloads as ZIP and invalid restore changes nothing', async ({ page }) => {
 	await page.goto('/settings');
@@ -7,8 +8,13 @@ test('backup downloads as ZIP and invalid restore changes nothing', async ({ pag
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/^lifeadmin-backup-\d{8}-\d{6}-[0-9a-f]{6}\.zip$/);
 	const stream = await download.createReadStream();
-	const first = await new Promise<Buffer>((resolve) => stream.once('data', resolve));
-	expect(first.subarray(0, 4).toString()).toBe('PK\u0003\u0004');
+	const chunks: Buffer[] = [];
+	for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+	const archive = Buffer.concat(chunks);
+	expect(archive.subarray(0, 4).toString()).toBe('PK\u0003\u0004');
+	const entries = unzipSync(archive);
+	expect(Object.keys(entries)).toContain('manifest.json');
+	expect(() => JSON.parse(Buffer.from(entries['manifest.json']).toString('utf8'))).not.toThrow();
 
 	await page.locator('summary', { hasText: 'Backup wiederherstellen' }).click();
 	await page.getByLabel('Backup-Datei').setInputFiles({

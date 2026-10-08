@@ -55,8 +55,9 @@
 
 	/* --- Maße --- */
 	--control-h: 44px;
-	--content-max: 820px;
 	--form-max: 560px;
+	--page-max-list: 60rem;
+	--page-max-wide: 77.5rem;
 
 	/* --- Typografie --- */
 	/* Geist is bundled via @fontsource (see +layout.svelte), never loaded
@@ -520,12 +521,29 @@ a.app-sidebar-primary,
 .app-shell {
 	flex: 1 1 auto;
 	min-width: 0;
-	max-width: var(--content-max);
-	/* A fixed left gutter after the sidebar at every desktop width, not
-	   `margin: 0 auto` centering: centering grows the sidebar-to-content gap
-	   on wide screens instead of keeping it constant. */
-	margin: 0;
+	/* The widest page-container variant is the shell's own default cap, so a
+	   page that renders no explicit container (e.g. auth forms) still gets a
+	   sane, centered width in the area to the right of the desktop sidebar. */
+	max-width: calc(var(--page-max-wide) + var(--space-5) + var(--space-5));
+	margin: 0 auto;
 	padding: var(--space-7) var(--space-5) var(--space-8);
+}
+
+/* Explicit page-container width variants, not coupled to any specific
+   route: each page picks the variant its content needs. Nesting inside
+   `.app-shell`'s own centered cap keeps the result centered either way. */
+.page-container {
+	width: 100%;
+	min-width: 0;
+	margin: 0 auto;
+}
+
+.page-container--list {
+	max-width: var(--page-max-list);
+}
+
+.page-container--wide {
+	max-width: var(--page-max-wide);
 }
 
 .app-fab {
@@ -733,6 +751,9 @@ a.items-archive-toggle {
 /* The playbook name, compact: one word of key context next to the title,
    not a repeated "Provenance: …" sentence. */
 .pill {
+	display: inline-block;
+	inline-size: fit-content;
+	flex: none;
 	font-size: var(--text-meta);
 	font-weight: 600;
 	color: var(--color-accent-text);
@@ -740,6 +761,13 @@ a.items-archive-toggle {
 	border-radius: 999px;
 	padding: 0.2em 0.75em;
 	white-space: nowrap;
+}
+
+/* Generic "no playbook" state: a real playbook stays accented, but there is
+   nothing to draw attention to here. */
+.pill--neutral {
+	color: var(--color-text-body);
+	background: var(--color-surface-hover);
 }
 
 .page-head__secondary {
@@ -752,30 +780,27 @@ a.items-archive-toggle {
 	min-height: var(--control-h);
 }
 
-/* Desktop two-column layout: documents/relations/history beside the main
-   flow. Below 768px this is unset back to a single stacked column (see
-   the max-width:767px override), in the same main-then-side DOM order. */
+/* Keep the side column narrower than the main flow when both fit. Flex
+   wrapping stacks it below the main column when the available page width is
+   short, without tying the layout to a viewport breakpoint. */
 .item-detail-layout {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 20rem;
+	display: flex;
+	flex-wrap: wrap;
 	gap: var(--space-7);
 	align-items: start;
-}
-
-@media (max-width: 1023px) {
-	.item-detail-layout {
-		grid-template-columns: minmax(0, 1fr);
-	}
 }
 
 .item-detail-side {
 	display: flex;
 	flex-direction: column;
-	min-width: 0;
+	flex: 1 1 18rem;
+	max-width: 22rem;
+	min-width: min(100%, 18rem);
 	position: static;
 }
 
 .item-detail-main {
+	flex: 3 1 35rem;
 	min-width: 0;
 }
 
@@ -785,6 +810,10 @@ a.items-archive-toggle {
 
 .section:last-child {
 	margin-bottom: 0;
+}
+
+.item-detail-page .item-detail-main > .section[aria-labelledby='more-label'] > .form-stack {
+	max-width: none;
 }
 
 .section__label {
@@ -843,6 +872,90 @@ a.items-archive-toggle {
 .hint {
 	font-size: var(--text-meta);
 	color: var(--color-text-faint);
+}
+
+/* Shared document upload area: Inbox's dashed file picker + submit, reused
+   as-is by Item detail's attachment upload (same visual treatment, each
+   keeps its own form action/field name/copy). */
+.upload-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+}
+
+.upload-picker {
+	position: relative;
+	min-height: var(--control-h);
+	overflow: hidden;
+}
+
+.upload-form-group .upload-picker {
+	padding: var(--space-3) var(--space-6);
+	border-width: 2px;
+	border-style: dashed;
+}
+
+.upload-picker input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.upload-picker:focus-within {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
+}
+
+.upload-form__submit {
+	min-height: var(--control-h);
+}
+
+.upload-form:has(input:invalid) .upload-form__submit {
+	display: none;
+}
+
+@media (max-width: 640px) {
+	.upload-form-group,
+	.upload-form-group .upload-form {
+		align-items: flex-start;
+		justify-content: flex-start;
+	}
+}
+
+.inbox-upload,
+.upload-form-group {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.inbox-upload__formats,
+.inbox-empty__formats {
+	margin: 0;
+	color: var(--color-text-faint);
+	font-size: var(--text-meta);
+}
+
+.inbox-empty .inbox-upload {
+	margin-top: var(--space-3);
+}
+
+/* Archive card copy: two short hint paragraphs read as one tight block,
+   not two browser-default paragraph gaps. */
+.archive-copy {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.archive-copy p {
+	margin: 0;
 }
 
 /* ------------------------------------------------- surface / item group */
@@ -1059,7 +1172,7 @@ a.items-archive-toggle {
 
 .facts-group .data-list {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 	gap: var(--space-4) var(--space-6);
 	padding: 0;
 	background: transparent;
@@ -1739,6 +1852,10 @@ select:hover {
 	max-width: var(--form-max);
 }
 
+.item-detail-page .item-detail-main > .section[aria-labelledby='more-label'] .disclosure {
+	max-width: none;
+}
+
 .disclosure > summary {
 	cursor: pointer;
 	font-size: var(--text-body);
@@ -1933,6 +2050,7 @@ button.quiet:hover,
 
 button.secondary,
 .button.secondary {
+	inline-size: fit-content;
 	background: var(--color-surface);
 	border-color: var(--color-border-strong);
 	color: var(--color-text-muted);
@@ -2405,14 +2523,17 @@ mark {
 }
 
 .search-page {
-	max-width: 620px;
+	max-width: none;
 }
+
 .search-page h1 {
 	margin: 0 0 var(--space-5);
 	font-size: var(--text-page);
 }
+
 .search-page form {
 	position: relative;
+	max-width: var(--form-max);
 }
 .search-page input {
 	max-width: none;
@@ -3122,14 +3243,6 @@ mark {
 		display: none;
 	}
 
-	.item-detail-page .item-detail-layout {
-		display: block;
-	}
-
-	.item-detail-page .item-detail-side {
-		margin-top: var(--space-7);
-	}
-
 	.item-detail-page .timeline-progress {
 		display: flex;
 	}
@@ -3215,12 +3328,6 @@ mark {
 	.app-shell:has(.item-detail-page .sticky-action-bar) {
 		padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
 		scroll-padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
-	}
-}
-
-@media (max-width: 479px) {
-	.item-detail-page .facts-group .data-list {
-		grid-template-columns: minmax(0, 1fr);
 	}
 }
 
@@ -3393,6 +3500,7 @@ mark {
 
 .filter-chip {
 	display: inline-flex;
+	inline-size: fit-content;
 	align-items: center;
 	min-height: var(--control-h);
 	padding: 0 var(--space-4);
@@ -3468,28 +3576,19 @@ button.undo-notice__button {
    own .inbox-page root since this lives in global app.css rather than the
    component's scoped <style>. */
 
+.inbox-page {
+	container-type: inline-size;
+}
+
 .inbox-page .inbox-count {
 	margin: var(--space-1) 0 0;
 	color: var(--color-text-muted);
 	font-size: var(--text-meta);
 }
 
-.inbox-page .upload-form-group {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: var(--space-2);
-}
-
-.inbox-page .inbox-upload__formats {
-	margin: 0;
-	color: var(--color-text-faint);
-	font-size: var(--text-meta);
-}
-
 .inbox-page .inbox-layout {
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: var(--space-5);
 }
 
@@ -3549,13 +3648,12 @@ button.undo-notice__button {
 	font-weight: 600;
 }
 
-@media (min-width: 768px) {
+@container (min-width: 48rem) {
 	.inbox-page .inbox-back-link {
 		display: none;
 	}
 
 	.inbox-page .inbox-layout {
-		display: grid;
 		grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
 		/* Without this, the grid row's default stretch sizing makes the list
 		   panel as tall as the detail panel next to it (e.g. a long detail
@@ -3570,18 +3668,13 @@ button.undo-notice__button {
 	}
 }
 
-@media (min-width: 768px) and (max-width: 900px) {
+@container (max-width: 56.25rem) {
 	.inbox-page .inbox-page-head {
 		flex-direction: column;
 	}
 
 	.inbox-page .upload-form-group {
 		align-items: flex-start;
-	}
-
-	.inbox-page .inbox-layout {
-		grid-template-columns: minmax(180px, 210px) minmax(0, 1fr);
-		gap: var(--space-3);
 	}
 
 	.inbox-page .inbox-detail {
