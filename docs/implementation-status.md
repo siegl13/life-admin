@@ -109,6 +109,88 @@ the final independent diff review passed.**
   28rem cap. The test now waits for the fill before submitting. The review
   passed with no open code findings.
 
+## Part C - Add a weekly overview to What's next (`part-c-whats-next-side-panel`)
+
+**Status: IMPLEMENTATION COMPLETE. Full verification, browser checks, and independent implementation review passed. All review corrections are resolved.**
+
+- What's next now includes a weekly overview through Sunday and a pending Inbox
+  count. The week projection uses the existing upcoming range and includes
+  resolved open actions due today. The Inbox count uses its existing repository
+  port. Both are loaded only on the root route. The list and weekly overview
+  share one server `today` value. No domain, persistence, schema, repository-port
+  or form-contract changes were needed.
+- The page uses the wide container and container-query layout. The panel sits
+  beside the list when both columns fit, stacks below it at intermediate
+  widths, and hides in the phone-sized container. Inbox is hidden at zero to
+  keep the panel focused on available work.
+- Added application and route coverage for the weekly data and pending count,
+  plus E2E coverage for the panel, Inbox links/counts, week boundaries, row cap,
+  long Item names and responsive placement. The boundary test independently
+  asserts today/Sunday inclusion and Monday exclusion with fewer than five
+  eligible rows, and excludes completed, skipped and unresolved derived
+  actions. A separate unsorted seven-row fixture asserts the exact five
+  rendered dates, action labels and Item links in sort order. The empty state is
+  checked in English after switching language, then the test restores German.
+  Inbox singular/plural counts are checked in both German and English.
+  A shared sidebar navigation E2E locator was scoped after the new Upcoming
+  link created an accessible-name collision. The width test disables app-shell
+  flex growth while forcing its container size, then removes the test-only
+  inline style before the phone case.
+- Final `npm run verify` passed with 122 test files and 1,028 unit tests. The
+  corrected full `npm run test:e2e` passed all 204 tests. The focused Chromium
+  run passed all five side-panel scenarios. Independent implementation review
+  passed, and all review corrections are resolved. The
+  app-shell centering regression was caused by its old 60rem route matrix still
+  treating the root route as a list page. Root now uses the approved wide
+  container, so the matrix covers the remaining 60rem list pages.
+- Built-app browser checks passed for What's next and Item detail at 390, 1280
+  and 1920px, in German/English and light/dark, plus the 1440px wide and 1024px
+  stacked panel layouts. There were 27 layout observations, with no console,
+  page, CSP or horizontal-overflow errors. The English 1440px screenshots are
+  `screenshots/whats-next.png` (149,517 bytes) and
+  `screenshots/whats-next-dark.png` (150,822 bytes), both under 200KB.
+  Matrix evidence is under
+  `.agent/supervisor/life-admin-part-c-whats-next-side-panel/tmp/browser-check/`.
+
+### Visual refinement follow-up (`life-admin-whats-next-panel-visual-refinement`)
+
+- The side panel uses quiet section headings and compact, single-line action
+  links. Each entry shows a localized short weekday and date, or Today, plus the
+  task title. The Item title is not repeated. Long task titles use an ellipsis
+  and retain the full text in the link title. The panel shows at most five
+  entries and a localized singular/plural count for the rest. Entry links have
+  a 44px minimum touch target.
+- Focused coverage checks localized short dates and Today in German and English,
+  the five-row cap and remaining count, weekly row destinations, omitted Item
+  titles, full-title tooltips and ellipsis, plus the existing boundary,
+  eligibility, Inbox and responsive cases.
+- The initial verification and E2E history above describes the earlier panel
+  implementation, not this visual refinement. The final refinement checks are
+  recorded below.
+- Follow-up, not implemented: actions due today currently appear in the What's
+  next "Later" section; review the bucket rule separately. This refinement did
+  not change bucket behavior.
+- Refinement verification: `npm run verify` passed with 1,029 unit tests across
+  122 files and no Svelte diagnostics. The focused side-panel E2E passed 6/6 and
+  the full E2E suite passed 204/204. After the final UI correction, the built
+  app browser check covered 27 combinations/observations across What's next and
+  Item detail, German/English, light/dark, 390/1280/1920px, the 1440px screenshot
+  view, and the 1024px stacked layout. There were no console, page, CSP, or
+  horizontal-overflow errors. The side panel was hidden at 390px and visible at
+  1280px and 1920px. Evidence is under
+  `.agent/supervisor/life-admin-part-c-whats-next-side-panel/tmp/browser-check/`.
+- Final English 1440px sample screenshots are
+  `screenshots/whats-next.png` (139,115 bytes) and
+  `screenshots/whats-next-dark.png` (140,159 bytes). The sample includes
+  overdue, ready-now, and later actions across three Items. Both files are below
+  200KB. What's next screenshots at 1280px and 1920px for both languages and
+  themes, plus 390px, are in the browser-check evidence directory.
+- Visual refinement unit `whats-next-panel-visual-refinement` is implemented and
+  verified. Independent review round 1 passed with no findings. The review
+  confirmed heading hierarchy, single-line formatting, localized short dates,
+  ellipsis/title behavior, 44px targets, token-only panel styles, unchanged
+  domain bucket behavior, and the documented follow-up.
+
 ## Part A - Locale formatting and intrinsic page widths (`part-a-locale-layout`)
 
 **Status: IMPLEMENTED AND VERIFIED.** `npm run verify`, the full
@@ -329,10 +411,8 @@ implementation or review finding.
   row per action, with its linked Item name below the task title. Dates are
   shown once as a relative pill and exact date; undated actions say "No date".
 - Deferred, same as phase 1: mobile header integration, swipe actions, Cmd+K,
-  a week strip, and the side
-  panel ("this week" / inbox count) the original spec lists for this page.
-  No side panel exists yet and no extra domain/persistence query was added
-  for it. (App-wide locale-aware date/currency formatting, listed here
+  and a calendar week strip. The weekly overview/Inbox side panel is implemented
+  in Part C. (App-wide locale-aware date/currency formatting, listed here
   previously, is resolved; see "Part A" below.)
 - Focused unit tests cover the shared transition helper (guarded
   rejection, success + history, no history on failure, a post-write
@@ -469,7 +549,7 @@ pass.**
   Screenshots are in the local polish scratchpad.
 - The README screenshots for What's Next, new-item and Item detail were
   refreshed because the shared content alignment and Item detail facts changed.
-- Follow-ups: What's Next side panel; mobile header integration into page
+- Follow-ups: mobile header integration into page
   headers; Inbox preview endpoint; drag-and-drop upload. (Locale-specific
   date/currency formatting for English, listed here
   previously, is resolved; see "Part A" below.)

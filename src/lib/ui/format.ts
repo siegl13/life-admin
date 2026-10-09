@@ -13,6 +13,7 @@ import { t, toIntlLocale } from '$lib/i18n';
  * per Intl locale tag, not created fresh on every call.
  */
 const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+const shortDateFormatters = new Map<string, Intl.DateTimeFormat>();
 
 function dateFormatter(): Intl.DateTimeFormat {
 	const locale = toIntlLocale();
@@ -33,6 +34,37 @@ export function formatDate(iso: IsoDate | string): string {
 	const [year, month, day] = iso.split('-').map(Number);
 	if (!year || !month || !day) return iso;
 	return dateFormatter().format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+export function formatShortDate(iso: IsoDate | string): string {
+	const [year, month, day] = iso.split('-').map(Number);
+	if (!year || !month || !day) return iso;
+	const locale = toIntlLocale();
+	let formatter = shortDateFormatters.get(locale);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			timeZone: 'UTC'
+		});
+		shortDateFormatters.set(locale, formatter);
+	}
+	const parts = formatter.formatToParts(new Date(Date.UTC(year, month - 1, day)));
+	const weekday = parts.find((part) => part.type === 'weekday')?.value;
+	const formattedDay = parts.find((part) => part.type === 'day')?.value;
+	const monthName = parts.find((part) => part.type === 'month')?.value;
+	if (!weekday || !formattedDay || !monthName) return iso;
+
+	// Keep locale punctuation (notably the German date separator) while
+	// omitting punctuation that only separates the weekday from the date.
+	const dayIndex = parts.findIndex((part) => part.type === 'day');
+	const monthIndex = parts.findIndex((part) => part.type === 'month');
+	const dayMonthSeparator = parts
+		.slice(Math.min(dayIndex, monthIndex) + 1, Math.max(dayIndex, monthIndex))
+		.map((part) => part.value)
+		.join('');
+	return `${weekday} ${formattedDay}${dayMonthSeparator}${monthName}`;
 }
 
 const timeFormatters = new Map<string, Intl.DateTimeFormat>();

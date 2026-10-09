@@ -144,7 +144,7 @@
 			</div>
 		</header>
 
-		<main class="app-shell" id="main" tabindex="-1">
+		<main class="app-shell" id="main" tabindex="-1" data-testid="app-shell">
 			{@render children()}
 		</main>
 
