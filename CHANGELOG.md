@@ -8,6 +8,41 @@ Versioning follows `0.x.y-beta` until the product is stable enough for
 
 All notable changes to Life Admin will be documented in this file.
 
+## [0.2.0-beta.1] - 2026-10-09
+
+### Added
+
+- New interface with sidebar navigation on wide screens and bottom tabs
+  with a New item button on phones. Light and dark mode.
+- What's next: filters for overdue, ready now and later, round done buttons
+  with undo, an action menu, and relative due dates.
+- Change an Action's due date directly from What's next.
+- Weekly overview and pending Inbox count next to What's next on wide
+  screens.
+- Item detail: next-action card, workflow progress, grouped details, and a
+  side column for documents, related Items and history. Sticky action bar
+  on phones.
+- Inbox: list and detail view, destination cards and a clear upload area.
+
+### Changed
+
+- Dates, times and amounts follow the selected language. English uses
+  day-month order and 24-hour time. Notifications follow the saved
+  language.
+- Relative times show minutes, hours and days, then the date.
+- Changing a due date and reminders on the Item page open in a dialog. On
+  phones the readiness of an Action shows under its title.
+- Page content is centered on wide screens.
+- The Geist font is bundled with the app. No external font host.
+
+### Fixed
+
+- Higher text contrast for labels and warnings in light mode.
+
+### Security
+
+- Update source-map-js to 1.2.2.
+
 ## [0.1.0-beta.2] - 2026-10-04
 
 ### Added
