@@ -546,6 +546,146 @@ a.app-sidebar-primary,
 	max-width: var(--page-max-wide);
 }
 
+.app-shell:has([data-whats-next-container]) {
+	container-type: inline-size;
+	container-name: whats-next-shell;
+}
+
+.whats-next-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-6);
+}
+
+.whats-next-main {
+	min-width: 0;
+}
+
+.whats-next-panel {
+	display: none;
+	min-width: 0;
+	align-content: start;
+	gap: var(--space-4);
+}
+
+.whats-next-card {
+	min-width: 0;
+	padding-block: var(--space-2);
+}
+
+.whats-next-card .section__label {
+	margin-bottom: var(--space-2);
+	font-size: var(--text-meta);
+	font-weight: 500;
+	color: var(--color-text-faint);
+}
+
+.whats-next-card__empty {
+	margin: 0 0 var(--space-2);
+	color: var(--color-text-muted);
+	font-size: var(--text-small);
+}
+
+.whats-next-week-list {
+	display: grid;
+	gap: 0;
+	margin: 0 0 var(--space-2);
+	padding: 0;
+	list-style: none;
+}
+
+.whats-next-week-list li {
+	min-width: 0;
+	display: block;
+}
+
+.whats-next-week-list a {
+	display: grid;
+	grid-template-columns: max-content max-content minmax(0, 1fr);
+	align-items: center;
+	min-width: 0;
+	min-height: 44px;
+	gap: var(--space-1);
+	color: var(--color-text-body);
+	font-size: var(--text-meta);
+	font-weight: 400;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.whats-next-week-list time {
+	color: var(--color-text-muted);
+}
+
+.whats-next-week-list__action {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.whats-next-week-list a:hover .whats-next-week-list__action,
+.whats-next-week-list a:focus-visible .whats-next-week-list__action {
+	text-decoration: underline;
+}
+
+.whats-next-inbox-link,
+.whats-next-card__link {
+	min-width: 0;
+	color: var(--color-text-muted);
+	font-size: var(--text-small);
+	font-weight: 400;
+	overflow-wrap: anywhere;
+}
+
+.whats-next-card__remaining {
+	margin: 0 0 var(--space-2);
+	color: var(--color-text-muted);
+	font-size: var(--text-meta);
+}
+
+.whats-next-card__link,
+.whats-next-inbox-link {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+}
+
+.app-shell:has([data-whats-next-container]) .whats-next-layout {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell:has([data-whats-next-container]) .whats-next-panel {
+	grid-row: auto;
+}
+
+@container whats-next-shell (min-width: 60rem) {
+	.app-shell:has([data-whats-next-container]) .whats-next-layout {
+		grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+	}
+
+	.app-shell:has([data-whats-next-container]) .whats-next-panel {
+		display: grid;
+	}
+}
+
+@container whats-next-shell (min-width: 35rem) and (max-width: 59.999rem) {
+	.app-shell:has([data-whats-next-container]) .whats-next-panel {
+		display: grid;
+		grid-row: 2;
+	}
+
+	.app-shell:has([data-whats-next-container]) .whats-next-week-list li {
+		min-width: 0;
+	}
+}
+
+@container whats-next-shell (max-width: 34.999rem) {
+	.app-shell:has([data-whats-next-container]) .whats-next-panel {
+		display: none;
+	}
+}
+
 .app-fab {
 	display: none;
 }

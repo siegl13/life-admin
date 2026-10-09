@@ -5,6 +5,7 @@ import {
 	formatDueDayCount,
 	formatRelativeDue,
 	formatRelativeTime,
+	formatShortDate,
 	formatTime
 } from './format';
 import { setLocaleProvider, t } from '$lib/i18n';
@@ -39,6 +40,19 @@ describe('formatDate', () => {
 	it('renders English dates as day month year, no comma', () => {
 		setLocaleProvider(() => 'en');
 		expect(formatDate('2026-12-22')).toBe('22 December 2026');
+	});
+});
+
+describe('formatShortDate', () => {
+	it('uses localized short weekday and month names with UTC calendar dates', () => {
+		setLocaleProvider(() => 'de');
+		expect(formatShortDate('2026-10-11')).toBe('So. 11. Okt.');
+		setLocaleProvider(() => 'en');
+		expect(formatShortDate('2026-10-11')).toBe('Sun 11 Oct');
+		setLocaleProvider(() => 'de');
+		expect(t('whatsNext.panel.today')).toBe('Heute');
+		setLocaleProvider(() => 'en');
+		expect(t('whatsNext.panel.today')).toBe('Today');
 	});
 });
 

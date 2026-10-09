@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { isRedirect, type Cookies } from '@sveltejs/kit';
 import type { Action } from '$lib/domain/action/action';
 
-const { clock, actionsPort, itemHistoryPort, whatsNextPort } = vi.hoisted(() => ({
+const { clock, actionsPort, itemHistoryPort, whatsNextPort, inboxPort } = vi.hoisted(() => ({
 	clock: {
 		nowIso: () => '2026-01-01T00:00:00.000Z',
 		todayIso: () => '2026-01-01',
@@ -10,7 +10,8 @@ const { clock, actionsPort, itemHistoryPort, whatsNextPort } = vi.hoisted(() => 
 	},
 	actionsPort: { setActionState: vi.fn() },
 	itemHistoryPort: { insert: vi.fn() },
-	whatsNextPort: { loadItems: vi.fn().mockReturnValue([]) }
+	whatsNextPort: { loadItems: vi.fn().mockReturnValue([]) },
+	inboxPort: { listPending: vi.fn().mockReturnValue([]) }
 }));
 
 vi.mock('$lib/server/appPorts', () => ({
@@ -18,7 +19,8 @@ vi.mock('$lib/server/appPorts', () => ({
 	clock,
 	idsPort: { newId: () => 'history-1' },
 	itemHistoryPort,
-	whatsNextPort
+	whatsNextPort,
+	inboxPort
 }));
 
 vi.mock('$lib/server/config', () => ({ config: { cookieSecure: false } }));
@@ -171,6 +173,50 @@ describe('root load projects a deterministic filtered-empty view', () => {
 		expect(result.filter).toBe('later');
 		expect(result.counts).toEqual({ all: 1, overdue: 1, now: 0, later: 0 });
 		expect(result.sections).toEqual([{ bucket: 2, groups: [] }]);
+	});
+
+	it('shares one loaded working set with the weekly panel and reads the pending Inbox count', () => {
+		const items = [
+			{
+				itemId: 'item-week',
+				title: 'Weekly item',
+				actions: [
+					{
+						actionId: 'action-week',
+						label: 'Pay bill',
+						state: 'OPEN',
+						dueKind: 'MANUAL',
+						dueDate: '2026-01-01',
+						dueOverrideDate: null,
+						position: 0,
+						dependencyStates: []
+					}
+				]
+			}
+		];
+		whatsNextPort.loadItems.mockReturnValueOnce(items);
+		inboxPort.listPending.mockReturnValueOnce([{}, {}]);
+
+		const result = load({
+			url: new URL('http://localhost/'),
+			cookies: fakeCookies()
+		} as never) as {
+			weeklyOverview: { actionId: string; dueDate: string }[];
+			inboxCount: number;
+		};
+
+		expect(result.weeklyOverview).toEqual([
+			{
+				itemId: 'item-week',
+				itemTitle: 'Weekly item',
+				actionId: 'action-week',
+				label: 'Pay bill',
+				dueDate: '2026-01-01'
+			}
+		]);
+		expect(result.inboxCount).toBe(2);
+		expect(whatsNextPort.loadItems).toHaveBeenCalledTimes(1);
+		expect(inboxPort.listPending).toHaveBeenCalledTimes(1);
 	});
 });
 

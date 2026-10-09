@@ -261,7 +261,7 @@ test.describe('desktop sidebar', () => {
 });
 
 test.describe('content column is centered in the area right of the sidebar on wide screens', () => {
-	const listRoutes = ['/', '/upcoming', '/items', '/suche', '/settings'];
+	const listRoutes = ['/upcoming', '/items', '/suche', '/settings'];
 	const LIST_MAX = 60 * 16; // 960px
 
 	for (const width of [390, 768, 1280, 1440, 1920, 2560]) {
@@ -515,7 +515,7 @@ test.describe('navigation and sign-out work without JavaScript', () => {
 	}) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await loginFresh(page);
-		await page.getByRole('link', { name: 'Demnächst' }).click();
+		await page.locator('.app-sidebar').getByRole('link', { name: 'Demnächst' }).click();
 		await expect(page).toHaveURL('/upcoming');
 		await page.locator('.app-sidebar').getByRole('button', { name: 'Abmelden' }).click();
 		await expect(page).toHaveURL('/login');

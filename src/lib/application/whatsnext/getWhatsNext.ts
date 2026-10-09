@@ -4,6 +4,8 @@ import {
 	type WhatsNextActionInput,
 	type WhatsNextGroup
 } from '../../domain/whatsnext/whatsNext';
+import type { IsoDate } from '../../domain/date/isoDate';
+import type { WhatsNextItemInput } from '../../domain/whatsnext/whatsNext';
 import type { Clock, WhatsNextRepositoryPort } from '../ports';
 
 export interface WhatsNextDueEditability {
@@ -27,11 +29,15 @@ export interface WhatsNextGroupView extends Omit<WhatsNextGroup, 'actions'> {
  * function (domain/whatsnext/whatsNext.ts) — this use case only loads
  * the working set and today's date.
  */
-export function getWhatsNext(ports: {
-	whatsNext: WhatsNextRepositoryPort;
-	clock: Clock;
-}): WhatsNextGroupView[] {
-	const items = ports.whatsNext.loadItems();
+export function getWhatsNext(
+	ports: {
+		whatsNext: WhatsNextRepositoryPort;
+		clock: Clock;
+	},
+	loadedItems?: readonly WhatsNextItemInput[],
+	todayIso: IsoDate = ports.clock.todayIso()
+): WhatsNextGroupView[] {
+	const items = loadedItems ?? ports.whatsNext.loadItems();
 	const dueEditabilityByActionId = new Map<string, WhatsNextDueEditability>();
 	for (const item of items) {
 		for (const action of item.actions) {
@@ -44,7 +50,7 @@ export function getWhatsNext(ports: {
 		}
 	}
 
-	return buildWhatsNext(items, ports.clock.todayIso()).map((group) => ({
+	return buildWhatsNext(items, todayIso).map((group) => ({
 		...group,
 		actions: group.actions.map((action) => {
 			const dueEditability = dueEditabilityByActionId.get(action.actionId);

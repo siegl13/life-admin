@@ -1,7 +1,9 @@
 import { fail, redirect, type Cookies } from '@sveltejs/kit';
 import { t } from '$lib/i18n';
 import { config } from '$lib/server/config';
+import { getInboxCount } from '$lib/application/inbox/getInboxCount';
 import { getWhatsNext } from '$lib/application/whatsnext/getWhatsNext';
+import { getWeeklyOverview } from '$lib/application/whatsnext/getWeeklyOverview';
 import { getItemWorkflow } from '$lib/application/items/getItemWorkflow';
 import {
 	applyGuardedDueOverride,
@@ -17,6 +19,7 @@ import {
 	cyclesPort,
 	eventsPort,
 	fieldsPort,
+	inboxPort,
 	idsPort,
 	itemHistoryPort,
 	whatsNextPort
@@ -106,13 +109,19 @@ function currentDueOverrideEligibility(itemId: string, actionId: string): boolea
 }
 
 export const load: PageServerLoad = ({ url, cookies }) => {
-	const groups = getWhatsNext({ whatsNext: whatsNextPort, clock });
+	const items = whatsNextPort.loadItems();
+	const today = clock.todayIso();
+	const groups = getWhatsNext({ whatsNext: whatsNextPort, clock }, items, today);
+	const weeklyOverview = getWeeklyOverview(items, today);
 	const filter = parseWhatsNextFilter(url.searchParams.get('filter'));
 	return {
 		filter,
 		counts: countWhatsNextActions(groups),
 		sections: projectWhatsNextSections(groups, filter),
-		today: clock.todayIso(),
+		today,
+		weeklyOverview: weeklyOverview.rows,
+		weeklyOverviewRemaining: weeklyOverview.remaining,
+		inboxCount: getInboxCount({ inbox: inboxPort }),
 		undo: peekUndoFlash(cookies)
 	};
 };
