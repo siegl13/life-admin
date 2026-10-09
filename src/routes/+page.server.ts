@@ -2,12 +2,25 @@ import { fail, redirect, type Cookies } from '@sveltejs/kit';
 import { t } from '$lib/i18n';
 import { config } from '$lib/server/config';
 import { getWhatsNext } from '$lib/application/whatsnext/getWhatsNext';
+import { getItemWorkflow } from '$lib/application/items/getItemWorkflow';
 import {
+	applyGuardedDueOverride,
 	applyGuardedTransition,
+	isDueOverrideEligible,
 	isTransitionFailure,
+	parseDueOverrideFormData,
 	parseTransitionFormData
 } from '$lib/server/http/actionTransition';
-import { actionsPort, clock, idsPort, itemHistoryPort, whatsNextPort } from '$lib/server/appPorts';
+import {
+	actionsPort,
+	clock,
+	cyclesPort,
+	eventsPort,
+	fieldsPort,
+	idsPort,
+	itemHistoryPort,
+	whatsNextPort
+} from '$lib/server/appPorts';
 import {
 	countWhatsNextActions,
 	parseWhatsNextFilter,
@@ -83,6 +96,15 @@ function writeUndoFlash(cookies: Cookies, flash: UndoFlash): void {
 	});
 }
 
+function currentDueOverrideEligibility(itemId: string, actionId: string): boolean {
+	const workflow = getItemWorkflow(
+		{ cycles: cyclesPort, actions: actionsPort, events: eventsPort, fields: fieldsPort },
+		itemId
+	);
+	const action = workflow?.find((entry) => entry.action.id === actionId)?.action ?? null;
+	return isDueOverrideEligible(action);
+}
+
 export const load: PageServerLoad = ({ url, cookies }) => {
 	const groups = getWhatsNext({ whatsNext: whatsNextPort, clock });
 	const filter = parseWhatsNextFilter(url.searchParams.get('filter'));
@@ -122,6 +144,30 @@ async function transition(
 	redirectToFilteredRoot(request);
 }
 
+async function dueOverride(
+	request: Request,
+	eventType: 'ACTION_DUE_OVERRIDE_SET' | 'ACTION_DUE_OVERRIDE_CLEARED'
+) {
+	const formData = await request.formData();
+	const parsed = parseDueOverrideFormData(formData, { requireItemId: true });
+	if (!parsed) return fail(400, { error: t('items.detail.actionNotMutable') });
+
+	const result = applyGuardedDueOverride(
+		{ actions: actionsPort, history: itemHistoryPort, ids: idsPort, clock },
+		{
+			itemId: parsed.itemId,
+			actionId: parsed.actionId,
+			dueDate: eventType === 'ACTION_DUE_OVERRIDE_CLEARED' ? null : parsed.dueDate
+		},
+		eventType,
+		t('items.detail.actionNotMutable'),
+		() => currentDueOverrideEligibility(parsed.itemId, parsed.actionId)
+	);
+	if (isTransitionFailure(result)) return result;
+
+	redirectToFilteredRoot(request);
+}
+
 /** Redirects back to the root URL, preserving the active filter (if any)
  *  — without this, the address bar would permanently carry the
  *  `?/completeAction`/`?/skipAction`/`?/reopenAction`/`?/undoAction`
@@ -142,6 +188,9 @@ export const actions: Actions = {
 	// Both root entry points reuse the guarded transition. The cookie is a
 	// short-lived UI hint, not authorization; identity is checked at the write.
 	reopenAction: async ({ request, cookies }) => transition(request, cookies, 'OPEN'),
+	setActionDueOverride: async ({ request }) => dueOverride(request, 'ACTION_DUE_OVERRIDE_SET'),
+	resetActionDueOverride: async ({ request }) =>
+		dueOverride(request, 'ACTION_DUE_OVERRIDE_CLEARED'),
 	undoAction: async ({ request, cookies }) => {
 		const flash = peekUndoFlash(cookies);
 		if (!flash) return fail(400, { error: t('whatsNext.undoExpired') });

@@ -319,6 +319,7 @@ export const de = {
 	'items.detail.dueOverrideSuggestion': 'Vorschlag: {date}',
 	'items.detail.dueOverrideSuggestionUnresolved': 'Kein Vorschlag berechenbar',
 	'items.detail.resetDueOverride': 'Auf Vorschlag zurücksetzen',
+	'items.detail.dueDateInvalid': 'Bitte ein gültiges Datum eingeben.',
 
 	'items.archived.title': 'Archiv',
 	'items.archived.show': 'Archiv anzeigen',

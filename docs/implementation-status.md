@@ -9,6 +9,106 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Part B - Change a due date from What's next (`part-b-whats-next-due-date-dialog`)
+
+**Status: IMPLEMENTATION COMPLETE. Automated verification, browser checks and
+the final independent diff review passed.**
+
+- The What's Next row's More menu "Change due date" link now opens a native
+  on-page dialog with JavaScript (focus trap, Escape, and outside-backdrop
+  close via `showModal()`/`close()`, matching Item detail's own dialog
+  behavior), while staying a normal anchor to the Item detail action anchor
+  without JavaScript. The dialog itself starts closed (no `open` attribute) —
+  unlike Item detail's SSR-open-then-close-on-hydrate fallback — so What's
+  Next never statically renders a per-row dialog open.
+- The link (and a separate "Reset to suggestion" menu control, shown only
+  when an override exists) are gated by the existing `canEditActionDueDate`
+  rule, so a manual, completed, or otherwise ineligible action never offers
+  them. Opening the dialog closes the More menu; the suggested date appears
+  only when it differs from the active override, avoiding repeated values.
+- Added root route actions `setActionDueOverride`/`resetActionDueOverride`
+  (`src/routes/+page.server.ts`), reusing the existing `setActionDueOverride`
+  application use case. `src/lib/server/http/actionTransition.ts` gained
+  `parseDueOverrideFormData` and `applyGuardedDueOverride`, the shared
+  parsing/guard/history-recording helper now used by both the root route and
+  Item detail's own `setActionDueOverride`/`resetActionDueOverride` actions
+  (refactored onto the same helper). On failure, the action ID, error, and
+  submitted value are returned. If the action remains eligible in the current
+  What's Next data, its dialog reopens with the value intact. A stale completed
+  action is no longer in the list and instead receives a clear page-level 400
+  alert, never a 500.
+- `getWhatsNext` keeps the already-loaded action eligibility fields in its
+  application view so `ActionRow` can reuse `canEditActionDueDate`; the domain
+  `WhatsNextAction` and repository contracts are unchanged, and no extra query
+  is needed.
+- Before a due-override write, both route adapters reload the current workflow
+  and apply `canEditActionDueDate` to the submitted action. A completed action
+  from another tab therefore fails with the same localized 400 as other
+  ineligible actions, before any write or history event, without a domain or
+  persistence change. The due-override application function and repository
+  still enforce the existing date and active item/cycle guards.
+- `.action-dialog--whats-next` in `src/app.css` uses a width of
+  `min(100% - 2 * gutter, 28rem)`; Item detail's existing dialog width is
+  unchanged. No new breakpoint was added.
+- Focused unit tests: `applyGuardedDueOverride`/`parseDueOverrideFormData`
+  (success + caller-chosen SET/CLEARED event type, invalid-date 400 with
+  preserved actionId/dueDate, stale/non-mutable 400, unexpected-failure
+  propagation, live-eligibility rejection before write, and no history on
+  failures) in `actionTransition.test.ts`; the application view's due-edit
+  metadata and one-query loading in `getWhatsNext.test.ts`.
+- New `tests/e2e/whats-next-due-date-dialog.spec.ts` covers: setting an
+  override and seeing the row's displayed date update; reset offered only
+  once an override exists and clearing it; an invalid date rejected with the
+  dialog reopening, its exact rejected text still present and editable (the
+  field swaps from `type="date"` to `type="text"` only on a rejected
+  submission, since a native date input otherwise silently sanitizes invalid
+  text to "" — see `ActionRow.svelte`), and a corrected resubmission from that
+  same field succeeding; a manual action never offering the menu option; the
+  no-JavaScript link landing on the Item detail action anchor with no dialog
+  rendered open; 375px with the dialog open causing no horizontal overflow;
+  and a stale action completed in another tab returning a localized 400,
+  never a 500.
+  `tests/e2e/whats-next-redesign.spec.ts`'s former combined "native menu
+  date-change link ... opens the date editor" test is split: the href/
+  contrast assertions stay (clicking it with JavaScript now opens the local
+  dialog instead of navigating, covered in the new file), and its 375px
+  overflow test now checks the always-present skip control instead of the
+  link, since that test's action is MANUAL.
+- Built-app browser checks covered What's Next and Item detail at 390, 1280 and
+  1920px, in German and English, light and dark. All 24 route combinations had
+  no horizontal overflow, browser console or page errors. CSP violations were
+  collected across all navigations and none occurred. The due-date dialog was
+  checked at 390 and 1280px; focus stayed inside, Escape and outside-backdrop
+  clicks closed it, focus returned to the menu button, and the menu did not
+  remain visible behind the dialog. Screenshots are under
+  `.agent/supervisor/life-admin-part-b-due-date-dialog/tmp/browser-check/`.
+- Final `npm run verify` passed: lint/Prettier, Svelte check (0 errors and
+  warnings), Playbook validation, production build, 120 test files and 1,021
+  unit tests. The full `npm run test:e2e` passed all 199 tests.
+- Review round 01 found two findings, both corrected: (F-01, medium) the
+  reopened editor's `type="date"` input discarded invalid submitted text
+  rather than keeping it visible and editable, with no E2E assertion of the
+  retained value — fixed by rendering a plain text input for the rejected
+  value only, so the exact text survives and a corrected resubmission from
+  it now has focused E2E coverage; (F-02, low) the invalid-date error used
+  the application exception's hardcoded English text instead of a catalog
+  key — fixed with a new `items.detail.dueDateInvalid` key in both
+  catalogs, mapped in `actionTransition.ts`, with German/English unit
+  coverage. The application exception and form contract are unchanged.
+- Review round 02 found one low finding, corrected: (F-03) the status
+  overstated browser verification by claiming matrix-wide CSP coverage and
+  reported a stale unit-test total — CSP was marked pending until the final
+  full-matrix check, and the total was corrected to 1,021. Review round 03
+  verified F-01/F-02/F-03
+  all resolved, found no further code findings, and passed independent
+  implementation review; its sole finding (F-04, low) was this status
+  document still saying review was pending — corrected here. The final diff
+  review then found two low issues: the shared dialog width also widened Item
+  detail, and the stale-submit E2E ran filling and submitting concurrently.
+  Item detail's 24rem width is restored; only the What's Next dialog uses the
+  28rem cap. The test now waits for the fill before submitting. The review
+  passed with no open code findings.
+
 ## Part A - Locale formatting and intrinsic page widths (`part-a-locale-layout`)
 
 **Status: IMPLEMENTED AND VERIFIED.** `npm run verify`, the full
@@ -193,9 +293,10 @@ implementation or review finding.
   `aria-current`; an unknown filter falls back to `all`.
 - Each action row has a round "done" control (labelled "Erledigen:
   `<action>`" for assistive tech) and a native `<details>` "more actions"
-  menu with skip and a link to the action's spot on the item detail page
-  (`#action-<id>`, added to `WorkflowTimeline`). No inline due-date editor
-  on the root page; date changes stay on the item detail page.
+  menu with skip and a due-date editor. With JavaScript, the existing detail
+  anchor link opens a native dialog in place; without JavaScript it remains a
+  normal link to the action's spot on Item detail (`#action-<id>`, added to
+  `WorkflowTimeline`).
 - A shared server-only helper (`src/lib/server/http/actionTransition.ts`)
   owns parsing, the guarded state transition, history recording, AND the
   rejected-transition error mapping for the item-detail route, the root
@@ -227,8 +328,8 @@ implementation or review finding.
   ready actions keep their existing order. What's next now uses one compact
   row per action, with its linked Item name below the task title. Dates are
   shown once as a relative pill and exact date; undated actions say "No date".
-- Deferred, same as phase 1: mobile header integration, inline due-date
-  editing on this page, swipe actions, Cmd+K, a week strip, and the side
+- Deferred, same as phase 1: mobile header integration, swipe actions, Cmd+K,
+  a week strip, and the side
   panel ("this week" / inbox count) the original spec lists for this page.
   No side panel exists yet and no extra domain/persistence query was added
   for it. (App-wide locale-aware date/currency formatting, listed here
@@ -369,8 +470,8 @@ pass.**
 - The README screenshots for What's Next, new-item and Item detail were
   refreshed because the shared content alignment and Item detail facts changed.
 - Follow-ups: What's Next side panel; mobile header integration into page
-  headers; inline due-date editing; Inbox preview endpoint; drag-and-drop
-  upload. (Locale-specific date/currency formatting for English, listed here
+  headers; Inbox preview endpoint; drag-and-drop upload. (Locale-specific
+  date/currency formatting for English, listed here
   previously, is resolved; see "Part A" below.)
 
 ## Node 26 runtime metadata

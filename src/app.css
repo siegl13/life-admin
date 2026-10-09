@@ -1565,6 +1565,11 @@ a.items-archive-toggle {
 	}
 }
 
+.action-dialog--whats-next {
+	width: min(calc(100% - 2 * var(--space-5)), 28rem);
+	max-width: 28rem;
+}
+
 .snooze__form {
 	display: flex;
 	flex-wrap: wrap;

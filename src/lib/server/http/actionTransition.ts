@@ -1,11 +1,17 @@
 import { fail, type ActionFailure } from '@sveltejs/kit';
 import { setActionState } from '$lib/application/actions/setActionState';
+import {
+	InvalidDueOverrideDateError,
+	setActionDueOverride
+} from '$lib/application/actions/setActionDueOverride';
+import { canEditActionDueDate } from '$lib/application/actions/canEditActionDueDate';
 import { recordHistoryEvent } from '$lib/application/history/itemHistory';
 import { ActionNotMutableError } from '$lib/server/db/repositories/actionRepository';
 import type { Action, ActionState } from '$lib/domain/action/action';
 import type { ActionRepositoryPort } from '$lib/application/ports';
 import type { ItemHistoryRepositoryPort } from '$lib/application/ports';
 import type { Clock } from '$lib/application/ports';
+import { t } from '$lib/i18n';
 
 export { ActionNotMutableError };
 
@@ -113,4 +119,98 @@ export function isTransitionFailure<T>(
 	result: T | ActionFailure<{ error: string }>
 ): result is ActionFailure<{ error: string }> {
 	return typeof result === 'object' && result !== null && 'status' in result && 'data' in result;
+}
+
+export interface ParsedDueOverrideForm {
+	itemId: string;
+	actionId: string;
+	dueDate: string | null;
+}
+
+/** Same `itemId`-required/not split as {@link parseTransitionFormData} — the
+ *  root route has no `params.id`, so its form must carry `itemId`, while
+ *  the item-detail route trusts its own URL param instead. */
+export function parseDueOverrideFormData(
+	formData: FormData,
+	opts: { requireItemId: boolean }
+): ParsedDueOverrideForm | null {
+	const actionId = formData.get('actionId')?.toString();
+	const itemId = formData.get('itemId')?.toString();
+	if (!actionId) return null;
+	if (opts.requireItemId && !itemId) return null;
+	return { itemId: itemId ?? '', actionId, dueDate: formData.get('dueDate')?.toString() ?? null };
+}
+
+export type DueOverrideEventType = 'ACTION_DUE_OVERRIDE_SET' | 'ACTION_DUE_OVERRIDE_CLEARED';
+
+/** Applies the same UI eligibility rule to a freshly loaded server action. */
+export function isDueOverrideEligible(
+	action: Pick<Action, 'state' | 'dueKind' | 'dueDate' | 'dueOverrideDate'> | null
+): boolean {
+	return action !== null && canEditActionDueDate(action);
+}
+
+export interface DueOverrideFailurePayload {
+	error: string;
+	context: 'dueOverride';
+	actionId: string;
+	dueDate: string | null;
+}
+
+/**
+ * Same role as {@link applyGuardedTransition}, for the due-override write:
+ * one place that owns "set/clear a DERIVED action's due override, then
+ * record the matching history event", shared by item-detail and the
+ * What's Next root route so both guard and record history identically.
+ * `eventType` is the caller's own intent (which button/action was
+ * submitted), not inferred from the resulting date, matching the
+ * pre-existing item-detail behavior this replaces.
+ */
+export function applyGuardedDueOverride(
+	ports: ActionTransitionPorts,
+	input: { itemId: string; actionId: string; dueDate: string | null },
+	eventType: DueOverrideEventType,
+	notMutableMessage: string,
+	isCurrentlyEligible: () => boolean
+): Action | ActionFailure<DueOverrideFailurePayload> {
+	if (!isCurrentlyEligible()) {
+		return fail(400, {
+			error: notMutableMessage,
+			context: 'dueOverride',
+			actionId: input.actionId,
+			dueDate: input.dueDate
+		});
+	}
+
+	try {
+		const action = setActionDueOverride({ actions: ports.actions }, input);
+		recordHistoryEvent(
+			{ history: ports.history, ids: ports.ids, clock: ports.clock },
+			{
+				itemId: input.itemId,
+				actorKind: 'OWNER',
+				eventType,
+				payload: { actionId: input.actionId }
+			}
+		);
+		return action;
+	} catch (err) {
+		if (err instanceof InvalidDueOverrideDateError) {
+			return fail(400, {
+				error: t('items.detail.dueDateInvalid'),
+				context: 'dueOverride',
+				actionId: input.actionId,
+				dueDate: input.dueDate
+			});
+		}
+		if (err instanceof ActionNotMutableError) {
+			return fail(400, {
+				error: notMutableMessage,
+				context: 'dueOverride',
+				actionId: input.actionId,
+				dueDate: input.dueDate
+			});
+		}
+		throw err;
+	}
 }

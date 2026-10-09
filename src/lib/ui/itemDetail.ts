@@ -1,16 +1,5 @@
 import { t } from '$lib/i18n';
-import type { Action } from '$lib/domain/action/action';
-
-/** UI eligibility shared by the hero and the existing workflow dialog. */
-export function canEditActionDueDate(
-	action: Pick<Action, 'state' | 'dueKind' | 'dueDate' | 'dueOverrideDate'>
-): boolean {
-	return (
-		action.state === 'OPEN' &&
-		action.dueKind === 'DERIVED' &&
-		(action.dueDate !== null || action.dueOverrideDate !== null)
-	);
-}
+export { canEditActionDueDate } from '$lib/application/actions/canEditActionDueDate';
 
 export function formatWorkflowProgress(done: number, total: number): string {
 	const key =
