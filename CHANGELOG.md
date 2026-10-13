@@ -8,6 +8,19 @@ Versioning follows `0.x.y-beta` until the product is stable enough for
 
 All notable changes to Life Admin will be documented in this file.
 
+## [0.2.0-beta.2] - 2026-10-13
+
+### Added
+
+- Add a read-only health listener on port 8001 with health, readiness, database,
+  schema and storage checks.
+- Allow waiting workflow tasks to be completed from the Item detail.
+
+### Fixed
+
+- Show a clear message when OpenAI rejects document extraction because of low
+  credits or a usage limit.
+
 ## [0.2.0-beta.1] - 2026-10-09
 
 ### Added
