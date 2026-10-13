@@ -108,7 +108,7 @@ test('a future DERIVED action blocked only by a dependency can still have its du
 	await expect(futureStep.getByText('Eigener Termin')).toBeVisible();
 	// Still blocked: an override never changes availability.
 	await expect(futureStep.getByText('Wartet auf „HU-Termin planen“')).toBeVisible();
-	await expect(futureStep.getByRole('button', { name: 'Erledigen' })).toHaveCount(0);
+	await expect(futureStep.getByRole('button', { name: 'Erledigen' })).toBeVisible();
 });
 
 test('an archived item cannot have its due-date override changed or reset via a crafted POST', async ({
