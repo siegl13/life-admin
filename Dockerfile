@@ -31,12 +31,15 @@ RUN npm prune --omit=dev
 # stays correct across a later retag/promotion of this same image.
 FROM node:26-bookworm-slim AS runtime
 ARG APP_REVISION=local
+ARG APP_VERSION=local
 ENV NODE_ENV=production \
 	PORT=3000 \
+	HEALTH_PORT=8001 \
 	LIFEADMIN_DATA_DIR=/data \
 	TZ=Europe/Berlin \
 	BODY_SIZE_LIMIT=280M \
-	APP_REVISION=${APP_REVISION}
+	APP_REVISION=${APP_REVISION} \
+	APP_VERSION=${APP_VERSION}
 WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
@@ -47,7 +50,7 @@ COPY playbooks ./playbooks
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 
-EXPOSE 3000
+EXPOSE 3000 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 	CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

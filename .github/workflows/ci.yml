@@ -138,11 +138,12 @@ jobs:
           cache-to: type=gha,mode=max,scope=life-admin-image
           build-args: |
             APP_REVISION=${{ steps.meta.outputs.GIT_SHA_FULL }}
+            APP_VERSION=git-${{ steps.meta.outputs.GIT_SHA_SHORT }}
           tags: ${{ steps.meta.outputs.image_ref }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ steps.meta.outputs.GIT_SHA_FULL }}
-            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.version=git-${{ steps.meta.outputs.GIT_SHA_SHORT }}
 
       - name: Record candidate digest
         if: steps.check.outputs.already_exists == 'false'
