@@ -22,7 +22,7 @@ export interface BuildInfo {
 function readBuildInfo(env: NodeJS.ProcessEnv): BuildInfo {
 	const revision = env.APP_REVISION?.trim() || 'local';
 	return {
-		version: packageJson.version,
+		version: env.APP_VERSION?.trim() || packageJson.version,
 		revision,
 		shortRevision: revision === 'local' ? revision : revision.slice(0, 12)
 	};

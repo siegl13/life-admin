@@ -29,6 +29,7 @@ import {
 import { cleanOrphanedInboxFiles, cleanStaleInboxPartFiles } from '$lib/server/files/inboxStorage';
 import fs from 'node:fs';
 import { startNotificationScheduler } from '$lib/server/notify/scheduler';
+import { startHealthServer } from '$lib/server/healthServer';
 
 startNotificationScheduler();
 setLocaleProvider(() => getRequestLocale() ?? 'de');
@@ -38,6 +39,7 @@ export function addViewerObjectSource(csp: string): string {
 }
 
 export async function init(): Promise<void> {
+	if (process.env.NODE_ENV === 'production') startHealthServer();
 	fs.rmSync(config.restoreStagingDir, { recursive: true, force: true });
 	cleanStalePartFiles();
 	cleanStaleInboxPartFiles();

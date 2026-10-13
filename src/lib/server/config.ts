@@ -15,6 +15,7 @@ export interface Config {
 	/** Directory bundled playbooks are loaded from. */
 	bundledPlaybooksDir: string;
 	port: number;
+	healthPort: number;
 	origin: string | null;
 	cookieSecure: boolean;
 	backupsDir: string;
@@ -63,6 +64,7 @@ function readConfig(env: NodeJS.ProcessEnv): Config {
 	const bundledPlaybooksDir =
 		env.PLAYBOOKS_BUNDLED_DIR?.trim() || path.join(process.cwd(), 'playbooks', 'bundled');
 	const port = Number.parseInt(env.PORT ?? '3000', 10);
+	const healthPort = Number.parseInt(env.HEALTH_PORT ?? '8001', 10);
 	const secureOverride = env.LIFEADMIN_COOKIE_SECURE?.trim().toLowerCase();
 	const cookieSecure =
 		secureOverride === 'true'
@@ -77,6 +79,7 @@ function readConfig(env: NodeJS.ProcessEnv): Config {
 		customPlaybooksDir: path.join(dataDir, 'playbooks'),
 		bundledPlaybooksDir,
 		port: Number.isFinite(port) && port > 0 ? port : 3000,
+		healthPort: Number.isFinite(healthPort) && healthPort > 0 ? healthPort : 8001,
 		origin,
 		cookieSecure,
 		backupsDir: path.join(dataDir, 'backups'),
