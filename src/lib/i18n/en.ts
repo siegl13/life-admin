@@ -464,6 +464,8 @@ export const en: Record<TranslationKey, string> = {
 	'ai.additional.noneSelected': 'Select at least one detail.',
 	'ai.error.rateLimited':
 		'The daily limit for automatic recognition has been reached. Please try again tomorrow.',
+	'ai.error.providerRateLimited':
+		'OpenAI rejected the request because of low credits or a usage limit. Check your OpenAI account and try again.',
 
 	'settings.privacyNote.aiException':
 		'Exception: Document recognition is switched on. Selected documents are transmitted to OpenAI.',

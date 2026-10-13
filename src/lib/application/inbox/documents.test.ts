@@ -7,6 +7,7 @@ import {
 	InboxDocumentNotAvailableError
 } from './documents';
 import type { InboxRepositoryPort } from '../ports';
+import { ExtractionRateLimitError } from '../ai/extraction';
 
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
 const PDF_SHA256 = createHash('sha256').update(PDF).digest('hex');
@@ -216,6 +217,38 @@ describe('inbox documents', () => {
 			})
 		).rejects.toThrow('INTEGRITY');
 		expect(provider.route).not.toHaveBeenCalled();
+		expect(p.runs.markFailed).toHaveBeenCalledWith('att');
+	});
+	it('preserves a provider rate-limit error after recording the failed attempt', async () => {
+		const p = ports();
+		p.inbox.getById.mockReturnValue({
+			id: 'doc',
+			storageKey: 'ab/doc',
+			filename: 'a.pdf',
+			mimeType: 'application/pdf',
+			sha256: PDF_SHA256,
+			createdAt: '2026-01-01T00:00:00.000Z',
+			updatedAt: '2026-01-01T00:00:00.000Z',
+			suggestion: null,
+			status: 'PENDING',
+			byteSize: PDF.byteLength
+		});
+		const provider = {
+			providerId: 'test',
+			modelId: 'test',
+			route: vi.fn(async () => {
+				throw new ExtractionRateLimitError('provider limit');
+			})
+		};
+		await expect(
+			analyzeInboxDocument({ ...p, provider } as never, {
+				documentId: 'doc',
+				timeoutMs: 1,
+				maxOutputTokens: 1,
+				maxDocumentBytes: 10,
+				dailyLimit: 3
+			})
+		).rejects.toBeInstanceOf(ExtractionRateLimitError);
 		expect(p.runs.markFailed).toHaveBeenCalledWith('att');
 	});
 	it('keeps Playbook metadata local and retains only a known suggestion', async () => {

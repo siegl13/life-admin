@@ -3,6 +3,7 @@ import { createOpenAiProvider } from './openaiProvider';
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
+	ExtractionRateLimitError,
 	ExtractionTimeoutError,
 	ExtractionUnavailableError,
 	type ExtractionRequest
@@ -147,16 +148,22 @@ describe('createOpenAiProvider', () => {
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionUnavailableError);
 	});
 
-	it('maps 429 to ExtractionFailedError', async () => {
+	it('maps 429 to ExtractionRateLimitError', async () => {
 		fetchMock.mockResolvedValue(jsonResponse({}, 429));
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
-		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionRateLimitError);
 	});
 
 	it('maps a 500 to ExtractionFailedError', async () => {
 		fetchMock.mockResolvedValue(jsonResponse({}, 500));
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+	});
+
+	it('maps a routing 429 to ExtractionRateLimitError', async () => {
+		fetchMock.mockResolvedValue(jsonResponse({}, 429));
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
+		await expect(provider.route(routingRequest())).rejects.toThrow(ExtractionRateLimitError);
 	});
 
 	it('maps a network error to ExtractionUnavailableError', async () => {

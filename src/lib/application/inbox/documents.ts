@@ -6,6 +6,7 @@ import {
 import type { InboxDocument } from '$lib/domain/inbox/document';
 import { prepareCreateItemInput } from '../items/createItem';
 import { getAiSettings } from '../ai/aiSettings';
+import { ExtractionRateLimitError } from '../ai/extraction';
 import { normalizeRoutingSuggestion, type DocumentRoutingProviderPort } from '../ai/routing';
 import { DailyInboxAiLimitReachedError } from '../ports';
 import type { AppSettingsPort } from '../ai/ports';
@@ -228,7 +229,8 @@ export async function analyzeInboxDocument(
 		ports.runs.markFailed(runId);
 		if (
 			cause instanceof InboxDocumentRejectedError ||
-			cause instanceof InboxDocumentNotAvailableError
+			cause instanceof InboxDocumentNotAvailableError ||
+			cause instanceof ExtractionRateLimitError
 		)
 			throw cause;
 		throw new InboxDocumentRejectedError('ANALYSIS_FAILED');

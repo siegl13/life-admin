@@ -33,6 +33,7 @@ import {
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
+	ExtractionRateLimitError,
 	ExtractionTimeoutError,
 	ExtractionUnavailableError
 } from '$lib/application/ai/extraction';
@@ -158,6 +159,9 @@ export const actions: Actions = {
 			}
 			if (cause instanceof ExtractionUnavailableError) {
 				return fail(400, { error: t('ai.error.notConfigured') });
+			}
+			if (cause instanceof ExtractionRateLimitError) {
+				return fail(400, { error: t('ai.error.providerRateLimited') });
 			}
 			if (
 				cause instanceof ExtractionTimeoutError ||
