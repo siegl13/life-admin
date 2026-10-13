@@ -73,6 +73,20 @@ test('desktop hero owns complete/skip/change-due; the featured step shows neithe
 	await expect(featuredStep.locator('.timeline__body > .meta')).toHaveCount(0);
 });
 
+test('a waiting workflow task can be completed from the item detail', async ({ page }) => {
+	await createTuvItem(page, 'Complete Waiting Task Test');
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('input[type="date"]').first().fill('2027-12-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+
+	const waitingStep = page.locator('.timeline__step').filter({
+		has: page.locator('.timeline__title', { hasText: 'Fahrzeug / Unterlagen vorbereiten' })
+	});
+	await expect(waitingStep).toContainText('Wartet');
+	await waitingStep.getByRole('button', { name: 'Erledigen' }).click();
+	await expect(waitingStep).toContainText('Erledigt');
+});
+
 test('desktop hero completes the featured action and workflow reopen restores it', async ({
 	page
 }) => {

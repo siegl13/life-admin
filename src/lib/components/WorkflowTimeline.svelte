@@ -284,6 +284,12 @@
 						</button>
 					</form>
 				{/if}
+				{#if state === 'waiting' && !readOnly}
+					<form method="POST" action="?/completeAction" class="timeline__controls">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<button type="submit" class="quiet">{t('whatsNext.done')}</button>
+					</form>
+				{/if}
 
 				{#if canEditDueDate(entry) && !readOnly && !isFeatured(entry)}
 					<button
