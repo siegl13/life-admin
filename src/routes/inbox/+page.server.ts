@@ -28,6 +28,7 @@ import {
 } from '$lib/server/appPorts';
 import { config } from '$lib/server/config';
 import { getAiSettings } from '$lib/application/ai/aiSettings';
+import { ExtractionRateLimitError } from '$lib/application/ai/extraction';
 import { restrictRoutingSuggestion } from '$lib/application/ai/routing';
 import { t } from '$lib/i18n';
 import type { Actions, PageServerLoad } from './$types';
@@ -158,7 +159,9 @@ export const actions: Actions = {
 					dailyLimit: config.aiDailyRunLimit
 				}
 			);
-		} catch {
+		} catch (cause) {
+			if (cause instanceof ExtractionRateLimitError)
+				return fail(400, { error: t('ai.error.providerRateLimited') });
 			return fail(400, { error: t('inbox.error.analysisFailed') });
 		}
 		redirect(303, '/inbox');

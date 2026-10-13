@@ -13,6 +13,7 @@ import type {
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
+	ExtractionRateLimitError,
 	ExtractionTimeoutError,
 	ExtractionUnavailableError,
 	type DocumentExtractionProviderPort
@@ -196,6 +197,7 @@ export async function extractFromDocument(
 		// stack — collapse it into the same generic, safe failure type.
 		if (
 			cause instanceof ExtractionUnavailableError ||
+			cause instanceof ExtractionRateLimitError ||
 			cause instanceof ExtractionTimeoutError ||
 			cause instanceof ExtractionFailedError ||
 			cause instanceof ExtractionMalformedOutputError ||

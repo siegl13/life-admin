@@ -480,6 +480,8 @@ export const de = {
 	'ai.additional.noneSelected': 'Bitte wähle mindestens eine Angabe aus.',
 	'ai.error.rateLimited':
 		'Das tägliche Limit für die automatische Erkennung ist erreicht. Bitte versuche es morgen erneut.',
+	'ai.error.providerRateLimited':
+		'OpenAI hat die Anfrage wegen fehlendem Guthaben oder eines Nutzungslimits abgelehnt. Prüfe dein OpenAI-Konto und versuche es erneut.',
 
 	'settings.privacyNote.aiException':
 		'Ausnahme: Die Dokumenterkennung ist eingeschaltet. Dabei werden ausgewählte Dokumente an OpenAI übertragen.',

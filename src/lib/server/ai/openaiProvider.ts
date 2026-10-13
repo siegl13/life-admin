@@ -15,6 +15,7 @@
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
+	ExtractionRateLimitError,
 	ExtractionTimeoutError,
 	ExtractionUnavailableError,
 	type DocumentExtractionProviderPort,
@@ -226,7 +227,11 @@ export function createOpenAiProvider(
 				warn('unauthorized', response.status);
 				throw new ExtractionUnavailableError('OpenAI rejected the API key');
 			}
-			if (response.status === 429 || response.status >= 500) {
+			if (response.status === 429) {
+				warn('rate_limited', response.status);
+				throw new ExtractionRateLimitError('OpenAI usage or rate limit reached');
+			}
+			if (response.status >= 500) {
 				warn('provider_error', response.status);
 				throw new ExtractionFailedError('OpenAI returned an error status');
 			}
@@ -348,6 +353,15 @@ export function createOpenAiProvider(
 			}
 			if (response.status === 401 || response.status === 403)
 				throw new ExtractionUnavailableError('OpenAI rejected the API key');
+			if (response.status === 429) {
+				log.warn('ai routing failed', {
+					providerId: 'openai',
+					modelId: config.aiModel,
+					status: response.status,
+					reason: 'rate_limited'
+				});
+				throw new ExtractionRateLimitError('OpenAI usage or rate limit reached');
+			}
 			if (!response.ok) throw new ExtractionFailedError('OpenAI returned an error status');
 			let output: unknown;
 			try {

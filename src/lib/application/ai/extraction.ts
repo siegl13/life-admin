@@ -101,7 +101,9 @@ export interface DocumentExtractionProviderPort {
 export class ExtractionUnavailableError extends Error {}
 /** The request was aborted after `timeoutMs`. Mapped to `ai.error.failed`. */
 export class ExtractionTimeoutError extends Error {}
-/** A rate limit or provider-side error (429/5xx). Mapped to `ai.error.failed`. */
+/** The provider rejected the request because its usage or rate limit was reached. */
+export class ExtractionRateLimitError extends Error {}
+/** A provider-side error (5xx). Mapped to `ai.error.failed`. */
 export class ExtractionFailedError extends Error {}
 /** A non-JSON body or a schema/strict-parse failure. Mapped to `ai.error.failed`. */
 export class ExtractionMalformedOutputError extends Error {}
