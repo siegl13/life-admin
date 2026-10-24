@@ -367,6 +367,7 @@ test('stale or invalid undo attempts are refused with a rendered 400, never a 50
 		await group.getByRole('button', { name: 'Erledigen: Guarded task' }).click();
 		await expect(page.locator('.undo-notice')).toBeVisible();
 		await page.goto(`/items/${itemId}`);
+		await page.locator('.timeline-closed > summary').click();
 		await page
 			.locator('form[action="?/reopenAction"]')
 			.getByRole('button', { name: 'Wieder öffnen' })

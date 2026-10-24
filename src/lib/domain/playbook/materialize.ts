@@ -27,6 +27,19 @@ export interface FieldPlan {
 	recommended: boolean;
 	position: number;
 	carryForward?: boolean;
+	/** Initial group of this field, a `GroupPlan.groupKey`. Omitted means General. */
+	groupKey?: string;
+}
+
+/**
+ * Initial field group for a new item. Read at item creation only: from
+ * then on the item owns its groups and nothing reads this plan again.
+ */
+export interface GroupPlan {
+	groupKey: string;
+	label: string;
+	labelI18n: Record<string, string>;
+	position: number;
 }
 
 export interface EventPlan {
@@ -52,6 +65,8 @@ export interface ActionPlan {
 
 export interface MaterializationPlan {
 	fields: FieldPlan[];
+	/** Initial groups; absent or empty means every field starts in General. */
+	groups?: GroupPlan[];
 	events: EventPlan[];
 	actions: ActionPlan[];
 }
@@ -66,7 +81,14 @@ export function materializePlaybook(playbook: NormalizedPlaybook): Materializati
 			origin: 'PLAYBOOK',
 			recommended: field.recommended,
 			position: field.position,
-			carryForward: field.carryForward
+			carryForward: field.carryForward,
+			groupKey: field.group
+		})),
+		groups: (playbook.groups ?? []).map((group) => ({
+			groupKey: group.key,
+			label: group.label,
+			labelI18n: group.labelI18n,
+			position: group.position
 		})),
 		events: playbook.events.map((event) => ({
 			eventKey: event.key,

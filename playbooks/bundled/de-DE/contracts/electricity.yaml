@@ -1,12 +1,26 @@
 schemaVersion: 1
 id: de.contract.electricity
-version: 1.1.0
+version: 1.2.0
 name: Electricity contract
 label_i18n:
   de: Stromvertrag
 description: Track an electricity contract and prepare a tariff or provider review.
 locale: de-DE
 category: contracts
+
+groups:
+  - key: contract
+    label: Contract
+    label_i18n:
+      de: Vertrag
+  - key: meter
+    label: Meter and consumption
+    label_i18n:
+      de: Zähler und Verbrauch
+  - key: tariff
+    label: Tariff and costs
+    label_i18n:
+      de: Tarif und Kosten
 
 fields:
   - key: provider
@@ -16,12 +30,14 @@ fields:
       de: Anbieter
     recommended: true
     carryForward: true
+    group: contract
   - key: customer_number
     type: text
     label: Customer number / contract account
     label_i18n:
       de: Kundennummer / Vertragskonto
     carryForward: true
+    group: contract
   - key: contract_end
     type: date
     label: Contract end date
@@ -29,12 +45,14 @@ fields:
       de: Vertragsende
     recommended: true
     carryForward: false
+    group: contract
   - key: notice_period
     type: text
     label: Notice period
     label_i18n:
       de: Kündigungsfrist
     carryForward: false
+    group: contract
   - key: meter_number
     type: text
     label: Meter number
@@ -42,42 +60,49 @@ fields:
       de: Zählernummer
     recommended: true
     carryForward: true
+    group: meter
   - key: market_location_id
     type: text
     label: Market location ID
     label_i18n:
       de: MaLo-ID
     carryForward: true
+    group: meter
   - key: annual_consumption
     type: text
     label: Annual consumption
     label_i18n:
       de: Jahresverbrauch
     carryForward: false
+    group: meter
   - key: tariff_name
     type: text
     label: Tariff name
     label_i18n:
       de: Tarifname
     carryForward: false
+    group: tariff
   - key: energy_price
     type: text
     label: Energy price
     label_i18n:
       de: Arbeitspreis
     carryForward: false
+    group: tariff
   - key: base_price
     type: currency
     label: Base price
     label_i18n:
       de: Grundpreis
     carryForward: false
+    group: tariff
   - key: monthly_payment
     type: currency
     label: Monthly payment
     label_i18n:
       de: Monatlicher Abschlag
     carryForward: false
+    group: tariff
 
 events:
   - key: contract_ends

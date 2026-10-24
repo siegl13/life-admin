@@ -23,6 +23,7 @@ docs/*
 !docs/implementation-status.md
 !docs/action-detail-ux-status.md
 !docs/document-usability-extraction-status.md
+!docs/item-detail-information-hierarchy-status.md
 
 # Local agent/editor state, never meant to be tracked.
 .claude/

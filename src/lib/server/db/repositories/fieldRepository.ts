@@ -87,7 +87,21 @@ export function insertCustomFieldRow(
 	input: AddCustomFieldInput
 ): Field {
 	const existing = listFields(db, cycleId);
-	const existingKeys = new Set(existing.map((f) => f.fieldKey));
+	// Keys of earlier cycles and retained group assignments stay reserved, so a
+	// new field never inherits a historical field's group.
+	const existingKeys = new Set(
+		(
+			db
+				.prepare(
+					`SELECT f.field_key AS k FROM cycle_fields f JOIN cycles c ON c.id = f.cycle_id
+					 WHERE c.item_id = (SELECT item_id FROM cycles WHERE id = ?)
+					 UNION
+					 SELECT field_key FROM item_field_group_assignments
+					 WHERE item_id = (SELECT item_id FROM cycles WHERE id = ?)`
+				)
+				.all(cycleId, cycleId) as { k: string }[]
+		).map((row) => row.k)
+	);
 	const maxPosition = existing.reduce((max, f) => Math.max(max, f.position), -1);
 
 	const baseSlug = slugify(input.label);
@@ -156,5 +170,19 @@ export function removeCustomField(db: Database.Database, cycleId: string, fieldK
 			cycleId,
 			fieldKey
 		);
+		// Only the active cycle's field is removed here, so the key may still
+		// exist in earlier cycles; keep the assignment while any cycle has it.
+		const stillUsed = db
+			.prepare(
+				`SELECT 1 FROM cycle_fields f JOIN cycles c ON c.id = f.cycle_id
+				 WHERE c.item_id = (SELECT item_id FROM cycles WHERE id = ?) AND f.field_key = ?`
+			)
+			.get(cycleId, fieldKey);
+		if (!stillUsed) {
+			db.prepare(
+				`DELETE FROM item_field_group_assignments
+				 WHERE field_key = ? AND item_id = (SELECT item_id FROM cycles WHERE id = ?)`
+			).run(fieldKey, cycleId);
+		}
 	})();
 }

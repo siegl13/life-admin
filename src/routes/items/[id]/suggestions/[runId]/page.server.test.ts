@@ -54,7 +54,13 @@ async function apply(body: Record<string, string>) {
 describe('applied AI suggestions history recording', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		runs.getById.mockReturnValue({ id: RUN, itemId: A, cycleId: 'cycle-1', status: 'NEW' });
+		runs.getById.mockReturnValue({
+			id: RUN,
+			itemId: A,
+			cycleId: 'cycle-1',
+			status: 'NEW',
+			attachmentId: null
+		});
 		runs.listSuggestions.mockReturnValue([
 			{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false }
 		]);
@@ -76,9 +82,47 @@ describe('applied AI suggestions history recording', () => {
 		expect(history.insert).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: 'AI_SUGGESTIONS_ACCEPTED',
-				payload: JSON.stringify({ acceptedCount: 1 })
+				payload: JSON.stringify({ acceptedCount: 1, source: 'DOCUMENT' })
 			})
 		);
+	});
+
+	it('records the source document id, never its name, when the run still has its attachment', async () => {
+		runs.getById.mockReturnValue({
+			id: RUN,
+			itemId: A,
+			cycleId: 'cycle-1',
+			status: 'NEW',
+			attachmentId: 'att-1',
+			sourceFilename: 'secret-name.pdf'
+		});
+
+		await expect(apply({ 'accept:contract_end': 'on' })).rejects.toMatchObject({
+			status: 303,
+			location: `/items/${A}`
+		});
+
+		const payload = history.insert.mock.calls[0][0].payload as string;
+		expect(JSON.parse(payload)).toEqual({
+			acceptedCount: 1,
+			source: 'DOCUMENT',
+			attachmentId: 'att-1'
+		});
+		expect(payload).not.toContain('secret-name');
+	});
+
+	it('does not take the document id from a run of another item', async () => {
+		runs.getById.mockReturnValue({
+			id: RUN,
+			itemId: 'other-item',
+			cycleId: 'cycle-1',
+			status: 'NEW',
+			attachmentId: 'att-foreign'
+		});
+
+		await expect(apply({ 'accept:contract_end': 'on' })).rejects.toMatchObject({ status: 404 });
+		expect(runs.applyRun).not.toHaveBeenCalled();
+		expect(history.insert).not.toHaveBeenCalled();
 	});
 
 	it('keeps the already-recorded event for a sub-operation that committed, even when the next one fails', async () => {
@@ -103,7 +147,7 @@ describe('applied AI suggestions history recording', () => {
 		expect(history.insert).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: 'AI_SUGGESTIONS_ACCEPTED',
-				payload: JSON.stringify({ acceptedCount: 1 })
+				payload: JSON.stringify({ acceptedCount: 1, source: 'DOCUMENT' })
 			})
 		);
 	});
@@ -142,7 +186,7 @@ describe('applied AI suggestions history recording', () => {
 		expect(history.insert).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: 'AI_SUGGESTIONS_ACCEPTED',
-				payload: JSON.stringify({ acceptedCount: 1 })
+				payload: JSON.stringify({ acceptedCount: 1, source: 'DOCUMENT' })
 			})
 		);
 	});

@@ -68,9 +68,7 @@ test('inbox picker shows the selected file and keeps the explicit submit', async
 	await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 375);
 });
 
-test('Erledigen and Überspringen are primary for open actions with and without dates, and reopen stays', async ({
-	page
-}) => {
+test('featured action controls are primary, and reopen stays', async ({ page }) => {
 	await page.setViewportSize({ width: 375, height: 800 });
 	await createItem(page, 'Action Controls Test');
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
@@ -83,22 +81,13 @@ test('Erledigen and Überspringen are primary for open actions with and without 
 	await addAction.getByLabel('Fällig am (optional)').fill('2099-01-01');
 	await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
 
-	// Featured action: both lifecycle controls are visible in the sticky bar
-	// without opening a menu.
-	const sticky = page.locator('.sticky-action-bar');
-	await expect(sticky.getByRole('button', { name: 'Erledigen' })).toBeVisible();
-	await expect(sticky.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+	// The hero card owns the featured action controls at every width.
+	const hero = page.locator('.next-up');
+	await expect(hero.getByRole('button', { name: 'Erledigen' })).toBeVisible();
+	await expect(hero.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 
-	// The other open action shows the same controls in its timeline step.
-	for (const title of ['Undated task', 'Dated task']) {
-		const step = page.locator('.timeline__step', { hasText: title });
-		const featured = (await sticky.count()) > 0 && (await step.getByRole('button').count()) === 0;
-		if (featured) continue;
-		await expect(step.getByRole('button', { name: 'Erledigen' })).toBeVisible();
-		await expect(step.getByRole('button', { name: 'Überspringen' })).toBeVisible();
-	}
-
-	await sticky.getByRole('button', { name: 'Erledigen' }).click();
+	await hero.getByRole('button', { name: 'Erledigen' }).click();
+	await page.locator('summary', { hasText: 'Erledigt und übersprungen' }).click();
 	await expect(page.getByRole('button', { name: 'Wieder öffnen' })).toHaveCount(1);
 });
 

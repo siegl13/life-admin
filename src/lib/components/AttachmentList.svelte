@@ -48,7 +48,17 @@
 				<div class="link-list__row attachment-manage-row" id={`attachment-manage-${attachment.id}`}>
 					<span class="document-row__preview" aria-hidden="true">
 						{#if attachment.mimeType === 'application/pdf'}
-							<span class="document-row__type">PDF</span>
+							<span class="document-row__type">
+								<svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+									<path
+										d="M7 3h7l5 5v13H7z M14 3v5h5"
+										stroke="currentColor"
+										stroke-width="1.6"
+										stroke-linejoin="round"
+									/>
+								</svg>
+								PDF
+							</span>
 						{:else}
 							<img src={contentUrl(attachment.id)} alt="" width="72" height="72" loading="lazy" />
 						{/if}

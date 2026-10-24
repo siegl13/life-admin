@@ -2,7 +2,10 @@ import { z } from 'zod';
 import type { NormalizedPlaybook } from './normalize';
 import { validatePlaybookSemantics } from './semanticValidation';
 import {
+	groupLabelI18nSchema,
+	groupLabelSchema,
 	keySchema,
+	MAX_PLAYBOOK_GROUPS,
 	labelI18nEntrySchema,
 	offsetShape,
 	playbookIdSchema,
@@ -26,9 +29,19 @@ import {
  * property existed has no `carryForward` anywhere, and it must still
  * validate (see docs/adr/0004's Slice 8 amendment and the Slice 8 ADR) —
  * every field simply takes the type-driven fallback, exactly the
- * behavior that item already had.
+ * behavior that item already had. `groups` and a field's `group` are
+ * optional for the same reason.
  */
 const labelI18nSchema = labelI18nEntrySchema;
+
+const normalizedGroupSchema = z
+	.object({
+		key: keySchema,
+		label: groupLabelSchema,
+		labelI18n: groupLabelI18nSchema,
+		position: z.number().int().min(0)
+	})
+	.strict();
 
 const normalizedFieldSchema = z
 	.object({
@@ -38,7 +51,8 @@ const normalizedFieldSchema = z
 		labelI18n: labelI18nSchema,
 		recommended: z.boolean(),
 		position: z.number().int().min(0),
-		carryForward: z.boolean().optional()
+		carryForward: z.boolean().optional(),
+		group: z.string().min(1).max(64).optional()
 	})
 	.strict();
 
@@ -74,6 +88,7 @@ export const normalizedPlaybookSchema: z.ZodType<NormalizedPlaybook> = z
 		description: z.string().max(2000).nullable(),
 		locale: z.string().min(2).max(10).nullable(),
 		category: z.string().min(1).max(64).nullable(),
+		groups: z.array(normalizedGroupSchema).max(MAX_PLAYBOOK_GROUPS).optional(),
 		fields: z.array(normalizedFieldSchema).max(50),
 		events: z.array(normalizedEventSchema).max(50),
 		actions: z.array(normalizedActionSchema).max(100)

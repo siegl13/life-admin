@@ -1,12 +1,26 @@
 schemaVersion: 1
 id: de.home.maintenance
-version: 1.0.0
+version: 1.1.0
 name: Maintenance and inspection
 label_i18n:
   de: Wartung & Prüfung
 description: Track recurring maintenance or inspection of household equipment or property.
 locale: de-DE
 category: home
+
+groups:
+  - key: equipment
+    label: Equipment
+    label_i18n:
+      de: Anlage / Gerät
+  - key: service
+    label: Service provider and costs
+    label_i18n:
+      de: Dienstleister und Kosten
+  - key: schedule
+    label: Schedule
+    label_i18n:
+      de: Wartungsplan
 
 fields:
   - key: equipment
@@ -15,48 +29,56 @@ fields:
     label_i18n:
       de: Anlage / Gerät
     carryForward: true
+    group: equipment
   - key: manufacturer
     type: text
     label: Manufacturer
     label_i18n:
       de: Hersteller
     carryForward: true
+    group: equipment
   - key: model
     type: text
     label: Model
     label_i18n:
       de: Modell
     carryForward: true
+    group: equipment
   - key: serial_number
     type: text
     label: Serial number
     label_i18n:
       de: Seriennummer
     carryForward: true
+    group: equipment
   - key: location
     type: text
     label: Location
     label_i18n:
       de: Standort
     carryForward: true
+    group: equipment
   - key: service_provider
     type: text
     label: Service provider
     label_i18n:
       de: Dienstleister
     carryForward: true
+    group: service
   - key: customer_contract_number
     type: text
     label: Customer number / contract number
     label_i18n:
       de: Kundennummer / Vertragsnummer
     carryForward: true
+    group: service
   - key: last_maintenance
     type: date
     label: Last maintenance / inspection
     label_i18n:
       de: Letzte Wartung / Prüfung
     carryForward: false
+    group: schedule
   - key: next_maintenance
     type: date
     label: Next maintenance / inspection
@@ -64,18 +86,21 @@ fields:
       de: Nächste Wartung / Prüfung
     recommended: true
     carryForward: false
+    group: schedule
   - key: maintenance_interval
     type: text
     label: Maintenance interval
     label_i18n:
       de: Wartungsintervall
     carryForward: true
+    group: schedule
   - key: cost
     type: currency
     label: Cost
     label_i18n:
       de: Kosten
     carryForward: false
+    group: service
 
 events:
   - key: maintenance_due

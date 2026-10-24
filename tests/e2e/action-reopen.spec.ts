@@ -33,6 +33,8 @@ test('completing, then reopening an action makes it available again and un-block
 	await expect(step('HU-Termin planen')).toContainText('Erledigt');
 	await expect(step('Fahrzeug / Unterlagen vorbereiten')).toContainText('Jetzt möglich');
 
+	// Completed steps are collapsed under the open ones until expanded.
+	await page.locator('.timeline-closed > summary').click();
 	await step('HU-Termin planen').getByRole('button', { name: 'Wieder öffnen' }).click();
 
 	// Reopened: back to "now", and the dependent step is blocked again

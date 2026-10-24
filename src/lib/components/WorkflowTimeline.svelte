@@ -27,11 +27,9 @@
 		today: string;
 		readOnly?: boolean;
 		form?: TimelineFormResult;
-		/** The action a hero/sticky bar elsewhere on the page already owns
-		 *  complete/skip for (mobile: always; desktop: none, since there the
-		 *  hero sits beside the timeline, not instead of its "now" controls).
-		 *  Its primary controls are hidden here so they are reachable once,
-		 *  not twice. */
+		/** The action the next-action card already owns complete/skip for, at
+		 *  every width. Its primary controls are hidden here so they are
+		 *  reachable once, not twice. */
 		featuredActionId?: string | null;
 	} = $props();
 
@@ -51,6 +49,11 @@
 	};
 
 	let steps = $derived(workflow.map((entry) => ({ entry, state: stateOf(entry) })));
+
+	/* Open steps first, in workflow order; completed and skipped steps are
+	   grouped behind a disclosure. */
+	let openSteps = $derived(steps.filter(({ state }) => state === 'now' || state === 'waiting'));
+	let closedSteps = $derived(steps.filter(({ state }) => state === 'done' || state === 'skipped'));
 
 	/* The progress header is a compact summary. The list below remains the
 	   only place that presents workflow step names and controls. */
@@ -75,11 +78,11 @@
 		return canEditActionDueDate(entry.action);
 	}
 
-	/** The hero/sticky bar already renders complete/skip/change-due triggers
+	/** The next-action card already renders complete/skip/change-due triggers
 	 *  for this one action (see `featuredActionId` above) — its dialogs stay
-	 *  here (one editor per action, opened by id from either surface), but
-	 *  the timeline's own visible triggers are hidden so each control is
-	 *  reachable exactly once. */
+	 *  here (one editor per action, opened by id), but the timeline's own
+	 *  visible triggers are hidden so each control is reachable exactly
+	 *  once. */
 	function isFeatured(entry: WorkflowAction): boolean {
 		return entry.action.id === featuredActionId;
 	}
@@ -171,277 +174,294 @@
 	ring / dashed), an explicit state word and a plain-language line of
 	explanation carry the state — never colour on its own.
 -->
-<ol class="timeline">
-	{#each steps as { entry, state } (entry.action.id)}
-		<li class="timeline__step timeline__step--{state}" id="action-{entry.action.id}">
-			<span class="timeline__rail" aria-hidden="true">
-				<span
-					class="timeline__dot"
-					class:timeline__dot--done={state === 'done' || state === 'skipped'}
-					class:timeline__dot--now={state === 'now'}
-				>
-					{#if state === 'done'}✓{:else if state === 'skipped'}–{/if}
-				</span>
-				<span class="timeline__line"></span>
+{#snippet step(entry: WorkflowAction, state: StepState)}
+	<li class="timeline__step timeline__step--{state}" id="action-{entry.action.id}">
+		<span class="timeline__rail" aria-hidden="true">
+			<span
+				class="timeline__dot"
+				class:timeline__dot--done={state === 'done' || state === 'skipped'}
+				class:timeline__dot--now={state === 'now'}
+			>
+				{#if state === 'done'}✓{:else if state === 'skipped'}–{/if}
 			</span>
+			<span class="timeline__line"></span>
+		</span>
 
-			<span class="timeline__body">
-				<span class="timeline__title">{entry.action.label}</span>
-				<!-- On mobile, the step collapses to a single column and the
+		<span class="timeline__body">
+			<span class="timeline__title">{entry.action.label}</span>
+			<!-- On mobile, the step collapses to a single column and the
 				     aligned-right state badge (`.timeline__state` below) ends
 				     up after every control instead of next to the title. This
 				     copy renders in its place there (hidden on wider screens,
 				     where the badge already sits next to the title). -->
-				<span
-					class="timeline__status-inline"
-					class:timeline__status-inline--done={state === 'done' || state === 'skipped'}
-					class:timeline__status-inline--now={state === 'now'}
-				>
-					{stateLabel[state]}
-				</span>
-				<!-- Only a task someone wrote context for (e.g. one created from a
-				     reviewed document suggestion); playbook step descriptions
-				     keep their current, undisplayed behaviour. -->
-				{#if entry.action.dueKind === 'MANUAL' && entry.action.description}
-					<span class="meta timeline__description">{entry.action.description}</span>
-				{/if}
-				{#if state === 'done'}
-					<span class="hint">
-						{t('items.detail.status.done')}{#if entry.action.completedAt}
-							· {formatDate(entry.action.completedAt.slice(0, 10))}{/if}
-					</span>
-					{#if !readOnly}
-						<form method="POST" action="?/reopenAction" class="timeline__controls">
-							<input type="hidden" name="actionId" value={entry.action.id} />
-							<button type="submit" class="link">{t('items.detail.reopen')}</button>
-						</form>
-					{/if}
-				{:else if state === 'skipped'}
-					<span class="hint">{t('items.detail.status.skipped')}</span>
-					{#if !readOnly}
-						<form method="POST" action="?/reopenAction" class="timeline__controls">
-							<input type="hidden" name="actionId" value={entry.action.id} />
-							<button type="submit" class="link">{t('items.detail.reopen')}</button>
-						</form>
-					{/if}
-				{:else if state === 'now'}
-					<!-- No extra hint line here: the "Jetzt möglich" state word
-					     to the right already says this; repeating it as
-					     "Kann jetzt erledigt werden." added a line without a
-					     new fact. -->
-				{:else if entry.blockedReason?.kind === 'unresolvedDate'}
-					<span class="hint">
-						{t('items.detail.status.unresolvedDate', { field: entry.blockedReason.fieldLabel })}
-					</span>
-					<span class="meta">
-						{t('items.detail.status.unresolvedDateHint', {
-							field: entry.blockedReason.fieldLabel
-						})}
-					</span>
-				{:else if entry.blockedReason?.kind === 'dependency'}
-					<span class="hint">
-						{t('items.detail.status.blockedBy', {
-							action: entry.blockedReason.blockingLabels.join(', ')
-						})}
-					</span>
-				{:else}
-					<span class="hint">{t('items.detail.status.waitingHint')}</span>
-				{/if}
-
-				<!-- "When is it due?" is answered right under the title/status
-				     for every open step that has one — a MANUAL action's own
-				     due date included — independently of whether that date
-				     happens to be editable here (only DERIVED actions are). -->
-				{#if (state === 'now' || state === 'waiting') && !isFeatured(entry) && effectiveDueDate(entry.action)}
-					<span class="meta">
-						{t('whatsNext.dueOn')}
-						{formatDate(effectiveDueDate(entry.action)!)}
-					</span>
-				{/if}
-
-				{#if canEditDueDate(entry) && entry.action.dueOverrideDate}
-					<span class="hint">
-						{t('items.detail.dueOverrideActive')} ·
-						{#if entry.action.dueDate}
-							{t('items.detail.dueOverrideSuggestion', {
-								date: formatDate(entry.action.dueDate)
-							})}
-						{:else}
-							{t('items.detail.dueOverrideSuggestionUnresolved')}
-						{/if}
-						{#if !readOnly}
-							·
-							<form method="POST" action="?/resetActionDueOverride" class="timeline__due-form">
-								<input type="hidden" name="actionId" value={entry.action.id} />
-								<button type="submit" class="link">
-									{t('items.detail.resetDueOverride')}
-								</button>
-							</form>
-						{/if}
-					</span>
-				{/if}
-
-				{#if state === 'now' && !readOnly && !isFeatured(entry)}
-					<form method="POST" action="?/completeAction" class="timeline__controls">
-						<input type="hidden" name="actionId" value={entry.action.id} />
-						<button type="submit" class="quiet">{t('whatsNext.done')}</button>
-						<button type="submit" formaction="?/skipAction" class="secondary">
-							{t('whatsNext.skip')}
-						</button>
-					</form>
-				{/if}
-				{#if state === 'waiting' && !readOnly}
-					<form method="POST" action="?/completeAction" class="timeline__controls">
-						<input type="hidden" name="actionId" value={entry.action.id} />
-						<button type="submit" class="quiet">{t('whatsNext.done')}</button>
-					</form>
-				{/if}
-
-				{#if canEditDueDate(entry) && !readOnly && !isFeatured(entry)}
-					<button
-						type="button"
-						class="timeline__secondary-trigger"
-						onclick={() => openDialog(dueDialogId(entry.action.id))}
-					>
-						{t('items.detail.changeDueDate')}
-					</button>
-				{/if}
-				{#if canEditDueDate(entry) && !readOnly}
-					<dialog
-						id={dueDialogId(entry.action.id)}
-						class="action-dialog"
-						aria-labelledby="due-dialog-title-{entry.action.id}"
-						open
-						onclick={closeOnBackdropClick}
-					>
-						<strong class="action-dialog__title" id="due-dialog-title-{entry.action.id}">
-							{t('items.detail.changeDueDate')}
-						</strong>
-						<p class="meta">
-							{t('items.detail.dueCurrentLabel')}
-							{#if effectiveDueDate(entry.action)}{formatDate(
-									effectiveDueDate(entry.action)!
-								)}{:else}{t('items.detail.status.noDate')}{/if}
-						</p>
-						<p class="meta">
-							{t('items.detail.dueSuggestedLabel')}
-							{#if entry.action.dueDate}{formatDate(entry.action.dueDate)}{:else}{t(
-									'items.detail.dueOverrideSuggestionUnresolved'
-								)}{/if}
-						</p>
-						{#if form?.context === 'dueOverride' && form.actionId === entry.action.id && form.error}
-							<p class="notice notice--error" role="alert">{form.error}</p>
-						{/if}
-						<form method="POST" action="?/setActionDueOverride" class="form-stack">
-							<input type="hidden" name="actionId" value={entry.action.id} />
-							<div class="field-row">
-								<label for="due-date-{entry.action.id}">{t('items.detail.dueDateLabel')}</label>
-								<input
-									id="due-date-{entry.action.id}"
-									name="dueDate"
-									type="date"
-									value={form?.context === 'dueOverride' && form.actionId === entry.action.id
-										? (form.dueDate ?? '')
-										: (entry.action.dueOverrideDate ?? entry.action.dueDate ?? '')}
-								/>
-							</div>
-							<div class="form-actions">
-								<button type="submit" class="quiet">
-									{t('items.detail.saveDueDate')}
-								</button>
-								<button type="button" class="link" onclick={closeDialog}>
-									{t('common.cancel')}
-								</button>
-							</div>
-						</form>
-					</dialog>
-				{/if}
-
-				{#if canSnooze(entry) && !readOnly}
-					{#if snoozes[entry.action.id]}
-						<span class="hint">
-							{t('items.detail.snoozeActive', {
-								date: formatDate(snoozes[entry.action.id]!.snoozedUntil)
-							})}
-						</span>
-						{#if !isFeatured(entry) && effectiveDueDate(entry.action)}
-							<span class="meta">
-								{#if effectiveDueDate(entry.action)! < today}
-									{t('due.overdueSince', { date: formatDate(effectiveDueDate(entry.action)!) })}
-								{:else}
-									{t('due.dueOn', { date: formatDate(effectiveDueDate(entry.action)!) })}
-								{/if}
-							</span>
-						{/if}
-						<form method="POST" action="?/clearSnooze" class="timeline__controls">
-							<input type="hidden" name="actionId" value={entry.action.id} />
-							<button type="submit" class="link">{t('items.detail.snoozeClear')}</button>
-						</form>
-					{/if}
-					<button
-						type="button"
-						class="timeline__secondary-trigger"
-						onclick={() => openDialog(snoozeDialogId(entry.action.id))}
-					>
-						{snoozes[entry.action.id] ? t('items.detail.snoozeReplace') : t('items.detail.snooze')}
-					</button>
-					<dialog
-						id={snoozeDialogId(entry.action.id)}
-						class="action-dialog"
-						aria-labelledby="snooze-dialog-title-{entry.action.id}"
-						open
-						onclick={closeOnBackdropClick}
-					>
-						<strong class="action-dialog__title" id="snooze-dialog-title-{entry.action.id}">
-							{snoozes[entry.action.id]
-								? t('items.detail.snoozeReplace')
-								: t('items.detail.snooze')}
-						</strong>
-						{#if form?.context === 'snooze' && form.actionId === entry.action.id && form.error}
-							<p class="notice notice--error" role="alert">{form.error}</p>
-						{/if}
-						<form method="POST" action="?/setSnooze" class="snooze__form">
-							<input type="hidden" name="actionId" value={entry.action.id} />
-							<button type="submit" name="snoozedUntil" value="TOMORROW" class="secondary">
-								{t('items.detail.snoozeTomorrow')}
-							</button>
-							<button type="submit" name="snoozedUntil" value="THREE_DAYS" class="secondary">
-								{t('items.detail.snoozeThreeDays')}
-							</button>
-							<button type="submit" name="snoozedUntil" value="SEVEN_DAYS" class="secondary">
-								{t('items.detail.snoozeSevenDays')}
-							</button>
-							<label>
-								<span class="sr-only">{t('items.detail.snoozeCustom')}</span>
-								<input
-									type="date"
-									name="snoozedUntil"
-									aria-label={t('items.detail.snoozeCustom')}
-									value={form?.context === 'snooze' &&
-									form.actionId === entry.action.id &&
-									form.snoozedUntil &&
-									!['TOMORROW', 'THREE_DAYS', 'SEVEN_DAYS'].includes(form.snoozedUntil)
-										? form.snoozedUntil
-										: ''}
-								/>
-							</label>
-							<button type="submit" class="secondary">{t('items.detail.snoozeCustomSubmit')}</button
-							>
-							<button type="button" class="link" onclick={closeDialog}>
-								{t('common.cancel')}
-							</button>
-						</form>
-					</dialog>
-				{/if}
-			</span>
-
 			<span
-				class="timeline__state"
-				class:timeline__state--done={state === 'done'}
-				class:timeline__state--now={state === 'now'}
+				class="timeline__status-inline"
+				class:timeline__status-inline--done={state === 'done' || state === 'skipped'}
+				class:timeline__status-inline--now={state === 'now'}
 			>
 				{stateLabel[state]}
 			</span>
-		</li>
-	{/each}
-</ol>
+			<!-- Keep user-provided context for document-created manual actions. -->
+			{#if entry.action.dueKind === 'MANUAL' && entry.action.description}
+				<span class="meta timeline__description">{entry.action.description}</span>
+			{/if}
+			{#if state === 'done'}
+				<span class="hint">
+					{t('items.detail.status.done')}{#if entry.action.completedAt}
+						· {formatDate(entry.action.completedAt.slice(0, 10))}{/if}
+				</span>
+				{#if !readOnly}
+					<form method="POST" action="?/reopenAction" class="timeline__controls">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<button type="submit" class="link">{t('items.detail.reopen')}</button>
+					</form>
+				{/if}
+			{:else if state === 'skipped'}
+				<span class="hint">
+					{t('items.detail.status.skipped')}{#if entry.action.completedAt}
+						· {formatDate(entry.action.completedAt.slice(0, 10))}{/if}
+				</span>
+				{#if !readOnly}
+					<form method="POST" action="?/reopenAction" class="timeline__controls">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<button type="submit" class="link">{t('items.detail.reopen')}</button>
+					</form>
+				{/if}
+			{:else if state === 'now'}
+				<!-- No extra hint line here: the "Jetzt möglich" state word
+					     to the right already says this; repeating it as
+					     "Kann jetzt erledigt werden." added a line without a
+					     new fact. -->
+			{:else if entry.blockedReason?.kind === 'unresolvedDate'}
+				<span class="hint">
+					{t('items.detail.status.unresolvedDate', { field: entry.blockedReason.fieldLabel })}
+				</span>
+				<span class="meta">
+					{t('items.detail.status.unresolvedDateHint', {
+						field: entry.blockedReason.fieldLabel
+					})}
+				</span>
+			{:else if entry.blockedReason?.kind === 'dependency'}
+				<span class="hint">
+					{t('items.detail.status.blockedBy', {
+						action: entry.blockedReason.blockingLabels.join(', ')
+					})}
+				</span>
+			{:else}
+				<span class="hint">{t('items.detail.status.waitingHint')}</span>
+			{/if}
+
+			<!-- "When is it due?" is answered right under the title/status
+				     for every open step that has one — a MANUAL action's own
+				     due date included — independently of whether that date
+				     happens to be editable here (only DERIVED actions are). -->
+			{#if (state === 'now' || state === 'waiting') && !isFeatured(entry) && effectiveDueDate(entry.action)}
+				<span class="meta">
+					{t('whatsNext.dueOn')}
+					{formatDate(effectiveDueDate(entry.action)!)}
+				</span>
+			{/if}
+
+			{#if canEditDueDate(entry) && entry.action.dueOverrideDate}
+				<span class="hint">
+					{t('items.detail.dueOverrideActive')} ·
+					{#if entry.action.dueDate}
+						{t('items.detail.dueOverrideSuggestion', {
+							date: formatDate(entry.action.dueDate)
+						})}
+					{:else}
+						{t('items.detail.dueOverrideSuggestionUnresolved')}
+					{/if}
+					{#if !readOnly}
+						·
+						<form method="POST" action="?/resetActionDueOverride" class="timeline__due-form">
+							<input type="hidden" name="actionId" value={entry.action.id} />
+							<button type="submit" class="link">
+								{t('items.detail.resetDueOverride')}
+							</button>
+						</form>
+					{/if}
+				</span>
+			{/if}
+
+			{#if state === 'now' && !readOnly && !isFeatured(entry)}
+				<form method="POST" action="?/completeAction" class="timeline__controls">
+					<input type="hidden" name="actionId" value={entry.action.id} />
+					<button type="submit" class="quiet">{t('whatsNext.done')}</button>
+					<button type="submit" formaction="?/skipAction" class="secondary">
+						{t('whatsNext.skip')}
+					</button>
+				</form>
+			{/if}
+			{#if state === 'waiting' && !readOnly}
+				<form method="POST" action="?/completeAction" class="timeline__controls">
+					<input type="hidden" name="actionId" value={entry.action.id} />
+					<button type="submit" class="quiet">{t('whatsNext.done')}</button>
+				</form>
+			{/if}
+
+			{#if canEditDueDate(entry) && !readOnly && !isFeatured(entry)}
+				<button
+					type="button"
+					class="timeline__secondary-trigger"
+					onclick={() => openDialog(dueDialogId(entry.action.id))}
+				>
+					{t('items.detail.changeDueDate')}
+				</button>
+			{/if}
+			{#if canEditDueDate(entry) && !readOnly}
+				<dialog
+					id={dueDialogId(entry.action.id)}
+					class="action-dialog"
+					aria-labelledby="due-dialog-title-{entry.action.id}"
+					open
+					onclick={closeOnBackdropClick}
+				>
+					<strong class="action-dialog__title" id="due-dialog-title-{entry.action.id}">
+						{t('items.detail.changeDueDate')}
+					</strong>
+					<p class="meta">
+						{t('items.detail.dueCurrentLabel')}
+						{#if effectiveDueDate(entry.action)}{formatDate(
+								effectiveDueDate(entry.action)!
+							)}{:else}{t('items.detail.status.noDate')}{/if}
+					</p>
+					<p class="meta">
+						{t('items.detail.dueSuggestedLabel')}
+						{#if entry.action.dueDate}{formatDate(entry.action.dueDate)}{:else}{t(
+								'items.detail.dueOverrideSuggestionUnresolved'
+							)}{/if}
+					</p>
+					{#if form?.context === 'dueOverride' && form.actionId === entry.action.id && form.error}
+						<p class="notice notice--error" role="alert">{form.error}</p>
+					{/if}
+					<form method="POST" action="?/setActionDueOverride" class="form-stack">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<div class="field-row">
+							<label for="due-date-{entry.action.id}">{t('items.detail.dueDateLabel')}</label>
+							<input
+								id="due-date-{entry.action.id}"
+								name="dueDate"
+								type="date"
+								value={form?.context === 'dueOverride' && form.actionId === entry.action.id
+									? (form.dueDate ?? '')
+									: (entry.action.dueOverrideDate ?? entry.action.dueDate ?? '')}
+							/>
+						</div>
+						<div class="form-actions">
+							<button type="submit" class="quiet">
+								{t('items.detail.saveDueDate')}
+							</button>
+							<button type="button" class="link" onclick={closeDialog}>
+								{t('common.cancel')}
+							</button>
+						</div>
+					</form>
+				</dialog>
+			{/if}
+
+			{#if canSnooze(entry) && !readOnly}
+				{#if snoozes[entry.action.id]}
+					<span class="hint">
+						{t('items.detail.snoozeActive', {
+							date: formatDate(snoozes[entry.action.id]!.snoozedUntil)
+						})}
+					</span>
+					{#if !isFeatured(entry) && effectiveDueDate(entry.action)}
+						<span class="meta">
+							{#if effectiveDueDate(entry.action)! < today}
+								{t('due.overdueSince', { date: formatDate(effectiveDueDate(entry.action)!) })}
+							{:else}
+								{t('due.dueOn', { date: formatDate(effectiveDueDate(entry.action)!) })}
+							{/if}
+						</span>
+					{/if}
+					<form method="POST" action="?/clearSnooze" class="timeline__controls">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<button type="submit" class="link">{t('items.detail.snoozeClear')}</button>
+					</form>
+				{/if}
+				<button
+					type="button"
+					class="timeline__secondary-trigger"
+					onclick={() => openDialog(snoozeDialogId(entry.action.id))}
+				>
+					{snoozes[entry.action.id] ? t('items.detail.snoozeReplace') : t('items.detail.snooze')}
+				</button>
+				<dialog
+					id={snoozeDialogId(entry.action.id)}
+					class="action-dialog"
+					aria-labelledby="snooze-dialog-title-{entry.action.id}"
+					open
+					onclick={closeOnBackdropClick}
+				>
+					<strong class="action-dialog__title" id="snooze-dialog-title-{entry.action.id}">
+						{snoozes[entry.action.id] ? t('items.detail.snoozeReplace') : t('items.detail.snooze')}
+					</strong>
+					{#if form?.context === 'snooze' && form.actionId === entry.action.id && form.error}
+						<p class="notice notice--error" role="alert">{form.error}</p>
+					{/if}
+					<form method="POST" action="?/setSnooze" class="snooze__form">
+						<input type="hidden" name="actionId" value={entry.action.id} />
+						<button type="submit" name="snoozedUntil" value="TOMORROW" class="secondary">
+							{t('items.detail.snoozeTomorrow')}
+						</button>
+						<button type="submit" name="snoozedUntil" value="THREE_DAYS" class="secondary">
+							{t('items.detail.snoozeThreeDays')}
+						</button>
+						<button type="submit" name="snoozedUntil" value="SEVEN_DAYS" class="secondary">
+							{t('items.detail.snoozeSevenDays')}
+						</button>
+						<label>
+							<span class="sr-only">{t('items.detail.snoozeCustom')}</span>
+							<input
+								type="date"
+								name="snoozedUntil"
+								aria-label={t('items.detail.snoozeCustom')}
+								value={form?.context === 'snooze' &&
+								form.actionId === entry.action.id &&
+								form.snoozedUntil &&
+								!['TOMORROW', 'THREE_DAYS', 'SEVEN_DAYS'].includes(form.snoozedUntil)
+									? form.snoozedUntil
+									: ''}
+							/>
+						</label>
+						<button type="submit" class="secondary">{t('items.detail.snoozeCustomSubmit')}</button>
+						<button type="button" class="link" onclick={closeDialog}>
+							{t('common.cancel')}
+						</button>
+					</form>
+				</dialog>
+			{/if}
+		</span>
+
+		<span
+			class="timeline__state"
+			class:timeline__state--done={state === 'done'}
+			class:timeline__state--now={state === 'now'}
+		>
+			{stateLabel[state]}
+		</span>
+	</li>
+{/snippet}
+
+{#if openSteps.length > 0}
+	<ol class="timeline">
+		{#each openSteps as { entry, state } (entry.action.id)}
+			{@render step(entry, state)}
+		{/each}
+	</ol>
+{/if}
+
+{#if closedSteps.length > 0}
+	<!-- Completed and skipped steps stay one click away (native <details>, so
+	     it also works without JavaScript) and keep their dates and reopen. -->
+	<details class="timeline-closed">
+		<summary>{t('items.detail.workflowClosed', { count: String(closedSteps.length) })}</summary>
+		<ol class="timeline">
+			{#each closedSteps as { entry, state } (entry.action.id)}
+				{@render step(entry, state)}
+			{/each}
+		</ol>
+	</details>
+{/if}

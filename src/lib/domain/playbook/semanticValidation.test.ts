@@ -30,6 +30,53 @@ describe('validatePlaybookSemantics', () => {
 		expect(validatePlaybookSemantics(parse(base()))).toEqual([]);
 	});
 
+	it('accepts a field assigned to a declared group', () => {
+		const issues = validatePlaybookSemantics(
+			parse(
+				base({
+					groups: [{ key: 'dates', label: 'Dates' }],
+					fields: [{ key: 'valid_until', type: 'date', label: 'Valid until', group: 'dates' }]
+				})
+			)
+		);
+		expect(issues).toEqual([]);
+	});
+
+	it('rejects a field that references an unknown group', () => {
+		const issues = validatePlaybookSemantics(
+			parse(
+				base({
+					groups: [{ key: 'dates', label: 'Dates' }],
+					fields: [{ key: 'valid_until', type: 'date', label: 'Valid until', group: 'nope' }]
+				})
+			)
+		);
+		expect(issues).toEqual([
+			{ path: 'fields[key=valid_until].group', message: 'references unknown group "nope"' }
+		]);
+	});
+
+	it('rejects a field group when the playbook declares no groups', () => {
+		const issues = validatePlaybookSemantics(
+			parse(base({ fields: [{ key: 'valid_until', type: 'date', label: 'V', group: 'dates' }] }))
+		);
+		expect(issues.some((i) => i.message.includes('unknown group'))).toBe(true);
+	});
+
+	it('rejects duplicate group keys', () => {
+		const issues = validatePlaybookSemantics(
+			parse(
+				base({
+					groups: [
+						{ key: 'dates', label: 'Dates' },
+						{ key: 'dates', label: 'More dates' }
+					]
+				})
+			)
+		);
+		expect(issues).toEqual([{ path: 'groups[key=dates]', message: 'duplicate group key' }]);
+	});
+
 	it('rejects an event sourced from a missing field', () => {
 		const issues = validatePlaybookSemantics(
 			parse(base({ events: [{ key: 'expiry', label: 'Expiry', sourceField: 'nope' }] }))

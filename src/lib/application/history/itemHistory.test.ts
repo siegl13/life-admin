@@ -232,6 +232,80 @@ describe('itemHistory application', () => {
 
 			expect(events[0].fieldLabel).toBeNull();
 		});
+
+		function acceptedEvent(payload: string) {
+			const history: ItemHistoryRepositoryPort = {
+				insert: vi.fn(),
+				listByItem: vi.fn().mockReturnValue([
+					{
+						id: 'e1',
+						itemId: 'item-1',
+						actorKind: 'OWNER',
+						eventType: 'AI_SUGGESTIONS_ACCEPTED',
+						payload,
+						createdAt: '2026-01-15T12:00:00.000Z'
+					}
+				]),
+				countByItem: vi.fn(),
+				deleteForItem: vi.fn()
+			};
+			return history;
+		}
+
+		it('resolves the source document name at read time', () => {
+			const history = acceptedEvent(
+				'{"acceptedCount":2,"source":"DOCUMENT","attachmentId":"att-1"}'
+			);
+
+			const events = loadItemHistory(
+				{ history },
+				{
+					itemId: 'item-1',
+					limit: 10,
+					offset: 0,
+					attachments: [{ id: 'att-1', name: 'Mietvertrag' }]
+				}
+			);
+
+			expect(events[0].sourceDocumentName).toBe('Mietvertrag');
+
+			const renamed = loadItemHistory(
+				{ history },
+				{
+					itemId: 'item-1',
+					limit: 10,
+					offset: 0,
+					attachments: [{ id: 'att-1', name: 'Neuer Name' }]
+				}
+			);
+			expect(renamed[0].sourceDocumentName).toBe('Neuer Name');
+			expect(renamed[0].payload).toEqual({
+				acceptedCount: 2,
+				source: 'DOCUMENT',
+				attachmentId: 'att-1'
+			});
+		});
+
+		it('leaves the document name null when the document is gone or the event is legacy', () => {
+			const gone = loadItemHistory(
+				{
+					history: acceptedEvent('{"acceptedCount":2,"source":"DOCUMENT","attachmentId":"att-1"}')
+				},
+				{ itemId: 'item-1', limit: 10, offset: 0, attachments: [] }
+			);
+			const legacy = loadItemHistory(
+				{ history: acceptedEvent('{"acceptedCount":2}') },
+				{
+					itemId: 'item-1',
+					limit: 10,
+					offset: 0,
+					attachments: [{ id: 'att-1', name: 'Mietvertrag' }]
+				}
+			);
+
+			expect(gone[0].sourceDocumentName).toBeNull();
+			expect(legacy[0].sourceDocumentName).toBeNull();
+		});
 	});
 
 	describe('countItemHistory', () => {

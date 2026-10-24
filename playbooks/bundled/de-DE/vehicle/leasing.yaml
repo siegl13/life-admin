@@ -1,12 +1,30 @@
 schemaVersion: 1
 id: de.vehicle.leasing
-version: 1.1.0
+version: 1.2.0
 name: Vehicle leasing
 label_i18n:
   de: Kfz-Leasing
 description: Track a vehicle leasing contract and prepare for the end of its term.
 locale: de-DE
 category: vehicle
+
+groups:
+  - key: vehicle
+    label: Vehicle
+    label_i18n:
+      de: Fahrzeug
+  - key: contract
+    label: Contract
+    label_i18n:
+      de: Vertrag
+  - key: payments
+    label: Payments
+    label_i18n:
+      de: Zahlungen
+  - key: mileage
+    label: Mileage
+    label_i18n:
+      de: Kilometer
 
 fields:
   - key: lessor
@@ -16,6 +34,7 @@ fields:
       de: Leasinggeber
     recommended: true
     carryForward: true
+    group: contract
   - key: contract_number
     type: text
     label: Contract number
@@ -23,6 +42,7 @@ fields:
       de: Vertragsnummer
     recommended: true
     carryForward: true
+    group: contract
   - key: vehicle
     type: text
     label: Vehicle
@@ -30,12 +50,14 @@ fields:
       de: Fahrzeug
     recommended: true
     carryForward: true
+    group: vehicle
   - key: license_plate
     type: text
     label: License plate
     label_i18n:
       de: Kennzeichen
     carryForward: true
+    group: vehicle
   - key: lease_end
     type: date
     label: Lease end date
@@ -43,54 +65,63 @@ fields:
       de: Leasingende
     recommended: true
     carryForward: false
+    group: contract
   - key: contract_term
     type: text
     label: Contract term
     label_i18n:
       de: Vertragsdauer
     carryForward: false
+    group: contract
   - key: annual_mileage
     type: text
     label: Annual mileage
     label_i18n:
       de: Jahreskilometer
     carryForward: false
+    group: mileage
   - key: mileage
     type: text
     label: Current mileage
     label_i18n:
       de: Kilometerstand
     carryForward: false
+    group: mileage
   - key: monthly_rate
     type: currency
     label: Monthly leasing rate
     label_i18n:
       de: Monatliche Leasingrate
     carryForward: false
+    group: payments
   - key: special_payment
     type: currency
     label: Leasing special payment
     label_i18n:
       de: Leasingsonderzahlung
     carryForward: false
+    group: payments
   - key: excess_mileage_rate
     type: text
     label: Excess mileage rate
     label_i18n:
       de: Mehrkilometersatz
     carryForward: false
+    group: mileage
   - key: unused_mileage_rate
     type: text
     label: Unused mileage rate
     label_i18n:
       de: Minderkilometersatz
     carryForward: false
+    group: mileage
   - key: dealer_return_location
     type: text
     label: Dealer / return location
     label_i18n:
       de: Händler / Rückgabeort
     carryForward: true
+    group: contract
 
 events:
   - key: lease_ends

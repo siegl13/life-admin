@@ -19,7 +19,8 @@ export interface SemanticIssue {
  * for both without duplicating this logic.
  */
 export interface SemanticCheckablePlaybook {
-	fields: readonly { key: string; type: string }[];
+	groups?: readonly { key: string }[];
+	fields: readonly { key: string; type: string; group?: string }[];
 	events: readonly { key: string; sourceField: string }[];
 	actions: readonly {
 		key: string;
@@ -31,12 +32,27 @@ export interface SemanticCheckablePlaybook {
 export function validatePlaybookSemantics(playbook: SemanticCheckablePlaybook): SemanticIssue[] {
 	const issues: SemanticIssue[] = [];
 
+	const groupKeys = new Set<string>();
+	for (const group of playbook.groups ?? []) {
+		if (groupKeys.has(group.key)) {
+			issues.push({ path: `groups[key=${group.key}]`, message: 'duplicate group key' });
+		}
+		groupKeys.add(group.key);
+	}
+
 	const fieldKeys = new Set<string>();
 	for (const field of playbook.fields) {
 		if (fieldKeys.has(field.key)) {
 			issues.push({ path: `fields[key=${field.key}]`, message: 'duplicate field key' });
 		}
 		fieldKeys.add(field.key);
+
+		if (field.group !== undefined && !groupKeys.has(field.group)) {
+			issues.push({
+				path: `fields[key=${field.key}].group`,
+				message: `references unknown group "${field.group}"`
+			});
+		}
 	}
 
 	const dateFieldKeys = new Set(playbook.fields.filter((f) => f.type === 'date').map((f) => f.key));

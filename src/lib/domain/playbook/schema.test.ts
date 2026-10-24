@@ -122,6 +122,42 @@ describe('parsePlaybookStructure', () => {
 		expect(parsePlaybookStructure(doc).success).toBe(true);
 	});
 
+	it('accepts groups with localized labels and fields assigned to them', () => {
+		const doc = validPlaybook({
+			groups: [{ key: 'dates', label: 'Dates', label_i18n: { de: 'Termine' } }],
+			fields: [{ key: 'valid_until', type: 'date', label: 'Valid until', group: 'dates' }]
+		});
+		const result = parsePlaybookStructure(doc);
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.fields[0].group).toBe('dates');
+	});
+
+	it('rejects malformed groups', () => {
+		for (const group of [
+			{ key: 'Bad Key', label: 'Dates' },
+			{ key: 'c_dates', label: 'Dates' },
+			{ key: 'dates', label: '' },
+			{ key: 'dates', label: 'x'.repeat(81) },
+			{ key: 'dates', label: '   ' },
+			{ key: 'dates', label: 'Dates', label_i18n: { de: '  ' } },
+			{ key: 'dates', label: 'Dates', label_i18n: { de: 'x'.repeat(81) } },
+			{ key: 'dates', label: 'Dates', unknown: true }
+		]) {
+			expect(parsePlaybookStructure(validPlaybook({ groups: [group] })).success).toBe(false);
+		}
+	});
+
+	it('limits the number of groups', () => {
+		const groups = Array.from({ length: 21 }, (_, index) => ({
+			key: `group-${index}`,
+			label: `Group ${index}`
+		}));
+		expect(parsePlaybookStructure(validPlaybook({ groups })).success).toBe(false);
+		expect(parsePlaybookStructure(validPlaybook({ groups: groups.slice(0, 20) })).success).toBe(
+			true
+		);
+	});
+
 	it('defaults fields/events/actions to empty arrays when absent', () => {
 		const result = parsePlaybookStructure({
 			schemaVersion: 1,
@@ -131,6 +167,7 @@ describe('parsePlaybookStructure', () => {
 		});
 		expect(result.success).toBe(true);
 		if (result.success) {
+			expect(result.data.groups).toEqual([]);
 			expect(result.data.fields).toEqual([]);
 			expect(result.data.events).toEqual([]);
 			expect(result.data.actions).toEqual([]);

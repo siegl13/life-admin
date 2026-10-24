@@ -5,6 +5,7 @@ import type {
 	CycleRepositoryPort,
 	EventRepositoryPort,
 	FieldRepositoryPort,
+	FieldGroupRepositoryPort,
 	ItemRepositoryPort,
 	PlaybookCatalogPort,
 	ScheduleRepositoryPort,
@@ -34,6 +35,7 @@ import * as actionRepo from './db/repositories/actionRepository';
 import * as cycleRepo from './db/repositories/cycleRepository';
 import * as eventRepo from './db/repositories/eventRepository';
 import * as fieldRepo from './db/repositories/fieldRepository';
+import * as fieldGroupRepo from './db/repositories/fieldGroupRepository';
 import * as itemRepo from './db/repositories/itemRepository';
 import * as scheduleRepo from './db/repositories/scheduleRepository';
 import { loadWhatsNextItems } from './db/repositories/whatsNextRepository';
@@ -105,6 +107,20 @@ export const fieldsPort: FieldRepositoryPort = {
 	listFields: (cycleId) => fieldRepo.listFields(getDb(), cycleId),
 	addCustomField: (cycleId, input) => fieldRepo.addCustomField(getDb(), cycleId, input),
 	removeCustomField: (cycleId, fieldKey) => fieldRepo.removeCustomField(getDb(), cycleId, fieldKey)
+};
+
+export const fieldGroupsPort: FieldGroupRepositoryPort = {
+	listGroups: (itemId) => fieldGroupRepo.listFieldGroups(getDb(), itemId),
+	listAssignments: (itemId) => fieldGroupRepo.listFieldGroupAssignments(getDb(), itemId),
+	createGroup: (itemId, label) => fieldGroupRepo.createFieldGroup(getDb(), itemId, label),
+	renameGroup: (itemId, groupId, label) =>
+		fieldGroupRepo.renameFieldGroup(getDb(), itemId, groupId, label),
+	setFeatured: (itemId, groupId, featured) =>
+		fieldGroupRepo.setFieldGroupFeatured(getDb(), itemId, groupId, featured),
+	reorder: (itemId, orderedGroupIds) =>
+		fieldGroupRepo.reorderFieldGroups(getDb(), itemId, orderedGroupIds),
+	moveField: (itemId, fieldKey, groupId) =>
+		fieldGroupRepo.moveFieldToGroup(getDb(), itemId, fieldKey, groupId)
 };
 
 export const eventsPort: EventRepositoryPort = {

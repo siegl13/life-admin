@@ -84,6 +84,18 @@ optional `label_i18n`, and optional `recommended`. `events` have `key`,
 `label_i18n` maps locale codes to alternate labels, for example
 `label_i18n: { en: Insurance }`.
 
+`groups` are optional. Each has a `key`, a `label` (1 to 80 characters), and
+optional `label_i18n`. A field joins a group with `group: <group key>`. Fields
+without `group` start in the General group (Allgemein). Declaration order is
+the initial display order, with General added last. Users can change that order.
+Use a few groups with clear
+names, and only when a Playbook has enough fields to need them.
+
+Groups are initial organization only. They are read when an Item is created.
+After that the Item owns its groups: the user can add and rename groups, move
+fields between them, and feature or unfeature a group. Changing the groups of
+a Playbook never changes existing Items, and Playbooks cannot feature a group.
+
 An action due date references an event. Its offset can contain non-zero
 `years`, `months`, `weeks`, and `days` values from -600 to 600. Month
 offsets clamp to the last valid day, so one month before 31 March is 28 or
@@ -95,12 +107,13 @@ currency values reset.
 
 ### Rules and limits
 
-At most 50 fields, 50 events, 100 actions, and 10 dependencies per action.
-Field, event, and action keys are 1 to 64 characters. Labels and names are
-1 to 200 characters. Descriptions are at most 2000 characters. Every
+At most 20 groups, 50 fields, 50 events, 100 actions, and 10 dependencies
+per action. Field, group, event, and action keys are 1 to 64 characters.
+Labels and names are 1 to 200 characters, except group labels (1 to 80).
+Descriptions are at most 2000 characters. Every
 due-date offset component is an integer from -600 to 600. References must
-resolve, each event source must be a date field, and action dependencies
-must be acyclic. Files are limited to 128 KB.
+resolve (including a field's `group`), group keys must be unique, each event
+source must be a date field, and action dependencies must be acyclic. Files are limited to 128 KB.
 
 ### Example
 
@@ -110,14 +123,20 @@ id: de.home.water-meter
 version: 1.0.0
 name: Water meter
 label_i18n: { de: Wasserzähler }
+groups:
+  - key: meter
+    label: Meter
+    label_i18n: { de: Zähler }
 fields:
   - key: meter_number
     type: text
     label: Meter number
     carryForward: true
+    group: meter
   - key: reading_date
     type: date
     label: Reading date
+    group: meter
 events:
   - key: annual_reading
     label: Annual reading

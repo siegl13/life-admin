@@ -26,6 +26,12 @@ async function createTuvItem(
 	return itemId;
 }
 
+/** Completed and skipped steps sit in a collapsed disclosure under the open
+ *  ones; expand it before interacting with them. */
+async function expandClosedSteps(page: import('@playwright/test').Page): Promise<void> {
+	await page.locator('.timeline-closed > summary').click();
+}
+
 async function createGenericItem(
 	page: import('@playwright/test').Page,
 	title: string
@@ -62,7 +68,7 @@ test('desktop hero owns complete/skip/change-due; the featured step shows neithe
 	await expect(hero.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 	await expect(hero.getByRole('button', { name: 'Termin ändern' })).toBeVisible();
 	await expect(hero.locator('.next-up__state')).toContainText(/\d+ (Tag|Tage) (übrig|überfällig)/);
-	await expect(page.locator('.sticky-action-bar')).toBeHidden();
+	await expect(page.locator('.sticky-action-bar')).toHaveCount(0);
 
 	const featuredStep = page.locator('.timeline__step').filter({
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
@@ -100,11 +106,12 @@ test('desktop hero completes the featured action and workflow reopen restores it
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 	});
 	await expect(featured).toContainText('Erledigt');
+	await expandClosedSteps(page);
 	await featured.getByRole('button', { name: 'Wieder öffnen' }).click();
 	await expect(page.locator('.next-up__action')).toHaveText('HU-Termin planen');
 });
 
-test('mobile sticky action completes the featured action and workflow reopen restores it', async ({
+test('mobile hero completes the featured action and workflow reopen restores it', async ({
 	page
 }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -113,11 +120,12 @@ test('mobile sticky action completes the featured action and workflow reopen res
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
-	await page.locator('.sticky-action-bar').getByRole('button', { name: 'Erledigen' }).click();
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
 	const featured = page.locator('.timeline__step').filter({
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 	});
 	await expect(featured).toContainText('Erledigt');
+	await expandClosedSteps(page);
 	await featured.getByRole('button', { name: 'Wieder öffnen' }).click();
 	await expect(page.locator('.next-up__action')).toHaveText('HU-Termin planen');
 });
@@ -146,16 +154,14 @@ test('snoozing the featured action keeps the exact due date only in the hero', a
 test.describe('item detail forms without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
 
-	test('the due dialog form and sticky complete form submit as ordinary POSTs', async ({
-		page
-	}) => {
+	test('the due dialog form and hero complete form submit as ordinary POSTs', async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await createTuvItem(page, 'Redesign No JavaScript Test');
 		await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 		await page.locator('input[type="date"]').first().fill('2026-01-01');
 		await page.getByRole('button', { name: 'Speichern' }).click();
 
-		const sticky = page.locator('.sticky-action-bar');
+		const sticky = page.locator('.next-up__actions');
 		const actionId = await sticky.locator('input[name="actionId"]').getAttribute('value');
 		const dialog = page.locator(`#due-dialog-${actionId}`);
 		await expect(dialog).toBeVisible();
@@ -171,7 +177,7 @@ test.describe('item detail forms without JavaScript', () => {
 	});
 });
 
-test('mobile: hero is informational only, one sticky bar owns complete + a secondary menu', async ({
+test('mobile: the hero card owns complete and skip, due editing stays secondary, nothing is fixed', async ({
 	page
 }) => {
 	await page.setViewportSize({ width: 375, height: 667 });
@@ -181,24 +187,19 @@ test('mobile: hero is informational only, one sticky bar owns complete + a secon
 	await page.getByRole('button', { name: 'Speichern' }).click();
 
 	const hero = page.locator('.next-up');
-	await expect(hero.locator('.next-up__actions')).toBeHidden();
-
-	const stickyBar = page.locator('.sticky-action-bar');
-	await expect(stickyBar).toBeVisible();
+	const heroActions = hero.locator('.next-up__actions');
+	await expect(heroActions).toBeVisible();
+	await expect(page.locator('.sticky-action-bar')).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Neues Element' })).toHaveCount(0);
-	await expect(stickyBar.getByRole('button', { name: 'Erledigen' })).toBeVisible();
-	// Skip is a primary control next to Erledigen, only scheduling is secondary.
-	await expect(stickyBar.getByRole('button', { name: 'Überspringen' })).toBeVisible();
-	const dueTrigger = stickyBar.getByRole('button', { name: 'Termin ändern' });
-	await expect(dueTrigger).toBeHidden();
-
-	await stickyBar.locator('summary').click();
+	await expect(heroActions.getByRole('button', { name: 'Erledigen' })).toBeVisible();
+	await expect(heroActions.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+	const dueTrigger = heroActions.getByRole('button', { name: 'Termin ändern' });
 	await expect(dueTrigger).toBeVisible();
 
-	// The sticky trigger opens the very dialog WorkflowTimeline renders for
+	// The hero trigger opens the very dialog WorkflowTimeline renders for
 	// this action (see #41) — no second editor. TÜV has 4 derived steps,
 	// each with its own identically-worded dialog, so scope by this one's id.
-	const actionId = await stickyBar.locator('input[name="actionId"]').getAttribute('value');
+	const actionId = await heroActions.locator('input[name="actionId"]').getAttribute('value');
 	const dueDialog = page.locator(`#due-dialog-${actionId}`);
 	await expect(dueDialog).not.toBeVisible();
 	await dueTrigger.click();
@@ -210,7 +211,7 @@ test('mobile: hero is informational only, one sticky bar owns complete + a secon
 	await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 375);
 });
 
-test('item detail action ownership follows the shell breakpoint at 767px and 768px', async ({
+test('hero controls are present at every width, with no fixed bar, at 641px, 767px and 768px', async ({
 	page
 }) => {
 	await createTuvItem(page, 'Redesign Breakpoint Detail Test');
@@ -221,15 +222,9 @@ test('item detail action ownership follows the shell breakpoint at 767px and 768
 	for (const width of [641, 767, 768]) {
 		await page.setViewportSize({ width, height: 844 });
 		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
-		if (width < 768) {
-			await expect(page.locator('.sticky-action-bar')).toBeVisible();
-			await expect(page.locator('.next-up__actions')).toBeHidden();
-			await expect(page.locator('.timeline-progress')).toBeVisible();
-		} else {
-			await expect(page.locator('.sticky-action-bar')).toBeHidden();
-			await expect(page.locator('.next-up__actions')).toBeVisible();
-			await expect(page.locator('.timeline-progress')).toBeVisible();
-		}
+		await expect(page.locator('.sticky-action-bar')).toHaveCount(0);
+		await expect(page.locator('.next-up__actions')).toBeVisible();
+		await expect(page.locator('.timeline-progress')).toBeVisible();
 		await expect(page.locator('.timeline-bar')).toHaveCount(0);
 	}
 });
@@ -354,13 +349,13 @@ test('mobile: progress summary tracks completed workflow steps', async ({ page }
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
-	await page.locator('.sticky-action-bar').getByRole('button', { name: 'Erledigen' }).click();
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
 	await expect(progress.locator('.timeline-progress__count')).toHaveText(
 		'1 von 4 Schritten erledigt'
 	);
 });
 
-test('facts are grouped by type, only populated values show once, empty ones collapse with a correct count', async ({
+test('facts are grouped by item group, only populated values show once, empty ones collapse with a correct count', async ({
 	page
 }) => {
 	await createTuvItem(page, 'Redesign Facts Grouping Test');
@@ -384,7 +379,7 @@ test('facts are grouped by type, only populated values show once, empty ones col
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
 	const fahrzeugValue =
 		'Beispiel Inspektionszentrum München Nord mit zusätzlichen Prüfstationen und Servicebereich für alle Fahrzeugtypen';
-	await page.getByLabel('Fahrzeug').fill(fahrzeugValue);
+	await page.locator('#vehicle').fill(fahrzeugValue);
 	const vin = 'WVWZZZ' + '0123456789'.repeat(5);
 	await page.locator('#vin').fill(vin);
 	await page.locator('#field-c_preis input[type="text"]').fill('123.45');
@@ -395,23 +390,25 @@ test('facts are grouped by type, only populated values show once, empty ones col
 
 	const groups = page.locator('.facts-group');
 	await expect(groups).toHaveCount(3);
-	await expect(groups.nth(0).locator('.facts-group__label')).toHaveText('Termine');
-	await expect(groups.nth(0)).toContainText('Nächste HU');
-	await expect(groups.nth(1).locator('.facts-group__label')).toHaveText('Beträge');
-	await expect(groups.nth(1)).toContainText('123,45');
-	await expect(groups.nth(2).locator('.facts-group__label')).toHaveText('Weitere Angaben');
-	await expect(groups.nth(2)).toContainText(fahrzeugValue);
-	await expect(groups.nth(2)).toContainText(vin);
+	// The TÜV Playbook seeds "Fahrzeug" and "Prüfung"; the custom field
+	// lands in the default "Allgemein" group, which is listed last.
+	await expect(groups.nth(0).locator('.facts-group__label')).toHaveText('Fahrzeug');
+	await expect(groups.nth(0)).toContainText(fahrzeugValue);
+	await expect(groups.nth(0)).toContainText(vin);
+	await expect(groups.nth(1).locator('.facts-group__label')).toHaveText('Prüfung');
+	await expect(groups.nth(1)).toContainText('Nächste HU');
+	await expect(groups.nth(2).locator('.facts-group__label')).toHaveText('Allgemein');
+	await expect(groups.nth(2)).toContainText('123,45');
 	// Each populated fact renders exactly once across the page.
 	await expect(page.getByText(fahrzeugValue)).toHaveCount(1);
 	const vinValue = groups
-		.nth(2)
+		.nth(0)
 		.locator('.data-row', { hasText: 'FIN' })
 		.locator('.facts-group__value');
 	await expect(vinValue).toHaveAttribute('title', vin);
 	await expect(vinValue).toHaveAttribute('aria-label', vin);
 	await expect(vinValue).toHaveCSS('white-space', 'nowrap');
-	const vinLabel = groups.nth(2).locator('.data-row', { hasText: 'FIN' }).locator('.data-row__key');
+	const vinLabel = groups.nth(0).locator('.data-row', { hasText: 'FIN' }).locator('.data-row__key');
 	const labelColor = await vinLabel.evaluate((node) => getComputedStyle(node).color);
 	const mutedColor = await page.evaluate(() =>
 		getComputedStyle(document.documentElement).getPropertyValue('--color-text-muted').trim()
@@ -450,7 +447,7 @@ test('facts are grouped by type, only populated values show once, empty ones col
 		// of truncating: its rendered text never overflows its own box, and
 		// it is visibly taller than one text line.
 		const fahrzeugValueLocator = groups
-			.nth(2)
+			.nth(0)
 			.locator('.data-row', { hasText: 'Fahrzeug' })
 			.locator('.facts-group__value');
 		await expect(fahrzeugValueLocator).not.toHaveCSS('white-space', 'nowrap');
@@ -533,6 +530,7 @@ test('desktop side column holds documents, related items and history in that ord
 	const firstStep = page.locator('.timeline__step').filter({
 		has: page.locator('.timeline__title', { hasText: 'HU-Termin planen' })
 	});
+	await expandClosedSteps(page);
 	await firstStep.getByRole('button', { name: 'Wieder öffnen' }).click();
 
 	const side = page.locator('.item-detail-side');
@@ -615,7 +613,7 @@ test('a long item detail keeps the desktop sidebar at the document bottom', asyn
 	await createTuvItem(page, 'Redesign Long Detail Test');
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
-	await page.getByLabel('Fahrzeug').fill('Example vehicle with a long but realistic title');
+	await page.locator('#vehicle').fill('Example vehicle with a long but realistic title');
 	await page.getByRole('button', { name: 'Speichern' }).click();
 	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
@@ -694,7 +692,8 @@ test('item detail section headings and the final More options section keep share
 	expect(formBox).not.toBeNull();
 	const fieldsGap = formBox!.y - (summaryBox!.y + summaryBox!.height);
 	const moreSection = page.locator('#more-label').locator('..');
-	const fieldsSection = fieldsPanel.locator('..');
+	// "More options" is the last block, below the main/side layout.
+	const fieldsSection = page.locator('.item-detail-layout');
 	const fieldsSectionBox = await fieldsSection.boundingBox();
 	const moreBox = await moreSection.boundingBox();
 	expect(fieldsSectionBox).not.toBeNull();
@@ -735,7 +734,11 @@ test('More options cards match the item detail facts-card width at wide desktop 
 			const cardBox = await card.boundingBox();
 			expect(cardBox).not.toBeNull();
 			expect(cardBox!.x).toBeCloseTo(factsBox!.x, 0);
-			expect(cardBox!.x + cardBox!.width).toBeCloseTo(factsBox!.x + factsBox!.width, 0);
+			// "More options" now spans the full content width below the
+			// main/side layout, so it starts at the facts card and reaches at
+			// least as far right, without overflowing the viewport.
+			expect(cardBox!.x + cardBox!.width).toBeGreaterThanOrEqual(factsBox!.x + factsBox!.width - 1);
+			expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(width);
 		}
 	}
 });
@@ -817,7 +820,7 @@ test('mobile stacked columns keep the shared gap between facts and documents', a
 	}
 });
 
-test('at 375px, no horizontal overflow and the sticky bar does not cover the fields form', async ({
+test('at 375px, no horizontal overflow and no fixed bar covers the fields form', async ({
 	page
 }) => {
 	await page.setViewportSize({ width: 375, height: 667 });
@@ -827,7 +830,7 @@ test('at 375px, no horizontal overflow and the sticky bar does not cover the fie
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
 	await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 375);
 
-	// The sticky bar only renders once there is a next action.
+	// The hero controls only render once there is a next action.
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	await page.locator('input[type="date"]').first().fill('2026-01-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
@@ -843,10 +846,89 @@ test('at 375px, no horizontal overflow and the sticky bar does not cover the fie
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	const saveButton = page.getByRole('button', { name: 'Speichern' });
 	await saveButton.scrollIntoViewIfNeeded();
-	const stickyBar = page.locator('.sticky-action-bar');
-	const saveBox = await saveButton.boundingBox();
-	const stickyBox = await stickyBar.boundingBox();
-	expect(saveBox).not.toBeNull();
-	expect(stickyBox).not.toBeNull();
-	expect(saveBox!.y + saveBox!.height).toBeLessThanOrEqual(stickyBox!.y);
+	await expect(page.locator('.sticky-action-bar')).toHaveCount(0);
+	// Nothing is position: fixed on the page, so nothing can cover the form.
+	const fixedCount = await page
+		.locator('.item-detail-page *')
+		.evaluateAll(
+			(nodes) => nodes.filter((node) => getComputedStyle(node).position === 'fixed').length
+		);
+	expect(fixedCount).toBe(0);
+});
+
+test('page order: next action, workflow, fields, documents, related, history, then more options', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await createTuvItem(page, 'Redesign Page Order Test');
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('input[type="date"]').first().fill('2026-01-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
+
+	const tops = await page.evaluate(() =>
+		[
+			'.next-up',
+			'#workflow-label',
+			'#fields-label',
+			'#attachments',
+			'#relations',
+			'#history-label',
+			'#more-label'
+		].map((selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? null)
+	);
+	for (const top of tops) expect(top).not.toBeNull();
+	const sorted = [...tops].sort((a, b) => a! - b!);
+	expect(tops).toEqual(sorted);
+});
+
+test('workflow lists open steps first and collapses completed and skipped ones with date and reopen', async ({
+	page
+}) => {
+	await createTuvItem(page, 'Redesign Closed Steps Test');
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('input[type="date"]').first().fill('2026-01-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+	await expect(page.locator('.timeline-closed')).toHaveCount(0);
+
+	await page.locator('.next-up').getByRole('button', { name: 'Erledigen' }).click();
+	const closed = page.locator('.timeline-closed');
+	await expect(closed.locator(':scope > summary')).toContainText('Erledigt und übersprungen (1)');
+	await expect(closed).not.toHaveAttribute('open', '');
+	// Open steps are listed outside the disclosure.
+	await expect(
+		page.locator('.timeline > .timeline__step--now, .timeline > .timeline__step--waiting').first()
+	).toBeVisible();
+
+	await expandClosedSteps(page);
+	const step = closed.locator('.timeline__step');
+	await expect(step).toContainText('HU-Termin planen');
+	await expect(step).toContainText(/Erledigt\s*·\s*\d/);
+	await step.getByRole('button', { name: 'Wieder öffnen' }).click();
+	await expect(page.locator('.timeline-closed')).toHaveCount(0);
+	await expect(page.locator('.next-up__action')).toHaveText('HU-Termin planen');
+});
+
+test('the hero offers complete and skip for an undated open action and for a dated one', async ({
+	page
+}) => {
+	await createGenericItem(page, 'Redesign Undated Primary Test');
+	await page.locator('summary', { hasText: 'Aufgabe hinzufügen' }).click();
+	const addAction = page.locator('form[action="?/addManualAction"]');
+	await addAction.getByLabel('Bezeichnung der Aufgabe').fill('Undated manual task');
+	await addAction.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
+
+	const hero = page.locator('.next-up');
+	await expect(hero.locator('.next-up__action')).toHaveText('Undated manual task');
+	await expect(hero.getByRole('button', { name: 'Erledigen' })).toBeVisible();
+	await expect(hero.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+	await expect(hero.getByRole('button', { name: 'Termin ändern' })).toHaveCount(0);
+
+	await hero.getByRole('button', { name: 'Überspringen' }).click();
+	await expandClosedSteps(page);
+	const skipped = page.locator('.timeline-closed .timeline__step');
+	await expect(skipped).toContainText(/Übersprungen\s*·\s*\d/);
+	await skipped.getByRole('button', { name: 'Wieder öffnen' }).click();
+	await expect(page.locator('.timeline-closed')).toHaveCount(0);
+	await expect(hero.locator('.next-up__action')).toHaveText('Undated manual task');
 });

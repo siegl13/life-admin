@@ -47,6 +47,11 @@ export interface RelationPayload {
 
 export interface AiSuggestionsAcceptedPayload {
 	acceptedCount: number;
+	/** Present on events recorded after document context was added. Older
+	 *  events have neither field and render with generic wording. */
+	source?: 'DOCUMENT';
+	/** The source document's id, never its name (resolved at read time). */
+	attachmentId?: string;
 }
 
 export interface CustomFieldPayload {

@@ -37,7 +37,16 @@ async function deleteIfPending(
 	const row = inboxRow(page, filename);
 	if ((await row.count()) === 0) return;
 	const assignLink = row.locator('a[href*="/inbox?doc="]');
-	if ((await assignLink.count()) > 0) await activate(assignLink);
+	if ((await assignLink.count()) > 0) {
+		const destination = await assignLink.getAttribute('href');
+		expect(destination).not.toBeNull();
+		// The selected heading may already be visible before this navigation.
+		// Wait for the link destination before sending Enter to the delete button.
+		await Promise.all([
+			page.waitForURL(new URL(destination!, page.url()).href),
+			activate(assignLink)
+		]);
+	}
 	await expect(inboxDetail(page).getByRole('heading', { name: filename, level: 2 })).toBeVisible();
 	await activate(inboxDetail(page).locator('button[formaction="?/delete"]'));
 	await expect(row).toHaveCount(0);

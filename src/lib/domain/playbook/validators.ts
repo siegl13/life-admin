@@ -37,6 +37,18 @@ export const playbookVersionSchema = z
  *  label_i18n/labelI18n field at every level of the playbook. */
 export const labelI18nEntrySchema = z.record(z.string().min(2).max(10), z.string().min(1).max(200));
 
+/** Group labels share the user-facing group label cap (1 to 80 characters). */
+export const GROUP_LABEL_MAX_LENGTH = 80;
+/** Non-blank after trimming: item creation stores the trimmed label. */
+export const groupLabelSchema = z
+	.string()
+	.min(1)
+	.max(GROUP_LABEL_MAX_LENGTH)
+	.refine((label) => label.trim().length > 0, { message: 'must not be blank' });
+export const groupLabelI18nSchema = z.record(z.string().min(2).max(10), groupLabelSchema);
+
+export const MAX_PLAYBOOK_GROUPS = 20;
+
 const OFFSET_MIN = -600;
 const OFFSET_MAX = 600;
 
