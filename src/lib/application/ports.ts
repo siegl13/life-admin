@@ -12,6 +12,7 @@ import type { Cycle } from '../domain/cycle/cycle';
 import type { IsoDate } from '../domain/date/isoDate';
 import type { Event } from '../domain/event/event';
 import type { Field, FieldType } from '../domain/field/field';
+import type { FieldGroup, FieldGroupAssignment } from '../domain/field/fieldGroup';
 import type { Item } from '../domain/item/item';
 import type { MaterializationPlan } from '../domain/playbook/materialize';
 import type { NextCycleFieldSeed } from '../domain/cycle/rollover';
@@ -93,6 +94,18 @@ export interface FieldRepositoryPort {
 	listFields(cycleId: string): Field[];
 	addCustomField(cycleId: string, input: { label: string; type: FieldType }): Field;
 	removeCustomField(cycleId: string, fieldKey: string): void;
+}
+
+/** Item-owned field groups. Mutations are guarded: the item must be ACTIVE. */
+export interface FieldGroupRepositoryPort {
+	listGroups(itemId: string): FieldGroup[];
+	listAssignments(itemId: string): FieldGroupAssignment[];
+	createGroup(itemId: string, label: string): FieldGroup;
+	renameGroup(itemId: string, groupId: string, label: string): FieldGroup;
+	setFeatured(itemId: string, groupId: string, featured: boolean): FieldGroup;
+	/** `orderedGroupIds` must name every group of the item exactly once. */
+	reorder(itemId: string, orderedGroupIds: readonly string[]): void;
+	moveField(itemId: string, fieldKey: string, groupId: string): void;
 }
 
 export interface ScheduleRepositoryPort {

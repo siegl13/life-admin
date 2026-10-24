@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CustomFieldForm from '$lib/components/CustomFieldForm.svelte';
+	import FieldGroupManager from '$lib/components/FieldGroupManager.svelte';
 	import FieldInput from '$lib/components/FieldInput.svelte';
 	import ItemFacts from '$lib/components/ItemFacts.svelte';
 	import ManualActionForm from '$lib/components/ManualActionForm.svelte';
@@ -32,7 +33,7 @@
 	}
 
 	/** Opens the due-date dialog the workflow timeline already renders for
-	 *  this action — the hero/sticky bar triggers it by id instead of
+	 *  this action — the next-action card triggers it by id instead of
 	 *  rendering a second editor, so there is exactly one per action. */
 	function openDueDialog(actionId: string) {
 		(document.getElementById(dueDialogId(actionId)) as HTMLDialogElement | null)?.showModal();
@@ -81,7 +82,9 @@
 					href={resolve('/items/[id]?manage=relations#relations', { id: data.item.id })}
 					>{t('items.detail.linkItem')}</a
 				>
-				<a class="button secondary" href="#more-label">{t('items.detail.more')}</a>
+				<a class="button secondary page-head__more-link" href="#more-label">
+					{t('items.detail.more')}
+				</a>
 			</nav>
 		{/if}
 		{#if isArchived}
@@ -136,9 +139,9 @@
 						<span class="hint">{t('items.detail.noOpenActionHint')}</span>
 					{/if}
 				</div>
-				<!-- Desktop only (hidden <768px, see .next-up__actions CSS): the
-			     sticky bar below is the phone equivalent, owning the same
-			     controls so neither surface duplicates the other. -->
+				<!-- The card is the only owner of complete/skip for the next action
+			     at every width. There is no detached fixed bar: the controls
+			     sit inside the card that names the action. -->
 				{#if next}
 					<form method="POST" action="?/completeAction" class="form-actions next-up__actions">
 						<input type="hidden" name="actionId" value={next.action.id} />
@@ -159,29 +162,6 @@
 				{/if}
 			</div>
 		</section>
-	{/if}
-
-	{#if !isArchived && next}
-		<!-- Phone only (hidden >=768px): one sticky bar owning complete + skip,
-	     with scheduling in a native secondary menu, positioned clear of the global tabbar (see
-	     .sticky-action-bar CSS using --mobile-floating-reserve). -->
-		<form method="POST" action="?/completeAction" class="sticky-action-bar">
-			<input type="hidden" name="actionId" value={next.action.id} />
-			<button type="submit" class="sticky-action-bar__primary">{t('whatsNext.done')}</button>
-			<button type="submit" formaction="?/skipAction" class="sticky-action-bar__primary secondary">
-				{t('whatsNext.skip')}
-			</button>
-			{#if nextCanEditDue}
-				<details class="sticky-action-bar__more">
-					<summary aria-label={t('items.detail.more')}>⋯</summary>
-					<div class="sticky-action-bar__menu">
-						<button type="button" class="secondary" onclick={() => openDueDialog(next!.action.id)}>
-							{t('items.detail.changeDueDate')}
-						</button>
-					</div>
-				</details>
-			{/if}
-		</form>
 	{/if}
 
 	<div class="item-detail-layout">
@@ -223,9 +203,9 @@
 			<section class="section" aria-labelledby="fields-label">
 				{#if isArchived}
 					<h2 class="section__label" id="fields-label">{t('items.detail.fields')}</h2>
-					<ItemFacts fields={data.fields} readOnly />
+					<ItemFacts groups={data.fieldGroups} readOnly />
 				{:else}
-					<details class="fields-panel">
+					<details class="fields-panel" open={data.groupsManage}>
 						<summary>
 							<h2 class="fields-panel__title" id="fields-label">{t('items.detail.fields')}</h2>
 							<span class="fields-panel__enter">{t('items.detail.manageFields')}</span>
@@ -250,18 +230,26 @@
 									<span class="hint">{t('items.detail.fieldsOptionalHint')}</span>
 								</div>
 								<div class="fields-update-form__fields">
-									{#each data.fields as field (field.id)}
-										<FieldInput {field} removable={field.origin === 'CUSTOM'} />
+									{#each data.fieldGroups.filter((view) => view.fields.length > 0) as view (view.group.id)}
+										<fieldset class="fields-update-form__group">
+											<legend class="facts-group__label">
+												{view.group.label ?? t('items.detail.groupGeneral')}
+											</legend>
+											{#each view.fields as field (field.id)}
+												<FieldInput {field} removable={field.origin === 'CUSTOM'} />
+											{/each}
+										</fieldset>
 									{/each}
 								</div>
 							</form>
 						{/if}
 
 						<CustomFieldForm />
+						<FieldGroupManager groups={data.fieldGroups} open={data.groupsManage} />
 					</details>
 
 					<div class="fields-view">
-						<ItemFacts fields={data.fields} />
+						<ItemFacts groups={data.fieldGroups} />
 					</div>
 				{/if}
 			</section>
@@ -271,19 +259,6 @@
 				<section class="section" aria-labelledby="note-label">
 					<h2 class="section__label" id="note-label">{t('items.detail.notes')}</h2>
 					<p class="note-text">{data.item.note}</p>
-				</section>
-			{/if}
-
-			<!-- 7 · Bearbeiten: aligned with the main column, not spanning the
-			     full width/side column, so it reads as part of the same content
-			     flow rather than a page-wide footer. -->
-			{#if !isArchived}
-				<section class="section" aria-labelledby="more-label">
-					<h2 class="section__label" id="more-label">{t('items.detail.more')}</h2>
-					<div class="form-stack">
-						<ManualActionForm />
-						<ArchiveItemForm />
-					</div>
 				</section>
 			{/if}
 		</div>
@@ -361,4 +336,16 @@
 			/>
 		</div>
 	</div>
+
+	<!-- Last: secondary operations come after documents, related Items and
+	     history, on phone and desktop alike. -->
+	{#if !isArchived}
+		<section class="section" aria-labelledby="more-label">
+			<h2 class="section__label" id="more-label">{t('items.detail.more')}</h2>
+			<div class="form-stack">
+				<ManualActionForm />
+				<ArchiveItemForm />
+			</div>
+		</section>
+	{/if}
 </div>

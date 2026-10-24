@@ -2614,6 +2614,141 @@ this document.
 - The obsolete implementation and continuation handoff documents were removed
   after Slice 12 completed.
 
+## Item detail information hierarchy refactor
+
+**Status: IN PROGRESS (units 1 to 4 of 5 complete)**
+
+Goal: Item detail follows action first, structured information, documents and
+context, then history and secondary operations. Domain behavior is unchanged.
+
+- `group-model-migration`: complete. Item-owned field groups and assignments
+  (migration `0019_item_field_groups.sql`), persisting through cycles.
+- `group-management-playbooks`: complete. Group create, rename, move, feature
+  and order. Optional Playbook `groups` read at item creation only. Bundled
+  Playbooks audited.
+- `page-action-hierarchy`: complete. Automated gates passed in attempt 7:
+  `npm run verify` exit 0 (127 test files, 1,095 tests), `npm run test:e2e`
+  exit 0 (210 tests), `git diff --check` exit 0. The independent review was
+  accepted in round 3. Changes: page order ends with "More options"; open
+  workflow steps first with completed and skipped steps (dates and reopen) in a
+  collapsed disclosure; complete and skip in the next-action card at every
+  width; the fixed phone action bar was removed so controls stay inside the card
+  that names the action.
+- `documents-contextual-history`: complete. Full verification attempt 2 passed
+  on 2026-10-24 after the overflow correction. Independent implementation review
+  was accepted in round 2 with no open findings and approval to proceed to
+  `acceptance-review`.
+  Compact document rows retain thumbnails, PDF icons, metadata, opening and
+  management. Accepted-suggestion history stores a document source and optional
+  attachment ID. Names resolve at read time; deleted documents use unnamed
+  document wording and older events keep generic wording. German and English
+  singular/plural variants are available. Attempt 2 results: `npm run verify`
+  exit 0 (formatting, ESLint, Svelte check, all 6 bundled Playbooks, 127 test files,
+  1,101 tests and production build); `npm run test:e2e` exit 0 (210 tests);
+  `git diff --check` exit 0. The earlier timeout and 202-pass/8-failure
+  E2E result are historical and superseded. Review correction F-01 adds wrapping
+  for long document names in history and tests containment at 375, 390, 430 and
+  1280px. Build and focused AI-extraction E2E passed (3 tests including setup).
+  Review confirmed compact document controls, source-context privacy, read-time
+  names, legacy fallback, localization and long-name containment.
+- Final unit `acceptance-review` is complete. Responsive acceptance covered
+  travel, leasing, simple and custom Items at 375, 390, 430 and 1280px in both
+  languages and themes. The smoke covered archived read-only state, Group edits
+  with keyboard and no JavaScript, visible focus, upload/navigation clearance,
+  and document viewer CSP. Screenshots and measurements are retained under the
+  supervisor run's temporary evidence folder.
+- Its direct dependency, `documents-contextual-history`, is complete with passing
+  automated gates and accepted independent implementation review. Added a SQLite
+  regression for domain invariance during group changes, strengthened renamed/reordered group
+  domain invariance during group changes, strengthened renamed/reordered group
+  persistence and historical field preservation through rollover, and covered
+  the archived reorder guard. Focused Vitest passed (1 file, 17 tests); focused
+  ESLint and Prettier passed. README now documents the Item page controls, and
+  CONTRIBUTING clarifies that General is initially last, not fixed last.
+  Historical supervisor acceptance attempt 1 passed `npm run verify`, but E2E ended with
+  139 passed, 17 failed and 54 not run because Playwright packages/worker files
+  could not be loaded. Installed the existing lockfile in this worktree with
+  `npm ci`, without manifest or version changes. Production build and the
+  focused `language-selection.spec.ts` passed (4 tests including setup).
+  Dependency resolution now points inside this worktree. Attempt 1 is superseded
+  by acceptance attempt 2: `npm run verify`, `npm run test:e2e` and
+  `git diff --check` all exited 0, with **127 test files, 1,102 tests and
+  210 E2E tests passing**. These counts were checked against the compact
+  `acceptance-review/verification/attempt-02.log` and its raw command logs.
+  Review round 1 F-01 then added width constraints and unbroken-name wrapping to
+  the shared group heading/legend class. A real group-management regression saves
+  an 80-character name and checks viewing/editing containment at 375, 390 and
+  430px. Focused Prettier, ESLint and build passed; `field-groups.spec.ts` passed
+  4 tests including setup. F-02 corrects both tracked verification records.
+  Supervisor acceptance attempt 3 then verified the CSS/test correction:
+  `npm run verify`, `npm run test:e2e` and `git diff --check` all exited 0,
+  with **127 test files, 1,102 tests and 211 E2E tests passing**, including the
+  maximum-length group-name regression. Results were compared with
+  `acceptance-review/verification/attempt-03.log` and raw command logs
+  `attempt-03-command-01.log:66-67` and `attempt-03-command-02.log:253,384`.
+  Supervisor attempt 4 passed (127 test files, 1,102 tests, 211 E2E tests)
+  before the final navigation-shortcut correction. The focused regression for
+  that correction passed. Supervisor acceptance attempt 5 then passed
+  `npm run verify`, `npm run test:e2e` and `git diff --check`, **all exit 0**,
+  with **127 test files, 1,102 tests and 212 E2E tests passing**. Both the
+  phone-navigation clearance and maximum-length group-name regressions passed.
+  Compared with `acceptance-review/verification/attempt-05.log:1-10` and raw logs
+  `attempt-05-command-01.log:66-67` and `attempt-05-command-02.log:253-254,385`.
+  Attempt 5 passed after the navigation correction. Review round 4 F-03
+  updates both status documents to replace the stale pending automated gate;
+  this is a documentation-only correction.
+  A later acceptance attempt 6 passed `npm run verify`, but E2E reported
+  203 passed and 9 failed. The first failure was Inbox cleanup after the 375px
+  suggestion test; its trace has no delete POST. The helper pressed Delete
+  before document-link navigation settled, while the heading assertion could
+  already pass on the old view. Cleanup now waits for the selected document URL
+  before keyboard deletion, retaining the zero-row assertion. Targeted Prettier,
+  ESLint and production build passed. A focused run of the failing scenario,
+  the 768px scenario and both locale/count checks passed 5 tests including setup.
+  Supervisor acceptance attempt 7 completed full verification of this correction:
+  `npm run verify`, `npm run test:e2e` and `git diff --check` all exited 0,
+  with **127 test files, 1,102 tests and 212 E2E tests passing**. The previously
+  failing Inbox scenario and subsequent viewport/locale scenarios passed.
+  Compared with `acceptance-review/verification/attempt-07.log:1-10` and raw logs
+  `attempt-07-command-01.log:66-67` and `attempt-07-command-02.log:271-275,385`.
+  Attempt 7 supersedes attempt 6's E2E failure. Review round 5 verified the
+  cleanup wait; F-04 updates both status documents with the supplied result.
+  After the mobile-navigation clearance correction and updated acceptance
+  record, Supervisor acceptance attempt 10 passed all three gates: **127 test
+  files, 1,102 tests and 212 E2E tests**. This is the current automated result.
+
+### Responsive browser acceptance (fictional data)
+
+- Ran `.agent/supervisor/item-detail-information-hierarchy-retry/tmp/manual-responsive.mjs`
+  against an isolated fake-provider server and disposable manual data. It created
+  travel, leasing, simple Playbook and custom Items, then captured 16 Chromium
+  views: each Item at 375, 390, 430 and 1280px. The pairs were German/light,
+  German/dark, English/light and English/dark respectively.
+- The travel Item had populated fields, three supporting documents, a ready
+  Action, and a completion/reopen pass. The leasing Item had populated vehicle
+  fields and an image. The simple Playbook Item had populated fields. The custom
+  Item created a group, moved a field into it and featured it. Browser screenshots
+  are under `.agent/supervisor/item-detail-information-hierarchy-retry/tmp/manual-responsive-screenshots/`.
+- All 16 views reported no horizontal overflow, page errors or console errors.
+  Desktop and phone layouts kept the same section order. The custom-item 375px
+  view initially placed the upload picker under the fixed tab bar. The mobile
+  header's duplicate “More options” jump link is now hidden at phone widths;
+  the final 375px probe showed the picker clear of the tab bar. Lower “More options”
+  remains available. The focused regression passed 2 tests including setup.
+- Keyboard traversal exercised all visible Group-manager controls with visible
+  focus. A JavaScript-disabled browser context created a Group and moved a Field
+  using native forms/details. Archived read-only screens were captured at phone
+  and desktop widths. The viewer CSP policy was checked directly; E2E also covers
+  archive guards and action-dialog Escape/error recovery.
+- Optional isolated Docker verification was not run. The manual responsive matrix
+  is recorded in `docs/item-detail-information-hierarchy-status.md`. Final
+  independent review round 8 passed with no findings. No later implementation
+  unit is defined. Before PR preparation, the branch was aligned to current
+  `origin/main` after confirming its original HEAD (`308f2594`) was an ancestor
+  and had no branch-only commits. PR #58's Action description and extraction
+  behavior were retained during the stash restore; current full verification is
+  recorded after alignment below.
+
 ## Slice 1 — Foundation
 
 **Status: COMPLETE** (one item environmentally NOT VERIFIED — see below)

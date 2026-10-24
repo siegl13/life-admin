@@ -2,35 +2,54 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 import type { ItemRelationRepositoryPort } from '$lib/application/ports';
 
-const { clock, relations, history, cycles, fields, schedule, items, snoozes, whatsNext } =
-	vi.hoisted(() => ({
-		clock: {
-			nowIso: () => '2026-01-01T00:00:00.000Z',
-			todayIso: () => '2026-06-03',
-			localHour: () => 9
-		},
-		relations: {
-			link: vi.fn(),
-			unlink: vi.fn(),
-			listRelated: vi.fn(),
-			listCandidates: vi.fn(),
-			countRelated: vi.fn(),
-			deleteForItem: vi.fn(),
-			get: vi.fn()
-		},
-		history: {
-			insert: vi.fn(),
-			listByItem: vi.fn().mockReturnValue([]),
-			countByItem: vi.fn().mockReturnValue(0),
-			deleteForItem: vi.fn()
-		},
-		cycles: { getActiveCycle: vi.fn() },
-		fields: { listFields: vi.fn() },
-		schedule: { applyFieldUpdatesAndRecalculate: vi.fn() },
-		items: { getItemById: vi.fn() },
-		snoozes: { get: vi.fn(), set: vi.fn(), clearIfVersion: vi.fn(), list: vi.fn() },
-		whatsNext: { loadItems: vi.fn() }
-	}));
+const {
+	clock,
+	relations,
+	history,
+	cycles,
+	fields,
+	fieldGroups,
+	schedule,
+	items,
+	snoozes,
+	whatsNext
+} = vi.hoisted(() => ({
+	clock: {
+		nowIso: () => '2026-01-01T00:00:00.000Z',
+		todayIso: () => '2026-06-03',
+		localHour: () => 9
+	},
+	relations: {
+		link: vi.fn(),
+		unlink: vi.fn(),
+		listRelated: vi.fn(),
+		listCandidates: vi.fn(),
+		countRelated: vi.fn(),
+		deleteForItem: vi.fn(),
+		get: vi.fn()
+	},
+	history: {
+		insert: vi.fn(),
+		listByItem: vi.fn().mockReturnValue([]),
+		countByItem: vi.fn().mockReturnValue(0),
+		deleteForItem: vi.fn()
+	},
+	cycles: { getActiveCycle: vi.fn() },
+	fields: { listFields: vi.fn() },
+	fieldGroups: {
+		listGroups: vi.fn(),
+		listAssignments: vi.fn(),
+		createGroup: vi.fn(),
+		renameGroup: vi.fn(),
+		setFeatured: vi.fn(),
+		reorder: vi.fn(),
+		moveField: vi.fn()
+	},
+	schedule: { applyFieldUpdatesAndRecalculate: vi.fn() },
+	items: { getItemById: vi.fn() },
+	snoozes: { get: vi.fn(), set: vi.fn(), clearIfVersion: vi.fn(), list: vi.fn() },
+	whatsNext: { loadItems: vi.fn() }
+}));
 
 vi.mock('$lib/server/appPorts', () => ({
 	actionsPort: {},
@@ -42,6 +61,7 @@ vi.mock('$lib/server/appPorts', () => ({
 	eventsPort: {},
 	extractionRunsPort: {},
 	fieldsPort: fields,
+	fieldGroupsPort: fieldGroups,
 	idsPort: { newId: () => 'test-id' },
 	itemRelationsPort: relations,
 	itemHistoryPort: history,
@@ -422,5 +442,106 @@ describe('snooze actions', () => {
 
 		expect(isRedirect(caught)).toBe(true);
 		expect(snoozes.clearIfVersion).not.toHaveBeenCalled();
+	});
+});
+
+describe('field group actions', () => {
+	const GROUP = {
+		id: 'g1',
+		itemId: A,
+		label: 'Trip',
+		isDefault: false,
+		featured: false,
+		position: 0
+	};
+
+	function groupRequest(entries: Record<string, string>): Request {
+		const form = new FormData();
+		for (const [key, value] of Object.entries(entries)) form.set(key, value);
+		return new Request('http://localhost/items/' + A, { method: 'POST', body: form });
+	}
+
+	async function run(name: keyof typeof actions, entries: Record<string, string>) {
+		try {
+			return await actions[name]({ request: groupRequest(entries), params: { id: A } } as never);
+		} catch (thrown) {
+			return thrown;
+		}
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		items.getItemById.mockReturnValue({ status: 'ACTIVE' });
+		fieldGroups.createGroup.mockReturnValue(GROUP);
+		fieldGroups.renameGroup.mockReturnValue(GROUP);
+		fieldGroups.setFeatured.mockReturnValue(GROUP);
+	});
+
+	it('creates, renames, moves a field and features a group, then redirects to the manager', async () => {
+		const results = [
+			await run('addFieldGroup', { label: ' Trip ' }),
+			await run('renameFieldGroup', { groupId: 'g1', label: 'Journey' }),
+			await run('moveFieldToGroup', { fieldKey: 'destination', groupId: 'g1' }),
+			await run('setFieldGroupFeatured', { groupId: 'g1', featured: 'true' })
+		];
+
+		for (const result of results) {
+			expect(isRedirect(result)).toBe(true);
+			expect(result).toMatchObject({
+				status: 303,
+				location: `/items/${A}?manage=groups#field-groups`
+			});
+		}
+		expect(fieldGroups.createGroup).toHaveBeenCalledWith(A, 'Trip');
+		expect(fieldGroups.renameGroup).toHaveBeenCalledWith(A, 'g1', 'Journey');
+		expect(fieldGroups.moveField).toHaveBeenCalledWith(A, 'destination', 'g1');
+		expect(fieldGroups.setFeatured).toHaveBeenCalledWith(A, 'g1', true);
+	});
+
+	it('only features a group for an explicit "true" and unfeatures otherwise', async () => {
+		await run('setFieldGroupFeatured', { groupId: 'g1', featured: 'false' });
+		await run('setFieldGroupFeatured', { groupId: 'g1' });
+
+		expect(fieldGroups.setFeatured).toHaveBeenNthCalledWith(1, A, 'g1', false);
+		expect(fieldGroups.setFeatured).toHaveBeenNthCalledWith(2, A, 'g1', false);
+	});
+
+	it('swaps a group with its neighbour inside the same featured partition', async () => {
+		fieldGroups.listGroups.mockReturnValue([
+			{ ...GROUP, id: 'a', position: 0 },
+			{ ...GROUP, id: 'b', position: 1 }
+		]);
+
+		await run('moveFieldGroup', { groupId: 'b', direction: 'up' });
+
+		expect(fieldGroups.reorder).toHaveBeenCalledWith(A, ['b', 'a']);
+	});
+
+	it('rejects an invalid label without touching the repository', async () => {
+		const result = await run('addFieldGroup', { label: '   ' });
+
+		expect(result).toMatchObject({ status: 400 });
+		expect(fieldGroups.createGroup).not.toHaveBeenCalled();
+	});
+
+	it('rejects every mutation for an archived item before any write', async () => {
+		items.getItemById.mockReturnValue({ status: 'ARCHIVED' });
+
+		for (const name of [
+			'addFieldGroup',
+			'renameFieldGroup',
+			'moveFieldToGroup',
+			'setFieldGroupFeatured',
+			'moveFieldGroup'
+		] as const) {
+			expect(await run(name, { label: 'x', groupId: 'g1', fieldKey: 'k' })).toMatchObject({
+				status: 400
+			});
+		}
+		expect(fieldGroups.createGroup).not.toHaveBeenCalled();
+		expect(fieldGroups.renameGroup).not.toHaveBeenCalled();
+		expect(fieldGroups.moveField).not.toHaveBeenCalled();
+		expect(fieldGroups.setFeatured).not.toHaveBeenCalled();
+		expect(fieldGroups.reorder).not.toHaveBeenCalled();
 	});
 });

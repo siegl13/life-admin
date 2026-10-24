@@ -84,8 +84,29 @@ without JavaScript.
   before certificate expiry"). Creating an Item from a Playbook freezes
   that Playbook into the Item: later Playbook edits never touch existing
   Items. Only the title is required; everything else can wait.
+- **Group**: a named collection of an Item's fields on the Item page. A
+  Playbook can set the starting groups. After that the Item owns them: you
+  can add and rename groups, move fields, and feature a group to show it
+  first. Fields without a group (including ones you add yourself) are in
+  General. Empty fields are hidden and counted, and stay editable.
 
 Every action belongs to an Item. There's no flat, anonymous to-do list.
+
+### Organize an Item
+
+The next action has complete and skip controls in its card, on phones and desktop.
+The workflow lists open steps first. Expand **Done and skipped** to see their
+dates or reopen a step. Scheduling stays in the action's secondary controls.
+
+Under **Details**, open **Edit details**, then **Manage groups** to create or
+rename groups, move fields, feature groups or change their order. Featured
+groups appear first. Group names, order and assignments stay with the Item
+when you start a new cycle; field values still follow the Playbook's reset rules.
+Empty fields remain available in the edit form. Archived Items are read-only.
+
+Documents, related Items and history follow the fields. Document suggestions
+show their source in history when available. Older events keep generic text.
+Add-task and archive controls are under **More options** at the bottom.
 
 ## Also useful beyond the household
 

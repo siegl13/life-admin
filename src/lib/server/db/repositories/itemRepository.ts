@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import type { Item, ItemStatus } from '$lib/domain/item/item';
 import type { CreateItemInput } from '$lib/application/ports';
 import { insertCycleContents } from './cycleContents';
+import { insertInitialFieldGroups } from './fieldGroupRepository';
 
 interface ItemRow {
 	id: string;
@@ -86,6 +87,8 @@ export function createItemInTransaction(db: Database.Database, input: CreateItem
 		`INSERT INTO cycles (id, item_id, sequence, status, created_at, playbook_version)
 		 VALUES (?, ?, 1, 'ACTIVE', ?, ?)`
 	).run(cycleId, itemId, now, input.playbook?.version ?? null);
+
+	insertInitialFieldGroups(db, itemId, input.materialization);
 
 	insertCycleContents(
 		db,

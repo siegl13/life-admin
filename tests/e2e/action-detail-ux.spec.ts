@@ -47,13 +47,12 @@ test('mobile: due dialog stays collapsed for an eligible derived action, opens w
 	});
 
 	// Primary actions need no dialog opened first.
-	const sticky = page.locator('.sticky-action-bar');
+	const sticky = page.locator('.next-up');
 	const markDone = sticky.getByRole('button', { name: 'Erledigen' });
 	await expect(markDone).toBeVisible();
 	await expect(sticky.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 
-	// Readiness remains directly under the title in the workflow list. The
-	// featured primary control now lives separately in the sticky bar.
+	// Readiness remains directly under the title in the workflow list.
 	const readiness = step.locator('.timeline__status-inline');
 	await expect(readiness).toBeVisible();
 	await expect(readiness).toHaveText('Jetzt möglich');
@@ -63,9 +62,8 @@ test('mobile: due dialog stays collapsed for an eligible derived action, opens w
 	expect(titleBox).not.toBeNull();
 	expect(readinessBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
 
-	// The featured due editor is owned by the sticky bar; the dialog itself
-	// remains rendered once in its workflow step.
-	await sticky.locator('summary').click();
+	// The hero card owns the featured due editor. The dialog remains rendered
+	// once in its workflow step.
 	const dueTrigger = sticky.getByRole('button', { name: 'Termin ändern' });
 	await expect(dueTrigger).toBeVisible();
 	const dueDialog = step.locator('dialog.action-dialog').first();

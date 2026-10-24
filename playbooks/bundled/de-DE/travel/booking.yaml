@@ -1,12 +1,26 @@
 schemaVersion: 1
 id: de.travel.booking
-version: 1.0.0
+version: 1.1.0
 name: Travel booking
 label_i18n:
   de: Reisebuchung
 description: Track important dates, payments, cancellation deadlines and documents for a booked trip.
 locale: de-DE
 category: travel
+
+groups:
+  - key: trip
+    label: Trip
+    label_i18n:
+      de: Reise
+  - key: booking
+    label: Booking
+    label_i18n:
+      de: Buchung
+  - key: payment
+    label: Payments and cancellation
+    label_i18n:
+      de: Zahlung und Storno
 
 fields:
   - key: destination
@@ -16,12 +30,14 @@ fields:
       de: Reiseziel
     recommended: true
     carryForward: false
+    group: trip
   - key: provider
     type: text
     label: Tour operator / provider
     label_i18n:
       de: Veranstalter / Anbieter
     carryForward: false
+    group: booking
   - key: booking_number
     type: text
     label: Booking number
@@ -29,6 +45,7 @@ fields:
       de: Buchungsnummer
     recommended: true
     carryForward: false
+    group: booking
   - key: trip_start
     type: date
     label: Trip start
@@ -36,42 +53,49 @@ fields:
       de: Reisebeginn
     recommended: true
     carryForward: false
+    group: trip
   - key: trip_end
     type: date
     label: Trip end
     label_i18n:
       de: Reiseende
     carryForward: false
+    group: trip
   - key: balance_due_date
     type: date
     label: Balance payment due
     label_i18n:
       de: Restzahlung fällig
     carryForward: false
+    group: payment
   - key: balance_amount
     type: currency
     label: Balance payment
     label_i18n:
       de: Restzahlung
     carryForward: false
+    group: payment
   - key: free_cancellation_until
     type: date
     label: Free cancellation until
     label_i18n:
       de: Kostenfreie Stornierung bis
     carryForward: false
+    group: payment
   - key: total_price
     type: currency
     label: Total price
     label_i18n:
       de: Gesamtpreis
     carryForward: false
+    group: payment
   - key: insurance_number
     type: text
     label: Insurance number
     label_i18n:
       de: Versicherungsnummer
     carryForward: false
+    group: booking
 
 events:
   - key: cancellation_deadline

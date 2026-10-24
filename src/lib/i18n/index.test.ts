@@ -20,6 +20,50 @@ describe('accepted suggestion history translations', () => {
 	);
 });
 
+describe('document source history translations', () => {
+	afterEach(() => setLocaleProvider(() => 'de'));
+
+	it.each([
+		{
+			locale: 'de',
+			named: ['1 Vorschlag aus „Police“ übernommen', '4 Vorschläge aus „Police“ übernommen'],
+			generic: [
+				'1 Vorschlag aus einem Dokument übernommen',
+				'4 Vorschläge aus einem Dokument übernommen'
+			]
+		},
+		{
+			locale: 'en',
+			named: ['1 suggestion accepted from “Police”', '4 suggestions accepted from “Police”'],
+			generic: ['1 suggestion accepted from a document', '4 suggestions accepted from a document']
+		}
+	] satisfies { locale: Locale; named: string[]; generic: string[] }[])(
+		'formats singular and plural counts in $locale',
+		({ locale, named, generic }) => {
+			setLocaleProvider(() => locale);
+
+			expect(
+				t('items.detail.historyAiSuggestionsFromNamedDocumentOne', {
+					count: '1',
+					document: 'Police'
+				})
+			).toBe(named[0]);
+			expect(
+				t('items.detail.historyAiSuggestionsFromNamedDocumentMany', {
+					count: '4',
+					document: 'Police'
+				})
+			).toBe(named[1]);
+			expect(t('items.detail.historyAiSuggestionsFromDocumentOne', { count: '1' })).toBe(
+				generic[0]
+			);
+			expect(t('items.detail.historyAiSuggestionsFromDocumentMany', { count: '4' })).toBe(
+				generic[1]
+			);
+		}
+	);
+});
+
 describe('inbox document count translations', () => {
 	afterEach(() => setLocaleProvider(() => 'de'));
 

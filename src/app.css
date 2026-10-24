@@ -756,6 +756,13 @@ a.app-sidebar-primary,
 		padding: var(--space-5) var(--space-4) var(--mobile-floating-reserve);
 	}
 
+	/* The lower operations remain in the final section. Omitting this shortcut
+	   on phones keeps the first document upload control clear of the fixed
+	   bottom navigation on a short, custom Item with no workflow section. */
+	.item-detail-page .page-head__more-link {
+		display: none;
+	}
+
 	.app-tabbar {
 		display: flex;
 		position: fixed;
@@ -952,7 +959,7 @@ a.items-archive-toggle {
 	margin-bottom: 0;
 }
 
-.item-detail-page .item-detail-main > .section[aria-labelledby='more-label'] > .form-stack {
+.item-detail-page > .section[aria-labelledby='more-label'] > .form-stack {
 	max-width: none;
 }
 
@@ -1314,9 +1321,8 @@ a.items-archive-toggle {
 	color: var(--color-danger);
 }
 
-/* Desktop-only hero controls (complete/skip/change-due): the phone
-   equivalent is .sticky-action-bar below, so exactly one of the two is
-   ever visible. */
+/* Hero controls (complete/skip/change-due) at every width. They live inside
+   the card that names the action, so there is no detached fixed bar. */
 .next-up__actions {
 	display: flex;
 }
@@ -1330,13 +1336,6 @@ a.items-archive-toggle {
 .next-up__actions .secondary:hover {
 	background: var(--color-surface-hover);
 	color: var(--color-text);
-}
-
-/* Phone-only sticky bar owning complete + a native secondary menu for the
-   featured action. Hidden on desktop, where .next-up__actions already
-   covers the same controls beside the hero text. */
-.sticky-action-bar {
-	display: none;
 }
 
 .facts {
@@ -1596,6 +1595,25 @@ a.items-archive-toggle {
 	min-width: 0;
 }
 
+/* Completed and skipped steps, collapsed under the open ones. */
+.timeline-closed {
+	margin-top: var(--space-3);
+}
+
+.timeline-closed > summary {
+	cursor: pointer;
+	min-height: var(--control-h);
+	display: flex;
+	align-items: center;
+	font-size: var(--text-meta);
+	font-weight: 600;
+	color: var(--color-text-faint);
+}
+
+.timeline-closed > .timeline {
+	margin-top: var(--space-3);
+}
+
 .timeline__step:last-child .timeline__body {
 	padding-bottom: 0;
 }
@@ -1821,6 +1839,9 @@ a.items-archive-toggle {
 }
 
 .facts-group__label {
+	min-width: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
 	font-size: var(--text-label);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -1836,6 +1857,65 @@ a.items-archive-toggle {
 .facts-empty > summary {
 	color: var(--color-text-muted);
 	cursor: pointer;
+}
+
+/* Item-owned field groups: featured marker and the group manager. */
+.facts-group--featured {
+	border-color: var(--color-text-faint);
+}
+
+.facts-group__featured {
+	margin-left: var(--space-2);
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.field-groups__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.field-groups__item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.field-groups__rename,
+.field-groups__controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.field-groups__rename input {
+	flex: 1 1 12rem;
+	min-width: 0;
+}
+
+.field-groups__heading {
+	margin: 0;
+	font-size: var(--text-body);
+}
+
+.fields-update-form__group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.fields-update-form__group > legend {
+	padding: 0;
+	margin-bottom: var(--space-3);
 }
 
 /* ---------------------------------------------------------------- forms */
@@ -2081,7 +2161,7 @@ select:hover {
 	max-width: var(--form-max);
 }
 
-.item-detail-page .item-detail-main > .section[aria-labelledby='more-label'] .disclosure {
+.item-detail-page > .section[aria-labelledby='more-label'] .disclosure {
 	max-width: none;
 }
 
@@ -2554,9 +2634,9 @@ button.relation-unlink:hover {
 }
 
 .document-row__preview {
-	width: 72px;
-	height: 72px;
-	flex: 0 0 72px;
+	width: 48px;
+	height: 48px;
+	flex: 0 0 48px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -2573,7 +2653,11 @@ button.relation-unlink:hover {
 }
 
 .document-row__type {
-	font-size: var(--text-label);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	font-size: 0.625rem;
+	line-height: 1;
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	color: var(--color-text-muted);
@@ -2633,7 +2717,7 @@ button.relation-unlink:hover {
 @media (min-width: 1024px) {
 	.item-detail-side .document-row {
 		display: grid;
-		grid-template-columns: 72px minmax(0, 1fr);
+		grid-template-columns: 48px minmax(0, 1fr);
 		grid-template-areas:
 			'preview text'
 			'. open';
@@ -3336,18 +3420,17 @@ mark {
 		gap: var(--space-3);
 	}
 
-	.document-row {
-		flex-wrap: wrap;
-	}
-
+	/* Compact row: thumbnail, text and Open stay on one line. The thumbnail
+	 * link keeps a 44px touch target. */
 	.document-row__preview {
-		width: 56px;
-		height: 56px;
-		flex-basis: 56px;
+		width: 44px;
+		height: 44px;
+		flex-basis: 44px;
 	}
 
 	.document-row__open {
-		width: 100%;
+		padding-left: var(--space-3);
+		padding-right: var(--space-3);
 	}
 
 	.document-viewer__pdf {
@@ -3465,75 +3548,11 @@ mark {
 	}
 }
 
-/* The mobile app shell starts below 768px. Item detail switches to its
-   informational hero and sticky action bar at that same breakpoint. */
+/* The mobile app shell starts below 768px. Item detail's hero keeps its
+   complete/skip controls inside the card at every width. */
 @media (max-width: 767px) {
-	.item-detail-page .next-up__actions {
-		display: none;
-	}
-
 	.item-detail-page .timeline-progress {
 		display: flex;
-	}
-
-	.item-detail-page .sticky-action-bar {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		position: fixed;
-		left: var(--space-4);
-		right: var(--space-4);
-		bottom: calc(60px + env(safe-area-inset-bottom) + var(--space-3));
-		z-index: 5;
-		padding: var(--space-3) var(--space-4);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg, 0.75rem);
-		box-shadow: 0 2px 10px var(--color-border-strong);
-	}
-
-	.item-detail-page .sticky-action-bar__primary {
-		flex: 1;
-		min-height: var(--control-h);
-	}
-
-	.item-detail-page .sticky-action-bar__more {
-		position: relative;
-	}
-
-	.item-detail-page .sticky-action-bar__more > summary {
-		list-style: none;
-		min-width: var(--control-h);
-		min-height: var(--control-h);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md, 0.5rem);
-		cursor: pointer;
-	}
-
-	.item-detail-page .sticky-action-bar__more > summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.item-detail-page .sticky-action-bar__menu {
-		position: absolute;
-		right: 0;
-		bottom: calc(100% + var(--space-2));
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding: var(--space-3);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md, 0.5rem);
-		box-shadow: 0 2px 10px var(--color-border-strong);
-		min-width: 10rem;
-	}
-
-	.item-detail-page .sticky-action-bar__menu button {
-		min-height: var(--control-h);
 	}
 
 	.item-detail-page .timeline__step {
@@ -3552,11 +3571,6 @@ mark {
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 2px;
-	}
-
-	.app-shell:has(.item-detail-page .sticky-action-bar) {
-		padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
-		scroll-padding-bottom: calc(var(--mobile-floating-reserve) + 4.5rem);
 	}
 }
 

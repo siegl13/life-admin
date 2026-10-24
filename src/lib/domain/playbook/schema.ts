@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
+	groupLabelI18nSchema,
+	groupLabelSchema,
 	keySchema,
+	MAX_PLAYBOOK_GROUPS,
 	labelI18nEntrySchema,
 	offsetSchema,
 	playbookIdSchema,
@@ -22,6 +25,14 @@ import {
 
 const labelI18nSchema = labelI18nEntrySchema.optional();
 
+const groupSchema = z
+	.object({
+		key: keySchema,
+		label: groupLabelSchema,
+		label_i18n: groupLabelI18nSchema.optional()
+	})
+	.strict();
+
 const fieldSchema = z
 	.object({
 		key: keySchema,
@@ -29,7 +40,8 @@ const fieldSchema = z
 		label: z.string().min(1).max(200),
 		label_i18n: labelI18nSchema,
 		recommended: z.boolean().optional().default(false),
-		carryForward: z.boolean().optional()
+		carryForward: z.boolean().optional(),
+		group: z.string().min(1).max(64).optional()
 	})
 	.strict();
 
@@ -75,6 +87,7 @@ export const playbookSchema = z
 		description: z.string().max(2000).optional(),
 		locale: z.string().min(2).max(10).optional(),
 		category: z.string().min(1).max(64).optional(),
+		groups: z.array(groupSchema).max(MAX_PLAYBOOK_GROUPS).default([]),
 		fields: z.array(fieldSchema).max(50).default([]),
 		events: z.array(eventSchema).max(50).default([]),
 		actions: z.array(actionSchema).max(100).default([])
@@ -82,6 +95,7 @@ export const playbookSchema = z
 	.strict();
 
 export type RawPlaybook = z.infer<typeof playbookSchema>;
+export type RawGroup = z.infer<typeof groupSchema>;
 export type RawField = z.infer<typeof fieldSchema>;
 export type RawEvent = z.infer<typeof eventSchema>;
 export type RawAction = z.infer<typeof actionSchema>;

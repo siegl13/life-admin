@@ -53,6 +53,18 @@ test('a document can be uploaded, downloaded, and removed from an item', async (
 	await expect(row.locator('.document-row__date')).toHaveCSS('white-space', 'nowrap');
 	await expect(page.getByRole('button', { name: 'Informationen erkennen' })).toHaveCount(0);
 
+	// Compact row: file icon fallback for a PDF, and thumbnail, text and
+	// Open share one line on a phone.
+	await expect(row.locator('.document-row__preview svg')).toBeVisible();
+	await page.setViewportSize({ width: 375, height: 800 });
+	const previewBox = await row.locator('.document-row__preview').boundingBox();
+	const openBox = await row.locator('.document-row__open').boundingBox();
+	expect(previewBox!.width).toBeLessThanOrEqual(48);
+	expect(previewBox!.height).toBeGreaterThanOrEqual(44);
+	expect(openBox!.y).toBeLessThan(previewBox!.y + previewBox!.height);
+	expect(openBox!.height).toBeGreaterThanOrEqual(44);
+	await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 375);
+
 	const href = await row.getByRole('link', { name: 'vertrag.pdf' }).getAttribute('href');
 	expect(href).toBeTruthy();
 	const viewerResponse = await page.request.get(href!);

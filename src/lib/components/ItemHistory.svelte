@@ -98,7 +98,8 @@
 	function getEventText(
 		eventType: HistoryEventType,
 		payload: HistoryEventPayload,
-		fieldLabel: string | null
+		fieldLabel: string | null,
+		sourceDocumentName: string | null
 	): string {
 		const p = payload as Record<string, unknown>;
 		switch (eventType) {
@@ -138,13 +139,32 @@
 				return t('items.detail.historyRelationLinked');
 			case 'RELATION_UNLINKED':
 				return t('items.detail.historyRelationUnlinked');
-			case 'AI_SUGGESTIONS_ACCEPTED':
+			case 'AI_SUGGESTIONS_ACCEPTED': {
+				const count = String(p.acceptedCount ?? 1);
+				const one = (p.acceptedCount ?? 1) === 1;
+				if (sourceDocumentName) {
+					return t(
+						one
+							? 'items.detail.historyAiSuggestionsFromNamedDocumentOne'
+							: 'items.detail.historyAiSuggestionsFromNamedDocumentMany',
+						{ count, document: sourceDocumentName }
+					);
+				}
+				if (p.source === 'DOCUMENT') {
+					return t(
+						one
+							? 'items.detail.historyAiSuggestionsFromDocumentOne'
+							: 'items.detail.historyAiSuggestionsFromDocumentMany',
+						{ count }
+					);
+				}
 				return t(
-					(p.acceptedCount ?? 1) === 1
+					one
 						? 'items.detail.historyAiSuggestionsAcceptedOne'
 						: 'items.detail.historyAiSuggestionsAcceptedMany',
-					{ count: String(p.acceptedCount ?? 1) }
+					{ count }
 				);
+			}
 			case 'CUSTOM_FIELD_ADDED':
 				return t('items.detail.historyCustomFieldAdded');
 			case 'CUSTOM_FIELD_REMOVED':
@@ -188,7 +208,12 @@
 							<div class="history-event">
 								<span class="history-event__time">{formatTime(event.createdAt)}</span>
 								<span class="history-event__text"
-									>{getEventText(event.eventType, event.payload, event.fieldLabel)}</span
+									>{getEventText(
+										event.eventType,
+										event.payload,
+										event.fieldLabel,
+										event.sourceDocumentName
+									)}</span
 								>
 							</div>
 						{/each}
@@ -288,6 +313,8 @@
 
 	.history-event__text {
 		font-size: 0.9375rem;
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 
 	.history-more {

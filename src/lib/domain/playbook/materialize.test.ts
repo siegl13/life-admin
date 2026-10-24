@@ -62,6 +62,52 @@ describe('materializePlaybook', () => {
 		]);
 	});
 
+	it('plans initial groups in declaration order and assigns fields to them', () => {
+		const playbook = normalized({
+			schemaVersion: 1,
+			id: 'de.test.grouped',
+			version: '1.0.0',
+			name: 'Grouped',
+			groups: [
+				{ key: 'second', label: ' Second ', label_i18n: { de: 'Zweite' } },
+				{ key: 'first', label: 'First' }
+			],
+			fields: [
+				{ key: 'a', type: 'text', label: 'A', group: 'first' },
+				{ key: 'b', type: 'text', label: 'B' },
+				{ key: 'c', type: 'text', label: 'C', group: 'second' }
+			]
+		});
+
+		const plan = materializePlaybook(playbook);
+
+		expect(plan.groups).toEqual([
+			{ groupKey: 'second', label: 'Second', labelI18n: { de: 'Zweite' }, position: 0 },
+			{ groupKey: 'first', label: 'First', labelI18n: {}, position: 1 }
+		]);
+		expect(plan.fields.map((f) => [f.fieldKey, f.groupKey])).toEqual([
+			['a', 'first'],
+			['b', undefined],
+			['c', 'second']
+		]);
+	});
+
+	it('plans no groups for a playbook without groups, and for a snapshot frozen before groups existed', () => {
+		const withoutGroups = normalized({
+			schemaVersion: 1,
+			id: 'de.test.plain',
+			version: '1.0.0',
+			name: 'Plain',
+			fields: [{ key: 'a', type: 'text', label: 'A' }]
+		});
+		const legacySnapshot = { ...withoutGroups };
+		delete legacySnapshot.groups;
+
+		expect(materializePlaybook(withoutGroups).groups).toEqual([]);
+		expect(materializePlaybook(legacySnapshot).groups).toEqual([]);
+		expect(materializePlaybook(legacySnapshot).fields[0].groupKey).toBeUndefined();
+	});
+
 	it('carries label_i18n through unresolved (resolution happens at the application layer)', () => {
 		const playbook = normalized({
 			schemaVersion: 1,

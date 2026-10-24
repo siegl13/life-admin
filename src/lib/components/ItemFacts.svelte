@@ -3,27 +3,17 @@
 	import { formatCurrencyDisplay, formatDate } from '$lib/ui/format';
 	import { formatEmptyFieldCount } from '$lib/ui/itemDetail';
 	import type { Field } from '$lib/domain/field/field';
-	import type { TranslationKey } from '$lib/i18n/de';
+	import type { FieldGroupView } from '$lib/domain/field/fieldGroup';
 
-	let { fields, readOnly = false }: { fields: readonly Field[]; readOnly?: boolean } = $props();
+	let { groups, readOnly = false }: { groups: readonly FieldGroupView[]; readOnly?: boolean } =
+		$props();
 
-	const groupOrder = ['date', 'currency', 'text'] as const;
-	const groupLabel: Record<(typeof groupOrder)[number], TranslationKey> = {
-		date: 'items.detail.factsGroupDate',
-		currency: 'items.detail.factsGroupCurrency',
-		text: 'items.detail.factsGroupText'
-	};
+	let filledGroups = $derived(groups.filter((view) => view.filledFields.length > 0));
+	let emptyFields = $derived(groups.flatMap((view) => view.emptyFields));
 
-	let groups = $derived(
-		groupOrder
-			.map((type) => ({
-				type,
-				label: groupLabel[type],
-				fields: fields.filter((field) => field.type === type && Boolean(field.value))
-			}))
-			.filter((group) => group.fields.length > 0)
-	);
-	let emptyFields = $derived(fields.filter((field) => !field.value));
+	function groupLabel(view: FieldGroupView): string {
+		return view.group.label ?? t('items.detail.groupGeneral');
+	}
 
 	function displayValue(field: Field): string {
 		if (!field.value) return '';
@@ -41,13 +31,24 @@
 </script>
 
 <div class="facts-view">
-	{#if groups.length > 0}
+	{#if filledGroups.length > 0}
 		<div class="facts">
-			{#each groups as group (group.type)}
-				<section class="facts-group" aria-labelledby="facts-{group.type}">
-					<h3 class="facts-group__label" id="facts-{group.type}">{t(group.label)}</h3>
+			{#each filledGroups as view (view.group.id)}
+				<section
+					class="facts-group"
+					class:facts-group--featured={view.group.featured}
+					aria-labelledby="facts-{view.group.id}"
+				>
+					<h3 class="facts-group__label" id="facts-{view.group.id}">
+						{groupLabel(view)}
+						{#if view.group.featured}
+							<span class="pill pill--neutral facts-group__featured">
+								{t('items.detail.groupFeatured')}
+							</span>
+						{/if}
+					</h3>
 					<div class="data-list">
-						{#each group.fields as field (field.id)}
+						{#each view.filledFields as field (field.id)}
 							<div class="data-row">
 								<span class="data-row__key">{field.label}</span>
 								<span

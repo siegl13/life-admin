@@ -152,6 +152,12 @@ export const actions: Actions = {
 				};
 			});
 
+		// Read before the writes: applying moves the run out of NEW but never
+		// changes its source link. Null attachmentId means the document was
+		// already deleted, so only the generic document source is recorded.
+		const sourceRun = extractionRunsPort.getById(params.runId);
+		const sourceAttachmentId = sourceRun?.itemId === params.id ? sourceRun.attachmentId : null;
+
 		function recordAccepted(acceptedCount: number) {
 			if (acceptedCount === 0) return;
 			recordHistoryEvent(
@@ -160,7 +166,11 @@ export const actions: Actions = {
 					itemId: params.id,
 					actorKind: 'OWNER',
 					eventType: 'AI_SUGGESTIONS_ACCEPTED',
-					payload: { acceptedCount }
+					payload: {
+						acceptedCount,
+						source: 'DOCUMENT',
+						...(sourceAttachmentId ? { attachmentId: sourceAttachmentId } : {})
+					}
 				}
 			);
 		}

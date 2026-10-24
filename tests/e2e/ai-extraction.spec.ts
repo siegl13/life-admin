@@ -52,6 +52,7 @@ async function openExtractionReview(page: Page, filename: string) {
 test('AI extraction: disabled by default, full review/apply/dismiss flow, then disabled again', async ({
 	page
 }) => {
+	const documentName = 'a'.repeat(196) + '.pdf';
 	// 1. AI disabled by default: create the item and confirm no button exists.
 	await page.goto('/items/new');
 	await page.getByLabel('Titel').fill('KFZ AI-Test');
@@ -64,7 +65,7 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await page
 		.locator('form[action="?/addAttachment"]')
 		.locator('input[type="file"]')
-		.setInputFiles({ name: 'pruefbericht.pdf', mimeType: 'application/pdf', buffer: MINIMAL_PDF });
+		.setInputFiles({ name: documentName, mimeType: 'application/pdf', buffer: MINIMAL_PDF });
 	await page
 		.locator('form[action="?/addAttachment"]')
 		.getByRole('button', { name: 'Hinzufügen' })
@@ -86,14 +87,14 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 
 	// 3/4/5. Run extraction on the uploaded document.
 	await page.goto(itemUrl);
-	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('link', { name: documentName, exact: true }).click();
 	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
 	await expect(page).toHaveURL(/\/suggestions\//);
 
 	// 6/7/8. Review page: the source document is named, the real field's
 	// suggestion is visible, the injected junk is absent, and the
 	// discarded count is shown.
-	await expect(page.getByText('pruefbericht.pdf')).toBeVisible();
+	await expect(page.getByText(`Erkannt aus: ${documentName}`, { exact: true })).toBeVisible();
 	const nextInspectionSuggestion = page.locator('#suggestion-next_inspection');
 	await expect(nextInspectionSuggestion.getByText('Nächste HU')).toBeVisible();
 	await expect(nextInspectionSuggestion.getByText('noch leer')).toBeVisible();
@@ -114,7 +115,28 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
 	await expect(page).toHaveURL(itemUrl);
 	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2031-03-15');
-	await expect(page.getByText('1 Vorschlag übernommen', { exact: true })).toBeVisible();
+	const acceptedHistory = page.locator('.history-event__text').filter({
+		hasText: `1 Vorschlag aus „${documentName}“ übernommen`
+	});
+	await expect(acceptedHistory).toHaveText(`1 Vorschlag aus „${documentName}“ übernommen`);
+	for (const width of [375, 390, 430, 1280]) {
+		await page.setViewportSize({ width, height: 800 });
+		await expect(acceptedHistory).toBeVisible();
+		await expect
+			.poll(async () =>
+				acceptedHistory.evaluate((text) => {
+					const bounds = text.getBoundingClientRect();
+					const row = text.closest('.history-event')!.getBoundingClientRect();
+					return (
+						text.scrollWidth <= text.clientWidth &&
+						bounds.left >= row.left &&
+						bounds.right <= row.right + 1 &&
+						document.documentElement.scrollWidth <= window.innerWidth
+					);
+				})
+			)
+			.toBe(true);
+	}
 	// .first(): the resolved action now legitimately appears in both the
 	// workflow timeline and the "Nächste Schritte" widget.
 	await expect(page.getByText('HU-Termin planen').first()).toBeVisible();
@@ -131,7 +153,7 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await expect(page).toHaveURL(itemUrl);
 	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2030-01-01');
 
-	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('link', { name: documentName, exact: true }).click();
 	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
 	await expect(page).toHaveURL(/\/suggestions\//);
 	const inspectionSuggestion = page.locator('#suggestion-next_inspection');
@@ -247,15 +269,19 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	);
 	const historyEvents = page.locator('.history-event__text');
 	await expect(historyEvents).toHaveCount(3);
-	await expect(historyEvents.getByText('5 Vorschläge übernommen', { exact: true })).toHaveCount(1);
-	await expect(historyEvents.getByText('2 Vorschläge übernommen', { exact: true })).toHaveCount(1);
+	await expect(
+		historyEvents.getByText('5 Vorschläge aus „pruefbericht.pdf“ übernommen', { exact: true })
+	).toHaveCount(1);
+	await expect(
+		historyEvents.getByText('2 Vorschläge aus „pruefbericht.pdf“ übernommen', { exact: true })
+	).toHaveCount(1);
 	await expect(historyEvents.getByText('Dokument hinzugefügt', { exact: true })).toHaveCount(1);
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	const longValue = 'VIN' + '0123456789'.repeat(5);
 	await page.locator('#license_plate').fill(longValue);
 	await page.getByRole('button', { name: 'Speichern' }).click();
 	const textFacts = page.locator('.facts-group').filter({
-		has: page.locator('.facts-group__label', { hasText: 'Weitere Angaben' })
+		has: page.locator('.facts-group__label', { hasText: 'Fahrzeug' })
 	});
 	const longValueCell = textFacts
 		.locator('.data-row', { hasText: longValue })

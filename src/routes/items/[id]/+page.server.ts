@@ -58,6 +58,16 @@ import {
 	searchRelationCandidates,
 	unlinkItems
 } from '$lib/application/items/itemRelations';
+import {
+	createFieldGroup,
+	FieldGroupLabelError,
+	FieldGroupTargetNotFoundError,
+	loadFieldGroupViews,
+	moveFieldGroup,
+	moveFieldToGroup,
+	renameFieldGroup,
+	setFieldGroupFeatured
+} from '$lib/application/items/fieldGroups';
 import { removeCustomField } from '$lib/application/items/removeCustomField';
 import {
 	InvalidCurrencyValueError,
@@ -67,6 +77,7 @@ import {
 	updateItemFields
 } from '$lib/application/items/updateItemFields';
 import { CannotRemovePlaybookFieldError } from '$lib/server/db/repositories/fieldRepository';
+import { FieldGroupTargetNotFoundError as RepoFieldGroupTargetNotFoundError } from '$lib/server/db/repositories/fieldGroupRepository';
 import { ItemNotWritableError } from '$lib/server/db/repositories/writeGuards';
 import {
 	actionsPort,
@@ -75,6 +86,7 @@ import {
 	eventsPort,
 	extractionRunsPort,
 	fieldsPort,
+	fieldGroupsPort,
 	itemsPort,
 	scheduleRepositoryPort,
 	attachmentsPort,
@@ -96,6 +108,7 @@ import {
 	renameAttachment,
 	removeAttachment
 } from '$lib/application/attachments/attachments';
+import { attachmentDisplayName } from '$lib/domain/attachment/attachment';
 import { getAiSettings } from '$lib/application/ai/aiSettings';
 import {
 	AttachmentRenameFormError,
@@ -195,25 +208,37 @@ export const load: PageServerLoad = ({ params, url }) => {
 			: { query: '', candidates: [] };
 
 	const historyLimit = resolveHistoryLimit(url.searchParams.get('historyCount'));
+	const attachments = attachmentsPort.listByItem(params.id);
 	const historyEvents = loadItemHistory(
 		{ history: itemHistoryPort },
-		{ itemId: params.id, limit: historyLimit, offset: 0, fields: detail.fields }
+		{
+			itemId: params.id,
+			limit: historyLimit,
+			offset: 0,
+			fields: detail.fields,
+			attachments: attachments.map((a) => ({ id: a.id, name: attachmentDisplayName(a) }))
+		}
 	);
 	const historyTotal = countItemHistory({ history: itemHistoryPort }, params.id);
 
 	return {
 		item: detail.item,
 		fields: detail.fields,
+		fieldGroups: loadFieldGroupViews(
+			{ cycles: cyclesPort, fields: fieldsPort, fieldGroups: fieldGroupsPort },
+			params.id
+		),
 		workflow,
 		snoozes,
 		today: clock.todayIso(),
-		attachments: attachmentsPort.listByItem(params.id),
+		attachments,
 		attachmentCycleSequences,
 		overview,
 		relatedItems,
 		relationCandidates: relationSearch.candidates,
 		relationQuery: relationSearch.query,
 		relationsManage: url.searchParams.get('manage') === 'relations',
+		groupsManage: url.searchParams.get('manage') === 'groups',
 		cycleComplete,
 		history,
 		historyEvents,
@@ -595,6 +620,73 @@ export const actions: Actions = {
 		redirect(303, `/items/${params.id}`);
 	},
 
+	addFieldGroup: async ({ request, params }) => {
+		const formData = await request.formData();
+		return mutateFieldGroups(params.id, () =>
+			createFieldGroup(
+				{ fieldGroups: fieldGroupsPort },
+				{ itemId: params.id, label: formData.get('label')?.toString() ?? '' }
+			)
+		);
+	},
+
+	renameFieldGroup: async ({ request, params }) => {
+		const formData = await request.formData();
+		return mutateFieldGroups(params.id, () =>
+			renameFieldGroup(
+				{ fieldGroups: fieldGroupsPort },
+				{
+					itemId: params.id,
+					groupId: formData.get('groupId')?.toString() ?? '',
+					label: formData.get('label')?.toString() ?? ''
+				}
+			)
+		);
+	},
+
+	moveFieldToGroup: async ({ request, params }) => {
+		const formData = await request.formData();
+		return mutateFieldGroups(params.id, () =>
+			moveFieldToGroup(
+				{ fieldGroups: fieldGroupsPort },
+				{
+					itemId: params.id,
+					fieldKey: formData.get('fieldKey')?.toString() ?? '',
+					groupId: formData.get('groupId')?.toString() ?? ''
+				}
+			)
+		);
+	},
+
+	setFieldGroupFeatured: async ({ request, params }) => {
+		const formData = await request.formData();
+		return mutateFieldGroups(params.id, () =>
+			setFieldGroupFeatured(
+				{ fieldGroups: fieldGroupsPort },
+				{
+					itemId: params.id,
+					groupId: formData.get('groupId')?.toString() ?? '',
+					featured: formData.get('featured')?.toString() === 'true'
+				}
+			)
+		);
+	},
+
+	moveFieldGroup: async ({ request, params }) => {
+		const formData = await request.formData();
+		const direction = formData.get('direction')?.toString() === 'up' ? 'up' : 'down';
+		return mutateFieldGroups(params.id, () =>
+			moveFieldGroup(
+				{ fieldGroups: fieldGroupsPort },
+				{
+					itemId: params.id,
+					groupId: formData.get('groupId')?.toString() ?? '',
+					direction
+				}
+			)
+		);
+	},
+
 	addManualAction: async ({ request, params }) => {
 		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
 		const formData = await request.formData();
@@ -780,6 +872,29 @@ export const actions: Actions = {
 		redirect(303, `/items/${params.id}`);
 	}
 };
+
+/** Runs one field group mutation with the archive guard and shared error mapping, then returns to the page. */
+function mutateFieldGroups(itemId: string, mutation: () => unknown) {
+	if (isItemArchived(itemId)) return fail(400, { error: t('items.detail.archivedReadOnly') });
+	try {
+		mutation();
+	} catch (err) {
+		if (err instanceof ItemNotWritableError) {
+			return fail(400, { error: t('items.detail.archivedReadOnly') });
+		}
+		if (err instanceof FieldGroupLabelError) {
+			return fail(400, { error: t('items.detail.groupLabelInvalid') });
+		}
+		if (
+			err instanceof FieldGroupTargetNotFoundError ||
+			err instanceof RepoFieldGroupTargetNotFoundError
+		) {
+			return fail(400, { error: t('items.detail.groupTargetMissing') });
+		}
+		throw err;
+	}
+	redirect(303, `/items/${itemId}?manage=groups#field-groups`);
+}
 
 function relationRedirect(itemId: string, query: string): string {
 	const params = new URLSearchParams({ manage: 'relations' });

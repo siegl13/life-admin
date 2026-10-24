@@ -50,6 +50,11 @@ export interface HistoryEventView {
 	 *  (removed, or from an earlier cycle) — callers fall back to generic
 	 *  wording in that case. */
 	fieldLabel: string | null;
+	/** The current display name of the document an `AI_SUGGESTIONS_ACCEPTED`
+	 *  event came from, resolved at read time (never stored on the event).
+	 *  `null` when the event has no document id or the document is gone;
+	 *  callers then use wording without a name. */
+	sourceDocumentName: string | null;
 }
 
 export function loadItemHistory(
@@ -59,15 +64,22 @@ export function loadItemHistory(
 		limit: number;
 		offset: number;
 		fields?: readonly { fieldKey: string; label: string }[];
+		attachments?: readonly { id: string; name: string }[];
 	}
 ): HistoryEventView[] {
 	const labelsByFieldKey = new Map((input.fields ?? []).map((f) => [f.fieldKey, f.label]));
+	const namesByAttachmentId = new Map((input.attachments ?? []).map((a) => [a.id, a.name]));
 	const events = ports.history.listByItem(input.itemId, input.limit, input.offset);
 	return events.map((e) => {
 		const payload = safeParsePayload(e.payload);
 		const fieldKey =
 			e.eventType === 'FIELD_CHANGED' && 'fieldKey' in payload
 				? (payload as { fieldKey: string }).fieldKey
+				: null;
+		const attachmentId =
+			e.eventType === 'AI_SUGGESTIONS_ACCEPTED' &&
+			typeof (payload as { attachmentId?: unknown }).attachmentId === 'string'
+				? (payload as { attachmentId: string }).attachmentId
 				: null;
 		return {
 			id: e.id,
@@ -76,7 +88,8 @@ export function loadItemHistory(
 			eventType: e.eventType,
 			payload,
 			createdAt: e.createdAt,
-			fieldLabel: fieldKey ? (labelsByFieldKey.get(fieldKey) ?? null) : null
+			fieldLabel: fieldKey ? (labelsByFieldKey.get(fieldKey) ?? null) : null,
+			sourceDocumentName: attachmentId ? (namesByAttachmentId.get(attachmentId) ?? null) : null
 		};
 	});
 }

@@ -1,12 +1,22 @@
 schemaVersion: 1
 id: de.vehicle.tuv
-version: 1.1.0
+version: 1.2.0
 name: Vehicle inspection (TÜV / HU)
 label_i18n:
   de: TÜV / Hauptuntersuchung
 description: Track the next vehicle inspection and prepare the inspection cycle.
 locale: de-DE
 category: vehicle
+
+groups:
+  - key: vehicle
+    label: Vehicle
+    label_i18n:
+      de: Fahrzeug
+  - key: inspection
+    label: Inspection
+    label_i18n:
+      de: Prüfung
 
 fields:
   - key: license_plate
@@ -16,18 +26,21 @@ fields:
       de: Kennzeichen
     recommended: true
     carryForward: true
+    group: vehicle
   - key: vehicle
     type: text
     label: Vehicle
     label_i18n:
       de: Fahrzeug
     carryForward: true
+    group: vehicle
   - key: vin
     type: text
     label: Vehicle identification number (VIN)
     label_i18n:
       de: FIN
     carryForward: true
+    group: vehicle
   - key: next_inspection
     type: date
     label: Next vehicle inspection
@@ -35,12 +48,14 @@ fields:
       de: Nächste HU
     recommended: true
     carryForward: false
+    group: inspection
   - key: inspection_organization
     type: text
     label: Inspection organization / station
     label_i18n:
       de: Prüforganisation / Prüfstelle
     carryForward: true
+    group: inspection
 
 events:
   - key: inspection_due

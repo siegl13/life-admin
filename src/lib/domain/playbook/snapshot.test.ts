@@ -36,6 +36,47 @@ describe('parsePlaybookSnapshot', () => {
 		expect(result.ok).toBe(true);
 	});
 
+	it('round-trips groups and field assignments', () => {
+		const snapshot = normalized({
+			groups: [{ key: 'dates', label: 'Dates', label_i18n: { de: 'Termine' } }],
+			fields: [{ key: 'valid_until', type: 'date', label: 'Valid until', group: 'dates' }]
+		});
+		const result = parsePlaybookSnapshot(snapshot);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.playbook.groups?.[0].key).toBe('dates');
+			expect(result.playbook.fields[0].group).toBe('dates');
+		}
+	});
+
+	it('still accepts a snapshot frozen before groups existed', () => {
+		const legacy: Record<string, unknown> = { ...normalized() };
+		delete legacy.groups;
+		expect(parsePlaybookSnapshot(legacy).ok).toBe(true);
+	});
+
+	it('rejects a snapshot whose field names an undeclared group', () => {
+		const snapshot = normalized();
+		snapshot.fields[0].group = 'ghost';
+		expect(parsePlaybookSnapshot(snapshot).ok).toBe(false);
+	});
+
+	it('rejects blank group labels in a snapshot, base and localized', () => {
+		const base = normalized({ groups: [{ key: 'dates', label: 'Dates' }] });
+		base.groups![0].label = '   ';
+		expect(parsePlaybookSnapshot(base).ok).toBe(false);
+
+		const localized = normalized({ groups: [{ key: 'dates', label: 'Dates' }] });
+		localized.groups![0].labelI18n = { de: '  ' };
+		expect(parsePlaybookSnapshot(localized).ok).toBe(false);
+	});
+
+	it('rejects an over-long group label in a snapshot', () => {
+		const snapshot = normalized({ groups: [{ key: 'dates', label: 'Dates' }] });
+		snapshot.groups![0].label = 'x'.repeat(81);
+		expect(parsePlaybookSnapshot(snapshot).ok).toBe(false);
+	});
+
 	it('rejects an unknown top-level key', () => {
 		const snapshot = { ...normalized(), unexpectedKey: 'x' };
 		const result = parsePlaybookSnapshot(snapshot);

@@ -12,6 +12,18 @@ import type { RawPlaybook } from './schema';
  * collection (declaration order) — it does not resolve labels to a
  * locale. Locale resolution happens at render time from label_i18n.
  */
+/**
+ * An initial field group. Read at item creation only: the item owns its
+ * groups afterwards. `groups` and `NormalizedField.group` are optional
+ * because snapshots frozen before groups existed have neither.
+ */
+export interface NormalizedGroup {
+	key: string;
+	label: string;
+	labelI18n: Record<string, string>;
+	position: number;
+}
+
 export interface NormalizedField {
 	key: string;
 	type: FieldType;
@@ -20,6 +32,7 @@ export interface NormalizedField {
 	recommended: boolean;
 	position: number;
 	carryForward?: boolean;
+	group?: string;
 }
 
 export interface NormalizedEvent {
@@ -54,6 +67,7 @@ export interface NormalizedPlaybook {
 	description: string | null;
 	locale: string | null;
 	category: string | null;
+	groups?: NormalizedGroup[];
 	fields: NormalizedField[];
 	events: NormalizedEvent[];
 	actions: NormalizedAction[];
@@ -73,6 +87,12 @@ export function normalizePlaybook(raw: RawPlaybook): NormalizedPlaybook {
 		description: raw.description ? trim(raw.description) : null,
 		locale: raw.locale ?? null,
 		category: raw.category ?? null,
+		groups: raw.groups.map((group, index) => ({
+			key: group.key,
+			label: trim(group.label),
+			labelI18n: group.label_i18n ?? {},
+			position: index
+		})),
 		fields: raw.fields.map((field, index) => ({
 			key: field.key,
 			type: field.type,
@@ -80,6 +100,7 @@ export function normalizePlaybook(raw: RawPlaybook): NormalizedPlaybook {
 			labelI18n: field.label_i18n ?? {},
 			recommended: field.recommended,
 			carryForward: field.carryForward,
+			group: field.group,
 			position: index
 		})),
 		events: raw.events.map((event, index) => ({
