@@ -76,6 +76,35 @@ test('notification settings validate input, keep secrets hidden, and support tes
 	await expect(page.getByText('Eine Webhook-Adresse ist hinterlegt.')).toHaveCount(0);
 });
 
+test('reminder time defaults to 08:00, persists and fits a 375px screen', async ({ page }) => {
+	await page.setViewportSize({ width: 375, height: 800 });
+	await page.goto('/settings');
+	await page.locator('#notify-channel-ntfy > summary').click();
+	const ntfyForm = page.locator('#notify-channel-ntfy form');
+	const time = ntfyForm.getByLabel('Uhrzeit der Erinnerung');
+	await expect(time).toHaveValue('08:00');
+
+	await ntfyForm.getByLabel('ntfy-Thema').fill('reminder_time_topic');
+	await time.fill('17:45');
+	await ntfyForm.getByRole('button', { name: 'Speichern' }).click();
+	await expect(page.getByText('Gespeichert.', { exact: true })).toBeVisible();
+
+	await page.locator('#notify-channel-ntfy > summary').click();
+	await expect(time).toHaveValue('17:45');
+	await page.locator('#notify-channel-slack > summary').click();
+	await expect(
+		page.locator('#notify-channel-slack form').getByLabel('Uhrzeit der Erinnerung')
+	).toHaveValue('17:45');
+
+	const overflow = await page.evaluate(
+		() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+	);
+	expect(overflow).toBeLessThanOrEqual(0);
+
+	await time.fill('08:00');
+	await ntfyForm.getByRole('button', { name: 'Speichern' }).click();
+});
+
 test('testing a channel checks the current draft, not the saved settings', async ({ page }) => {
 	await page.goto('/settings');
 	await page.locator('#notify-channel-slack > summary').click();

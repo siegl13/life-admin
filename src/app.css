@@ -1059,6 +1059,50 @@ a.items-archive-toggle {
 	display: none;
 }
 
+.upload-summary {
+	display: flex;
+	flex-basis: 100%;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-2);
+	min-width: 0;
+	margin: 0;
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--color-accent);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-meta);
+}
+
+.upload-summary--busy {
+	border-style: dashed;
+}
+
+.upload-summary__state {
+	font-weight: 600;
+	color: var(--color-accent);
+}
+
+.upload-summary__name {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-weight: 600;
+}
+
+.upload-summary__detail {
+	color: var(--color-text-faint);
+}
+
+.upload-picker--selected {
+	border-style: solid;
+}
+
+@media (pointer: coarse) {
+	.upload-picker,
+	.upload-form__submit {
+		min-height: 44px;
+	}
+}
+
 @media (max-width: 640px) {
 	.upload-form-group,
 	.upload-form-group .upload-form {
@@ -1130,7 +1174,7 @@ a.items-archive-toggle {
 
 .action-row {
 	display: grid;
-	grid-template-columns: var(--control-h) minmax(0, 1fr) var(--control-h);
+	grid-template-columns: var(--control-h) minmax(0, 1fr) auto;
 	align-items: center;
 	gap: var(--space-2);
 	min-height: 68px;
@@ -1980,6 +2024,46 @@ select:hover {
 .checkbox-row input[type='checkbox'] {
 	width: auto;
 	min-height: 0;
+}
+
+/* Extraction review: a two-choice conflict group and a selectable Action
+   suggestion. Both keep their value/date line under the label text. */
+.suggestion-conflict {
+	display: grid;
+	gap: var(--space-2);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.suggestion-conflict legend {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-2);
+	padding: 0;
+	font-weight: 600;
+}
+
+.suggestion-conflict .checkbox-row,
+.action-suggestion .checkbox-row {
+	align-items: flex-start;
+}
+
+.suggestion-conflict .checkbox-row .meta,
+.action-suggestion .checkbox-row .meta {
+	display: block;
+}
+
+.timeline__description {
+	white-space: pre-line;
+}
+
+.review-already-present > summary {
+	cursor: pointer;
+	color: var(--color-text-muted);
 }
 
 .form-actions {
@@ -3535,6 +3619,22 @@ mark {
 
 .action-row__done-form {
 	flex: 0 0 auto;
+}
+
+.action-row__skip {
+	min-height: var(--control-h);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text-body);
+	font-size: var(--text-meta);
+	font-weight: 500;
+}
+
+.action-row__skip:hover,
+.action-row__skip:focus-visible {
+	background: var(--color-surface-hover);
 }
 
 /* The 22px ring sits inside a 44px round hit target. */

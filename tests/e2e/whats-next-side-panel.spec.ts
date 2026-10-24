@@ -214,7 +214,6 @@ test.describe("What's next weekly side panel", () => {
 			const doneGroup = page.locator('.item-group', { hasText: fixtures[3].title });
 			await doneGroup.getByRole('button', { name: 'Erledigen: Excluded done' }).click();
 			const skippedGroup = page.locator('.item-group', { hasText: fixtures[4].title });
-			await skippedGroup.locator('summary').click();
 			await skippedGroup.getByRole('button', { name: 'Überspringen' }).click();
 
 			await page.goto('/');

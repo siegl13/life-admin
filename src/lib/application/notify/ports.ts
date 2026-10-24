@@ -23,6 +23,8 @@ export interface NotificationSettings {
 	channel: NotificationChannel;
 	selectedChannelConfigured: boolean;
 	leadDays: number;
+	/** Local `HH:MM` at or after which reminders are sent. Not an Action due time. */
+	reminderTime: string;
 	minimalContent: boolean;
 }
 

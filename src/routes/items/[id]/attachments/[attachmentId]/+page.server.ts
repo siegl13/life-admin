@@ -11,6 +11,7 @@ import {
 	renameAttachment
 } from '$lib/application/attachments/attachments';
 import {
+	actionsPort,
 	appSettingsPort,
 	attachmentReadPort,
 	attachmentStoragePort,
@@ -123,6 +124,7 @@ export const actions: Actions = {
 					items: itemsPort,
 					cycles: cyclesPort,
 					fields: fieldsPort,
+					actions: actionsPort,
 					attachments: attachmentsPort,
 					attachmentBytes: attachmentReadPort,
 					settings: appSettingsPort,

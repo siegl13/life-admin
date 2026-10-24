@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { NotificationSettings } from '$lib/application/notify/ports';
 import { NOTIFY_KEYS } from '$lib/application/notify/notifySettings';
+import { DEFAULT_REMINDER_TIME, parseReminderTime } from '$lib/domain/notify/reminderTime';
 import * as settings from '../db/repositories/appSettingsRepository';
 
 export interface StoredNotificationSettings extends NotificationSettings {
@@ -8,6 +9,12 @@ export interface StoredNotificationSettings extends NotificationSettings {
 	topic: string;
 	tokenSet: boolean;
 	webhookSet: boolean;
+}
+
+/** Unset or corrupt values read as the former fixed 08:00, so old installs keep their send time. */
+function storedReminderTime(db: Database.Database): string {
+	const stored = settings.get(db, NOTIFY_KEYS.reminderTime);
+	return stored !== null && parseReminderTime(stored) !== null ? stored : DEFAULT_REMINDER_TIME;
 }
 
 export function getNotificationSettings(db: Database.Database): StoredNotificationSettings {
@@ -20,6 +27,7 @@ export function getNotificationSettings(db: Database.Database): StoredNotificati
 		selectedChannelConfigured:
 			channel === 'NTFY' ? Boolean(settings.get(db, NOTIFY_KEYS.topic)?.trim()) : webhookSet,
 		leadDays: Number(settings.get(db, NOTIFY_KEYS.leadDays) ?? '7'),
+		reminderTime: storedReminderTime(db),
 		minimalContent: settings.get(db, NOTIFY_KEYS.minimalContent) === '1',
 		baseUrl: settings.get(db, NOTIFY_KEYS.baseUrl) ?? 'https://ntfy.sh',
 		topic: settings.get(db, NOTIFY_KEYS.topic) ?? '',
@@ -35,6 +43,7 @@ export function getDispatchNotificationSettings(db: Database.Database): Notifica
 			channel: 'NTFY',
 			selectedChannelConfigured: false,
 			leadDays: 7,
+			reminderTime: DEFAULT_REMINDER_TIME,
 			minimalContent: false
 		};
 	}
@@ -47,6 +56,7 @@ export function getDispatchNotificationSettings(db: Database.Database): Notifica
 				? Boolean(settings.get(db, NOTIFY_KEYS.topic)?.trim())
 				: settings.get(db, NOTIFY_KEYS.slackWebhook) !== null,
 		leadDays: Number(settings.get(db, NOTIFY_KEYS.leadDays) ?? '7'),
+		reminderTime: storedReminderTime(db),
 		minimalContent: settings.get(db, NOTIFY_KEYS.minimalContent) === '1'
 	};
 }
@@ -74,6 +84,7 @@ export function saveNotificationSettings(
 		baseUrl: string;
 		topic: string;
 		leadDays: number;
+		reminderTime: string;
 		minimalContent: boolean;
 		token: string;
 		webhookUrl: string;
@@ -86,6 +97,7 @@ export function saveNotificationSettings(
 	settings.set(db, NOTIFY_KEYS.baseUrl, input.baseUrl);
 	settings.set(db, NOTIFY_KEYS.topic, input.topic);
 	settings.set(db, NOTIFY_KEYS.leadDays, String(input.leadDays));
+	settings.set(db, NOTIFY_KEYS.reminderTime, input.reminderTime);
 	settings.set(db, NOTIFY_KEYS.minimalContent, input.minimalContent ? '1' : '0');
 	if (input.removeToken) settings.remove(db, NOTIFY_KEYS.ntfyToken);
 	else if (input.token) settings.set(db, NOTIFY_KEYS.ntfyToken, input.token);

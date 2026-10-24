@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
-const { clock, history, runs, fields, items } = vi.hoisted(() => ({
+const { clock, history, runs, fields, items, actionsRepo } = vi.hoisted(() => ({
+	actionsRepo: { listActions: vi.fn().mockReturnValue([]) },
 	clock: { nowIso: () => '2026-01-01T00:00:00.000Z' },
 	history: {
 		insert: vi.fn(),
@@ -13,13 +14,16 @@ const { clock, history, runs, fields, items } = vi.hoisted(() => ({
 		getById: vi.fn(),
 		listSuggestions: vi.fn().mockReturnValue([]),
 		applyRun: vi.fn(),
-		addAdditionalFields: vi.fn()
+		addAdditionalFields: vi.fn(),
+		listActionSuggestions: vi.fn().mockReturnValue([]),
+		addActions: vi.fn()
 	},
 	fields: { listFields: vi.fn().mockReturnValue([]) },
 	items: { getItemById: vi.fn().mockReturnValue({ status: 'ACTIVE' }) }
 }));
 
 vi.mock('$lib/server/appPorts', () => ({
+	actionsPort: actionsRepo,
 	attachmentsPort: {},
 	clock,
 	extractionRunsPort: runs,
@@ -102,6 +106,198 @@ describe('applied AI suggestions history recording', () => {
 				payload: JSON.stringify({ acceptedCount: 1 })
 			})
 		);
+	});
+
+	it('does not overwrite a conflicting value that is only selected, and records no event', async () => {
+		fields.listFields.mockReturnValue([
+			{ fieldKey: 'contract_end', label: 'Contract end', type: 'date', value: '2030-01-01' }
+		]);
+
+		let caught: unknown;
+		try {
+			await apply({ 'accept:contract_end': 'on', 'resolve:contract_end': 'keep' });
+		} catch (thrown) {
+			caught = thrown;
+		}
+
+		expect(isRedirect(caught)).toBe(true);
+		expect(runs.applyRun).toHaveBeenCalledWith(expect.objectContaining({ updates: [] }));
+		expect(history.insert).not.toHaveBeenCalled();
+	});
+
+	it('replaces a conflicting value only on the explicit "replace" choice and records the actual change', async () => {
+		fields.listFields.mockReturnValue([
+			{ fieldKey: 'contract_end', label: 'Contract end', type: 'date', value: '2030-01-01' }
+		]);
+
+		try {
+			await apply({ 'resolve:contract_end': 'replace' });
+		} catch {
+			// redirect
+		}
+
+		expect(runs.applyRun).toHaveBeenCalledWith(
+			expect.objectContaining({ updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }] })
+		);
+		expect(history.insert).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventType: 'AI_SUGGESTIONS_ACCEPTED',
+				payload: JSON.stringify({ acceptedCount: 1 })
+			})
+		);
+	});
+
+	it('accept all takes new values, leaves a posted replace choice unresolved', async () => {
+		fields.listFields.mockReturnValue([
+			{ fieldKey: 'contract_end', label: 'Contract end', type: 'date', value: '2030-01-01' },
+			{ fieldKey: 'note', label: 'Note', type: 'text', value: null }
+		]);
+		runs.listSuggestions.mockReturnValue([
+			{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false },
+			{ fieldKey: 'note', value: 'hello', position: 1, accepted: false }
+		]);
+
+		try {
+			await apply({ intent: 'acceptAll', 'resolve:contract_end': 'replace' });
+		} catch {
+			// redirect
+		}
+
+		expect(runs.applyRun).toHaveBeenCalledWith(
+			expect.objectContaining({ updates: [{ fieldKey: 'note', value: 'hello' }] })
+		);
+	});
+
+	it('creates no Action unless a suggestion is explicitly selected', async () => {
+		runs.listActionSuggestions.mockReturnValue([
+			{
+				id: 'act-1',
+				title: 'Unterlagen einreichen',
+				context: null,
+				evidence: null,
+				date: { kind: 'NONE', value: null, relative: null },
+				position: 0,
+				accepted: false
+			}
+		]);
+
+		try {
+			await apply({});
+		} catch {
+			// redirect
+		}
+
+		expect(runs.addActions).not.toHaveBeenCalled();
+		expect(history.insert).not.toHaveBeenCalled();
+	});
+
+	it('creates the selected Action as an ordinary Action and records one ACTION_ADDED event', async () => {
+		runs.listActionSuggestions.mockReturnValue([
+			{
+				id: 'act-1',
+				title: 'Unterlagen einreichen',
+				context: 'Per Post',
+				evidence: 'bis 1. März',
+				date: { kind: 'DUE_BY', value: '2031-03-01', relative: null },
+				position: 0,
+				accepted: false
+			},
+			{
+				id: 'act-2',
+				title: 'Nicht ausgewählt',
+				context: null,
+				evidence: null,
+				date: { kind: 'NONE', value: null, relative: null },
+				position: 1,
+				accepted: false
+			}
+		]);
+
+		try {
+			await apply({ 'action:act-1': 'on' });
+		} catch {
+			// redirect
+		}
+
+		expect(runs.addActions).not.toHaveBeenCalled();
+		expect(runs.applyRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				actions: [
+					{
+						suggestionId: 'act-1',
+						label: 'Unterlagen einreichen',
+						description: 'Per Post',
+						dueDate: '2031-03-01'
+					}
+				]
+			})
+		);
+		expect(history.insert).toHaveBeenCalledTimes(1);
+		expect(history.insert).toHaveBeenCalledWith(
+			expect.objectContaining({ eventType: 'ACTION_ADDED', payload: '{}' })
+		);
+	});
+
+	it('anchors a relative Action date on the explicitly replaced field value that is saved with it', async () => {
+		fields.listFields.mockReturnValue([
+			{ fieldKey: 'contract_end', label: 'Contract end', type: 'date', value: '2030-01-01' }
+		]);
+		runs.listActionSuggestions.mockReturnValue([
+			{
+				id: 'act-1',
+				title: 'Kündigung senden',
+				context: null,
+				evidence: null,
+				date: {
+					kind: 'DUE_BY',
+					value: null,
+					relative: {
+						relation: 'BEFORE',
+						amount: 10,
+						unit: 'DAYS',
+						anchorFieldKey: 'contract_end'
+					}
+				},
+				position: 0,
+				accepted: false
+			}
+		]);
+
+		try {
+			await apply({ 'resolve:contract_end': 'replace', 'action:act-1': 'on' });
+		} catch {
+			// redirect
+		}
+
+		// 2031-03-15 (replacement) minus 10 days, not 2030-01-01 minus 10 days.
+		expect(runs.applyRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+				actions: [expect.objectContaining({ dueDate: '2031-03-05' })]
+			})
+		);
+	});
+
+	it('creates no Action and records no ACTION_ADDED event when a selected field no longer exists', async () => {
+		fields.listFields.mockReturnValue([]);
+		runs.listActionSuggestions.mockReturnValue([
+			{
+				id: 'act-1',
+				title: 'Kündigung senden',
+				context: null,
+				evidence: null,
+				date: { kind: 'NONE', value: null, relative: null },
+				position: 0,
+				accepted: false
+			}
+		]);
+
+		const response = await apply({ 'accept:contract_end': 'on', 'action:act-1': 'on' });
+
+		expect(response).toMatchObject({ status: 400 });
+		expect(runs.applyRun).not.toHaveBeenCalled();
+		expect(runs.addActions).not.toHaveBeenCalled();
+		expect(history.insert).not.toHaveBeenCalled();
 	});
 
 	it('records no event when nothing was actually accepted', async () => {

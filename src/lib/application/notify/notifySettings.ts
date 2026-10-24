@@ -1,3 +1,4 @@
+import { parseReminderTime } from '$lib/domain/notify/reminderTime';
 import type { NotificationChannel } from './ports';
 
 export const NOTIFY_KEYS = {
@@ -6,6 +7,7 @@ export const NOTIFY_KEYS = {
 	baseUrl: 'notify.ntfy.baseUrl',
 	topic: 'notify.ntfy.topic',
 	leadDays: 'notify.leadDays',
+	reminderTime: 'notify.reminderTime',
 	minimalContent: 'notify.minimalContent',
 	lastTickAt: 'notify.lastTickAt',
 	ntfyToken: 'secret.notify.ntfy.token',
@@ -13,7 +15,7 @@ export const NOTIFY_KEYS = {
 } as const;
 
 export class InvalidNotificationSettingsError extends Error {
-	constructor(readonly key: 'server' | 'topic' | 'webhook' | 'leadDays') {
+	constructor(readonly key: 'server' | 'topic' | 'webhook' | 'leadDays' | 'reminderTime') {
 		super(key);
 	}
 }
@@ -24,12 +26,14 @@ export function validateNotificationSettings(input: {
 	topic: string;
 	webhookUrl: string;
 	leadDays: string;
+	reminderTime: string;
 }): {
 	channel: NotificationChannel;
 	baseUrl: string;
 	topic: string;
 	webhookUrl: string;
 	leadDays: number;
+	reminderTime: string;
 } {
 	const channel = input.channel === 'SLACK' ? 'SLACK' : input.channel === 'NTFY' ? 'NTFY' : null;
 	if (!channel) throw new InvalidNotificationSettingsError('server');
@@ -50,5 +54,15 @@ export function validateNotificationSettings(input: {
 	const leadDays = Number(input.leadDays);
 	if (!Number.isInteger(leadDays) || leadDays < 0 || leadDays > 90)
 		throw new InvalidNotificationSettingsError('leadDays');
-	return { channel, baseUrl: baseUrl.toString().replace(/\/$/, ''), topic, webhookUrl, leadDays };
+	const reminderTime = input.reminderTime.trim();
+	if (parseReminderTime(reminderTime) === null)
+		throw new InvalidNotificationSettingsError('reminderTime');
+	return {
+		channel,
+		baseUrl: baseUrl.toString().replace(/\/$/, ''),
+		topic,
+		webhookUrl,
+		leadDays,
+		reminderTime
+	};
 }

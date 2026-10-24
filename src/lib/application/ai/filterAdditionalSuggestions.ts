@@ -47,7 +47,7 @@ const SUPPORTED_TYPES: readonly SuggestedFieldType[] = ['text', 'date', 'currenc
  * guarantees the exact-same-thing-under-different-casing case can never
  * slip through even if that instruction is ignored.
  */
-function normalizeLabel(label: string): string {
+export function normalizeLabel(label: string): string {
 	return label.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
 }
 

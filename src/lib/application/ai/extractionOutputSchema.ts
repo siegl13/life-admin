@@ -37,6 +37,39 @@ export const extractionOutputSchema = z
 					.strict()
 			)
 			.max(30)
+			.optional(),
+		/** Document Action Suggestions. Shape only; content trust (empty
+		 *  titles, unknown anchors, invalid dates, duplicates, ALREADY_DONE)
+		 *  is `filterActionSuggestions`'s job. */
+		action_suggestions: z
+			.array(
+				z
+					.object({
+						title: z.string().min(1).max(200),
+						context: z.string().max(1000).nullish(),
+						evidence: z.string().max(1000).nullish(),
+						status: z.enum(['OPEN', 'ALREADY_DONE']).nullish(),
+						date: z
+							.object({
+								kind: z.enum(['DUE_BY', 'AVAILABLE_FROM', 'ON_DATE', 'APPROXIMATE', 'NONE']),
+								value: z.string().max(40).nullish(),
+								relative: z
+									.object({
+										relation: z.enum(['BEFORE', 'AFTER']),
+										amount: z.number().int().min(1).max(3650),
+										unit: z.enum(['DAYS', 'WEEKS', 'MONTHS', 'YEARS']),
+										anchor_field_key: z.string().min(1).max(64).nullish(),
+										anchor_date: z.string().max(40).nullish(),
+										anchor_label: z.string().max(120).nullish()
+									})
+									.strict()
+									.nullish()
+							})
+							.strict()
+					})
+					.strict()
+			)
+			.max(20)
 			.optional()
 	})
 	.strict();

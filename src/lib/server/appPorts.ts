@@ -182,7 +182,11 @@ export const itemHistoryPort: ItemHistoryRepositoryPort = {
 export const clock: Clock = {
 	todayIso: () => today(),
 	nowIso: () => new Date().toISOString(),
-	localHour: () => new Date().getHours()
+	localHour: () => new Date().getHours(),
+	localMinuteOfDay: () => {
+		const now = new Date();
+		return now.getHours() * 60 + now.getMinutes();
+	}
 };
 
 export const accountsPort: OwnerAccountPort = {
@@ -276,6 +280,8 @@ export const extractionRunsPort: ExtractionRunRepositoryPort = {
 	findNewestPendingRun: (cycleId) => extractionRepo.findNewestPendingRun(getDb(), cycleId),
 	listSuggestions: (runId) => extractionRepo.listSuggestions(getDb(), runId),
 	listAdditionalSuggestions: (runId) => extractionRepo.listAdditionalSuggestions(getDb(), runId),
+	listActionSuggestions: (runId) => extractionRepo.listActionSuggestions(getDb(), runId),
+	addActions: (input) => extractionRepo.addActions(getDb(), input),
 	applyRun: (input) => extractionRepo.applyRun(getDb(), input),
 	dismissRun: (input) => extractionRepo.dismissRun(getDb(), input),
 	addAdditionalFields: (input) => extractionRepo.addAdditionalFields(getDb(), input)

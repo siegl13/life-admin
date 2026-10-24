@@ -145,33 +145,42 @@ Always rendered inside a What's next item-context wrapper (see +page.svelte).
 		</span>
 		<a class="action-row__item" href={resolve('/items/[id]', { id: itemId })}>{itemTitle}</a>
 	</div>
-	<details class="action-menu">
-		<summary id={dueMenuButtonId} aria-label={t('whatsNext.moreActions', { label: action.label })}
-			>⋯</summary
-		>
-		<div class="action-menu__panel">
-			{#if canEditDueDate}
-				<a
-					href={resolve(`/items/[id]#action-${action.actionId}`, { id: itemId })}
-					onclick={openDueDialog}
+	<div class="action-row__controls">
+		<form method="POST" action={skipFormAction}>
+			<input type="hidden" name="actionId" value={action.actionId} />
+			<input type="hidden" name="itemId" value={itemId} />
+			<button
+				type="submit"
+				class="action-row__skip"
+				aria-label={t('whatsNext.skipLabel', { label: action.label })}
+			>
+				{t('whatsNext.skip')}
+			</button>
+		</form>
+		{#if canEditDueDate}
+			<details class="action-menu">
+				<summary
+					id={dueMenuButtonId}
+					aria-label={t('whatsNext.moreActions', { label: action.label })}>⋯</summary
 				>
-					{t('whatsNext.changeDueDate')}
-				</a>
-				{#if action.dueEditability.dueOverrideDate}
-					<form method="POST" action={resetDueOverrideFormAction}>
-						<input type="hidden" name="actionId" value={action.actionId} />
-						<input type="hidden" name="itemId" value={itemId} />
-						<button type="submit">{t('items.detail.resetDueOverride')}</button>
-					</form>
-				{/if}
-			{/if}
-			<form method="POST" action={skipFormAction}>
-				<input type="hidden" name="actionId" value={action.actionId} />
-				<input type="hidden" name="itemId" value={itemId} />
-				<button type="submit">{t('whatsNext.skip')}</button>
-			</form>
-		</div>
-	</details>
+				<div class="action-menu__panel">
+					<a
+						href={resolve(`/items/[id]#action-${action.actionId}`, { id: itemId })}
+						onclick={openDueDialog}
+					>
+						{t('whatsNext.changeDueDate')}
+					</a>
+					{#if action.dueEditability.dueOverrideDate}
+						<form method="POST" action={resetDueOverrideFormAction}>
+							<input type="hidden" name="actionId" value={action.actionId} />
+							<input type="hidden" name="itemId" value={itemId} />
+							<button type="submit">{t('items.detail.resetDueOverride')}</button>
+						</form>
+					{/if}
+				</div>
+			</details>
+		{/if}
+	</div>
 	{#if canEditDueDate}
 		<dialog
 			id={dueDialogId}

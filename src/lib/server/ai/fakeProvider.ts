@@ -1,5 +1,6 @@
 import type {
 	DocumentExtractionProviderPort,
+	ExtractionActionSuggestion,
 	ExtractionAdditionalSuggestion,
 	ExtractionRequest,
 	ExtractionResult
@@ -68,7 +69,59 @@ export const fakeProvider: DocumentExtractionProviderPort & DocumentRoutingProvi
 			});
 		}
 
-		return { providerId: 'fake', modelId: 'fake-v1', suggestions, additionalSuggestions };
+		// Document Action Suggestions: one absolute deadline, one availability
+		// (never a deadline), one relative to the first date field when the
+		// Item has one, and one already-done step that must be discarded.
+		const anchorField = dateFields[0];
+		const actionSuggestions: ExtractionActionSuggestion[] = [
+			{
+				title: 'Unterlagen prüfen',
+				context: 'Vor dem Termin kontrollieren',
+				evidence: 'Bitte prüfen Sie die Unterlagen bis zum 1. März 2031.',
+				status: 'OPEN',
+				date: { kind: 'DUE_BY', value: '2031-03-01', relative: null }
+			},
+			{
+				title: 'Online-Portal nutzen',
+				context: null,
+				evidence: 'Das Portal steht ab dem 1. April 2031 zur Verfügung.',
+				status: 'OPEN',
+				date: { kind: 'AVAILABLE_FROM', value: '2031-04-01', relative: null }
+			},
+			{
+				title: 'Bereits erledigter Schritt',
+				context: null,
+				evidence: null,
+				status: 'ALREADY_DONE',
+				date: { kind: 'NONE', value: null, relative: null }
+			}
+		];
+		if (anchorField) {
+			actionSuggestions.push({
+				title: 'Termin bestätigen',
+				context: null,
+				evidence: 'Bitte bestätigen Sie den Termin 2 Wochen vorher.',
+				status: 'OPEN',
+				date: {
+					kind: 'DUE_BY',
+					value: null,
+					relative: {
+						relation: 'BEFORE',
+						amount: 2,
+						unit: 'WEEKS',
+						anchorFieldKey: anchorField.fieldKey
+					}
+				}
+			});
+		}
+
+		return {
+			providerId: 'fake',
+			modelId: 'fake-v1',
+			suggestions,
+			additionalSuggestions,
+			actionSuggestions
+		};
 	},
 	async route(_request: RoutingRequest): Promise<RoutingResult> {
 		return {

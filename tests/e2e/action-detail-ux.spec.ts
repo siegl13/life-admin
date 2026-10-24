@@ -50,7 +50,6 @@ test('mobile: due dialog stays collapsed for an eligible derived action, opens w
 	const sticky = page.locator('.sticky-action-bar');
 	const markDone = sticky.getByRole('button', { name: 'Erledigen' });
 	await expect(markDone).toBeVisible();
-	await sticky.locator('summary').click();
 	await expect(sticky.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 
 	// Readiness remains directly under the title in the workflow list. The
@@ -66,6 +65,7 @@ test('mobile: due dialog stays collapsed for an eligible derived action, opens w
 
 	// The featured due editor is owned by the sticky bar; the dialog itself
 	// remains rendered once in its workflow step.
+	await sticky.locator('summary').click();
 	const dueTrigger = sticky.getByRole('button', { name: 'Termin ändern' });
 	await expect(dueTrigger).toBeVisible();
 	const dueDialog = step.locator('dialog.action-dialog').first();

@@ -78,9 +78,58 @@ const RESPONSE_JSON_SCHEMA = {
 				required: ['suggested_label', 'suggested_type', 'value'],
 				additionalProperties: false
 			}
+		},
+		// Document Action Suggestions. Same strict-mode rule as above: every
+		// property is required, "absent" is expressed as null.
+		action_suggestions: {
+			type: 'array',
+			maxItems: 20,
+			items: {
+				type: 'object',
+				properties: {
+					title: { type: 'string' },
+					context: { type: ['string', 'null'] },
+					evidence: { type: ['string', 'null'] },
+					status: { type: 'string', enum: ['OPEN', 'ALREADY_DONE'] },
+					date: {
+						type: 'object',
+						properties: {
+							kind: {
+								type: 'string',
+								enum: ['DUE_BY', 'AVAILABLE_FROM', 'ON_DATE', 'APPROXIMATE', 'NONE']
+							},
+							value: { type: ['string', 'null'] },
+							relative: {
+								type: ['object', 'null'],
+								properties: {
+									relation: { type: 'string', enum: ['BEFORE', 'AFTER'] },
+									amount: { type: 'integer' },
+									unit: { type: 'string', enum: ['DAYS', 'WEEKS', 'MONTHS', 'YEARS'] },
+									anchor_field_key: { type: ['string', 'null'] },
+									anchor_date: { type: ['string', 'null'] },
+									anchor_label: { type: ['string', 'null'] }
+								},
+								required: [
+									'relation',
+									'amount',
+									'unit',
+									'anchor_field_key',
+									'anchor_date',
+									'anchor_label'
+								],
+								additionalProperties: false
+							}
+						},
+						required: ['kind', 'value', 'relative'],
+						additionalProperties: false
+					}
+				},
+				required: ['title', 'context', 'evidence', 'status', 'date'],
+				additionalProperties: false
+			}
 		}
 	},
-	required: ['suggestions', 'additional_suggestions'],
+	required: ['suggestions', 'additional_suggestions', 'action_suggestions'],
 	additionalProperties: false
 } as const;
 
@@ -297,6 +346,26 @@ export function createOpenAiProvider(
 					suggestedLabel: s.suggested_label,
 					suggestedType: s.suggested_type,
 					value: s.value
+				})),
+				actionSuggestions: (parsed.data.action_suggestions ?? []).map((s) => ({
+					title: s.title,
+					context: s.context ?? null,
+					evidence: s.evidence ?? null,
+					status: s.status ?? null,
+					date: {
+						kind: s.date.kind,
+						value: s.date.value ?? null,
+						relative: s.date.relative
+							? {
+									relation: s.date.relative.relation,
+									amount: s.date.relative.amount,
+									unit: s.date.relative.unit,
+									anchorFieldKey: s.date.relative.anchor_field_key ?? null,
+									anchorDate: s.date.relative.anchor_date ?? null,
+									anchorLabel: s.date.relative.anchor_label ?? null
+								}
+							: null
+					}
 				}))
 			};
 		},

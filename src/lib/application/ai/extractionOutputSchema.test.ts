@@ -17,6 +17,45 @@ describe('extractionOutputSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	describe('action_suggestions', () => {
+		const valid = {
+			title: 'Versicherung kündigen',
+			context: null,
+			evidence: 'Kündigung drei Monate vorher',
+			status: 'OPEN',
+			date: {
+				kind: 'DUE_BY',
+				value: null,
+				relative: {
+					relation: 'BEFORE',
+					amount: 3,
+					unit: 'MONTHS',
+					anchor_field_key: 'contract_end'
+				}
+			}
+		};
+
+		it('accepts an action with a relative date, and the key stays optional', () => {
+			expect(
+				extractionOutputSchema.safeParse({ suggestions: [], action_suggestions: [valid] }).success
+			).toBe(true);
+			expect(extractionOutputSchema.safeParse({ suggestions: [] }).success).toBe(true);
+		});
+
+		it('rejects an unknown date kind, a fractional amount and extra keys', () => {
+			const parse = (action: unknown) =>
+				extractionOutputSchema.safeParse({ suggestions: [], action_suggestions: [action] }).success;
+			expect(parse({ ...valid, date: { ...valid.date, kind: 'SOON' } })).toBe(false);
+			expect(
+				parse({
+					...valid,
+					date: { ...valid.date, relative: { ...valid.date.relative, amount: 1.5 } }
+				})
+			).toBe(false);
+			expect(parse({ ...valid, reasoning: 'because' })).toBe(false);
+		});
+	});
+
 	it('rejects prose instead of JSON structure', () => {
 		const result = extractionOutputSchema.safeParse('The contract ends on 2027-12-31.');
 		expect(result.success).toBe(false);

@@ -45,6 +45,7 @@ function ports(overrides: Record<string, unknown> = {}) {
 				channel: 'NTFY' as const,
 				selectedChannelConfigured: true,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			}))
 		},
@@ -77,6 +78,7 @@ describe('dispatchDueReminders', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: false,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				})
 			}
@@ -90,6 +92,58 @@ describe('dispatchDueReminders', () => {
 		expect(quiet.whatsNext.loadItems).not.toHaveBeenCalled();
 	});
 
+	it.each(['NTFY', 'SLACK'] as const)(
+		'follows the configured reminder time to the minute for %s',
+		async (channel) => {
+			const settings = (reminderTime: string) => ({
+				getSettings: () => ({
+					enabled: true,
+					channel,
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					reminderTime,
+					minimalContent: false
+				})
+			});
+			const clockAt = (localMinuteOfDay: number) => ({
+				todayIso: () => '2026-06-03',
+				nowIso: () => '2026-06-03T09:00:00.000Z',
+				localHour: () => Math.floor(localMinuteOfDay / 60),
+				localMinuteOfDay: () => localMinuteOfDay
+			});
+
+			const early = ports({ settings: settings('17:45'), clock: clockAt(17 * 60 + 44) });
+			await expect(dispatchDueReminders(early)).resolves.toMatchObject({ skipped: 'quiet_hours' });
+			expect(early.whatsNext.loadItems).not.toHaveBeenCalled();
+
+			const due = ports({ settings: settings('17:45'), clock: clockAt(17 * 60 + 45) });
+			await expect(dispatchDueReminders(due)).resolves.toEqual({ sent: 1, failed: 0 });
+			expect(due.channels.get).toHaveBeenCalledWith(channel);
+		}
+	);
+
+	it('allows a reminder time earlier than the former fixed 08:00', async () => {
+		const instance = ports({
+			settings: {
+				getSettings: () => ({
+					enabled: true,
+					channel: 'NTFY',
+					selectedChannelConfigured: true,
+					leadDays: 7,
+					reminderTime: '06:30',
+					minimalContent: false
+				})
+			},
+			clock: {
+				todayIso: () => '2026-06-03',
+				nowIso: () => '2026-06-03T05:00:00.000Z',
+				localHour: () => 6,
+				localMinuteOfDay: () => 6 * 60 + 30
+			}
+		});
+		await expect(dispatchDueReminders(instance)).resolves.toEqual({ sent: 1, failed: 0 });
+	});
+
 	it('does not load work when the selected channel is incomplete', async () => {
 		const instance = ports({
 			settings: {
@@ -98,6 +152,7 @@ describe('dispatchDueReminders', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: false,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				})
 			}

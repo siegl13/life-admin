@@ -183,6 +183,7 @@ export function setActionDueOverride(
 export interface AddManualActionInput {
 	label: string;
 	dueDate: string | null;
+	description?: string | null;
 }
 
 /**
@@ -215,8 +216,8 @@ export function addManualAction(
 
 		db.prepare(
 			`INSERT INTO actions (id, cycle_id, action_key, label, description, state, due_kind, due_event_key, due_offset, due_date, position, created_at, completed_at)
-			 VALUES (?, ?, ?, ?, NULL, 'OPEN', 'MANUAL', NULL, NULL, ?, ?, ?, NULL)`
-		).run(id, cycleId, actionKey, label, input.dueDate, position, now);
+			 VALUES (?, ?, ?, ?, ?, 'OPEN', 'MANUAL', NULL, NULL, ?, ?, ?, NULL)`
+		).run(id, cycleId, actionKey, label, input.description ?? null, input.dueDate, position, now);
 
 		return getAction(db, id)!;
 	})();

@@ -190,9 +190,12 @@ test('a manual action never offers the change-due-date menu option', async ({ pa
 		await page.goto('/');
 		const group = page.locator('.item-group', { hasText: title });
 		const row = group.locator('.action-row', { hasText: 'Manual task' });
-		await row.locator('summary').click();
+		// No scheduling menu exists, only the primary lifecycle controls.
+		await expect(row.locator('summary')).toHaveCount(0);
 		await expect(row.getByRole('link', { name: 'Datum ändern' })).toHaveCount(0);
 		await expect(row.getByRole('button', { name: 'Auf Vorschlag zurücksetzen' })).toHaveCount(0);
+		await expect(row.getByRole('button', { name: /^Erledigen/ })).toBeVisible();
+		await expect(row.getByRole('button', { name: /^Überspringen/ })).toBeVisible();
 	} finally {
 		await archiveItem(page, itemId);
 	}

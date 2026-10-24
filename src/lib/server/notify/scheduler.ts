@@ -17,18 +17,25 @@ import { log } from '$lib/server/log';
 import { isRestorePending } from '$lib/server/restoreState';
 import { recordNotificationTick } from './notificationSettingsRepository';
 
-const TICK_MS = 15 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+// Offset past the minute boundary so the local clock already reads the new minute.
+const TICK_OFFSET_MS = 1000;
+const RETRY_EVERY_MINUTES = 15;
 const FIRST_TICK_MS = 10 * 1000;
 let started = false;
 
+export interface TickOptions {
+	retryFailed: boolean;
+}
+
 export function createNotificationTick(
-	dispatch: () => Promise<{ sent: number; failed: number; skipped?: string }>,
+	dispatch: (options: TickOptions) => Promise<{ sent: number; failed: number; skipped?: string }>,
 	recordTick = (result: { skipped?: string }) => {
 		if (!result.skipped) recordNotificationTick(getDb(), clock.nowIso());
 	}
-): () => void {
+): (options?: TickOptions) => void {
 	let inFlight = false;
-	return () => {
+	return (options = { retryFailed: true }) => {
 		if (inFlight) return;
 		inFlight = true;
 		void (async () => {
@@ -41,7 +48,7 @@ export function createNotificationTick(
 					getLanguagePreference({ settings: appSettingsPort }),
 					null
 				);
-				const result = await runWithLocale(locale, () => dispatch());
+				const result = await runWithLocale(locale, () => dispatch(options));
 				recordTick(result);
 				if (result.sent || result.failed) log.info('notifications: tick', { ...result });
 			} catch {
@@ -53,10 +60,41 @@ export function createNotificationTick(
 	};
 }
 
+/**
+ * Ticks once at startup and then at the start of every local minute, so each
+ * selectable whole-minute reminder time (including 23:59) is visited whatever
+ * the startup phase. Failed deliveries are retried on every 15th minute only.
+ * Duplicate sends are prevented by the delivery claim, not by tick spacing.
+ */
+export function scheduleMinuteTicks(tick: (options: TickOptions) => void): () => void {
+	let timer: ReturnType<typeof setTimeout>;
+	let stopped = false;
+	const scheduleNext = () => {
+		const now = Date.now();
+		const delay = MINUTE_MS - (now % MINUTE_MS) + TICK_OFFSET_MS;
+		timer = setTimeout(() => {
+			if (stopped) return;
+			tick({ retryFailed: new Date().getMinutes() % RETRY_EVERY_MINUTES === 0 });
+			scheduleNext();
+		}, delay);
+		timer.unref();
+	};
+	timer = setTimeout(() => {
+		if (stopped) return;
+		tick({ retryFailed: true });
+		scheduleNext();
+	}, FIRST_TICK_MS);
+	timer.unref();
+	return () => {
+		stopped = true;
+		clearTimeout(timer);
+	};
+}
+
 export function startNotificationScheduler(): void {
 	if (started || process.env.LIFEADMIN_DISABLE_SCHEDULER === '1') return;
 	started = true;
-	const tick = createNotificationTick(() =>
+	const tick = createNotificationTick(({ retryFailed }) =>
 		dispatchDueReminders({
 			settings: notificationSettingsPort,
 			deliveries: notificationDeliveriesPort,
@@ -64,9 +102,9 @@ export function startNotificationScheduler(): void {
 			channels: notificationChannelsPort,
 			whatsNext: whatsNextPort,
 			clock,
-			origin: config.origin
+			origin: config.origin,
+			retryFailed
 		})
 	);
-	setTimeout(tick, FIRST_TICK_MS).unref();
-	setInterval(tick, TICK_MS).unref();
+	scheduleMinuteTicks(tick);
 }
