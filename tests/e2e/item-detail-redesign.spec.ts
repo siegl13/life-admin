@@ -187,11 +187,12 @@ test('mobile: hero is informational only, one sticky bar owns complete + a secon
 	await expect(stickyBar).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Neues Element' })).toHaveCount(0);
 	await expect(stickyBar.getByRole('button', { name: 'Erledigen' })).toBeVisible();
-	await expect(stickyBar.getByRole('button', { name: 'Überspringen' })).toHaveCount(0);
+	// Skip is a primary control next to Erledigen, only scheduling is secondary.
+	await expect(stickyBar.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+	const dueTrigger = stickyBar.getByRole('button', { name: 'Termin ändern' });
+	await expect(dueTrigger).toBeHidden();
 
 	await stickyBar.locator('summary').click();
-	const dueTrigger = stickyBar.getByRole('button', { name: 'Termin ändern' });
-	await expect(stickyBar.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 	await expect(dueTrigger).toBeVisible();
 
 	// The sticky trigger opens the very dialog WorkflowTimeline renders for

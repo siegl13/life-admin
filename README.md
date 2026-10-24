@@ -151,8 +151,11 @@ or deleted.
 
 Off by default. Needs an OpenAI API key and an explicit consent toggle
 in `/settings`. Once on, attachments get an "Informationen erkennen"
-button that returns a reviewable list of suggested field values;
-nothing writes to the Item until you pick a value and submit.
+button that returns a reviewable list of suggested field values and
+suggested tasks. Nothing writes to the Item until you submit. New values
+are pre-selected, a value that differs from the current one keeps the
+current value unless you explicitly choose the document value, and no
+task is created unless you select it.
 
 ```
 LIFEADMIN_OPENAI_API_KEY=sk-...
@@ -163,9 +166,10 @@ Under Docker Compose, copy `.env.example` to `.env`, fill in the key,
 uncomment `env_file: .env` in `compose.yaml`, then `docker compose up -d`
 again (`compose.yaml` ignores `.env.example` itself).
 
-Only the selected document's bytes, its MIME type, and the current
-cycle's field labels get sent, never the title, notes, other
-attachments, or existing values. The key never touches the database or
+Only the selected document's bytes, its MIME type, the current
+cycle's field labels, and the titles of the Item's existing tasks (to
+avoid duplicate suggestions) get sent, never the Item title, notes,
+other attachments, or existing values. The key never touches the database or
 a backup; a restored backup on a new machine needs the env var set
 again, same as `ORIGIN`.
 
@@ -174,7 +178,9 @@ again, same as `ORIGIN`.
 Off by default. Pick one channel in Settings: an ntfy server/topic or a
 Slack Incoming Webhook. One reminder shortly before something is due,
 one when it's overdue. Nothing goes out for undated, blocked, completed,
-archived, or unresolved work. Tokens stay local and are excluded from
+archived, or unresolved work. Reminders go out at or after a local time of
+day you set in Settings (default 08:00, whole minutes). It is the
+notification time, not a due time. Tokens stay local and are excluded from
 backups, so re-enter them after restoring elsewhere.
 
 ## Backup and restore

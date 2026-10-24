@@ -1,3 +1,4 @@
+import { isReminderTimeReached } from '$lib/domain/notify/reminderTime';
 import { buildDueReminders, type Reminder } from '$lib/domain/notify/reminders';
 import { buildWhatsNext } from '$lib/domain/whatsnext/whatsNext';
 import { compareIsoDate } from '$lib/domain/date/isoDate';
@@ -34,12 +35,16 @@ export async function dispatchDueReminders(ports: {
 	whatsNext: WhatsNextRepositoryPort;
 	clock: Clock;
 	origin: string | null;
+	/** Defaults to true. False skips retrying earlier failed deliveries on this run. */
+	retryFailed?: boolean;
 }): Promise<DispatchResult> {
 	const settings = ports.settings.getSettings();
 	ports.snoozes?.clearIneligible?.();
 	if (!settings.enabled || !settings.selectedChannelConfigured)
 		return { skipped: 'disabled', sent: 0, failed: 0 };
-	if (ports.clock.localHour() < 8) return { skipped: 'quiet_hours', sent: 0, failed: 0 };
+	const localMinuteOfDay = ports.clock.localMinuteOfDay?.() ?? ports.clock.localHour() * 60;
+	if (!isReminderTimeReached(localMinuteOfDay, settings.reminderTime))
+		return { skipped: 'quiet_hours', sent: 0, failed: 0 };
 
 	const today = ports.clock.todayIso();
 	const groups = buildWhatsNext(ports.whatsNext.loadItems(), today);
@@ -150,7 +155,13 @@ export async function dispatchDueReminders(ports: {
 			reminder
 		])
 	);
-	const retrySnapshot = ports.deliveries.listRetryable(MAX_ATTEMPTS, RETRY_LIMIT, allReminders);
+	// The scheduler ticks every minute so every selectable reminder minute is
+	// visited. Retries of failed sends only run on its slower retry cadence, so
+	// the attempt budget is not burnt within a few minutes.
+	const retrySnapshot =
+		ports.retryFailed === false
+			? []
+			: ports.deliveries.listRetryable(MAX_ATTEMPTS, RETRY_LIMIT, allReminders);
 	const retriedKeys = new Set(
 		retrySnapshot.map(
 			(retry) => `${retry.actionId}:${retry.kind}:${retry.targetDate}:${retry.channel}`

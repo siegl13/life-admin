@@ -199,6 +199,12 @@
 				>
 					{stateLabel[state]}
 				</span>
+				<!-- Only a task someone wrote context for (e.g. one created from a
+				     reviewed document suggestion); playbook step descriptions
+				     keep their current, undisplayed behaviour. -->
+				{#if entry.action.dueKind === 'MANUAL' && entry.action.description}
+					<span class="meta timeline__description">{entry.action.description}</span>
+				{/if}
 				{#if state === 'done'}
 					<span class="hint">
 						{t('items.detail.status.done')}{#if entry.action.completedAt}

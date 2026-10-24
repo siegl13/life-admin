@@ -7,6 +7,12 @@
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let analyzing = $state(false);
+	// `disabled` is set by state after the browser has captured the submission.
+	function startAnalyzing() {
+		analyzing = true;
+	}
 	const TYPE_LABEL_KEY: Record<AttachmentMimeType, TranslationKey> = {
 		'application/pdf': 'items.detail.attachmentTypePdf',
 		'image/jpeg': 'items.detail.attachmentTypeJpeg',
@@ -55,8 +61,11 @@
 		download>{t('items.detail.attachmentDownload')}</a
 	>
 	{#if data.aiExtractionAvailable && data.attachment.byteSize <= data.aiMaxDocumentBytes}
-		<form method="POST" action="?/extract">
-			<button type="submit" class="quiet">{t('items.detail.attachments.extract')}</button>
+		<form method="POST" action="?/extract" aria-busy={analyzing} onsubmit={startAnalyzing}>
+			<button type="submit" class="quiet" disabled={analyzing}>
+				{analyzing ? t('ai.analyzing') : t('items.detail.attachments.extract')}
+			</button>
+			{#if analyzing}<span class="hint" role="status">{t('ai.analyzingHint')}</span>{/if}
 		</form>
 	{/if}
 </div>

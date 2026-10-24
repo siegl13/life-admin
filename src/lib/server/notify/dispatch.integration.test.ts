@@ -30,7 +30,11 @@ const clock = {
 	localHour: () => 9
 };
 
-function createPorts(settings: NotificationSettings, send = vi.fn(async () => {})) {
+function createPorts(
+	settings: NotificationSettings,
+	send = vi.fn(async () => {}),
+	clockOverride: { localMinuteOfDay?: () => number } = {}
+) {
 	return {
 		settings: { getSettings: () => settings },
 		deliveries: {
@@ -80,7 +84,7 @@ function createPorts(settings: NotificationSettings, send = vi.fn(async () => {}
 		},
 		channels: { get: () => ({ send }) },
 		whatsNext: { loadItems: () => loadWhatsNextItems(db) },
-		clock,
+		clock: { ...clock, ...clockOverride },
 		origin: null
 	};
 }
@@ -114,6 +118,7 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 		await dispatchDueReminders(createPorts(settings, send));
@@ -128,11 +133,48 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 		await dispatchDueReminders(createPorts(settings, send));
 		setActionState(db, itemId, actionId, 'DONE');
 		await dispatchDueReminders(createPorts(settings, send));
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	it('sends nothing before the reminder time and one delivery after it, whatever the channel', async () => {
+		for (const channel of ['NTFY', 'SLACK'] as const) {
+			const send = vi.fn(async () => {});
+			const settings = {
+				enabled: true,
+				channel,
+				selectedChannelConfigured: true,
+				leadDays: 7,
+				reminderTime: '09:30',
+				minimalContent: false
+			};
+			const at = (minutes: number) => ({ localMinuteOfDay: () => minutes });
+			await dispatchDueReminders(createPorts(settings, send, at(9 * 60 + 29)));
+			expect(send).not.toHaveBeenCalled();
+			await dispatchDueReminders(createPorts(settings, send, at(9 * 60 + 30)));
+			await dispatchDueReminders(createPorts(settings, send, at(9 * 60 + 45)));
+			expect(send).toHaveBeenCalledTimes(1);
+			db.prepare('DELETE FROM notification_deliveries').run();
+		}
+	});
+
+	it('does not resend a delivery when the reminder time changes', async () => {
+		const send = vi.fn(async () => {});
+		const base = {
+			enabled: true,
+			channel: 'NTFY' as const,
+			selectedChannelConfigured: true,
+			leadDays: 7,
+			minimalContent: false
+		};
+		await dispatchDueReminders(createPorts({ ...base, reminderTime: '08:00' }, send));
+		await dispatchDueReminders(createPorts({ ...base, reminderTime: '07:00' }, send));
+		await dispatchDueReminders(createPorts({ ...base, reminderTime: '09:00' }, send));
 		expect(send).toHaveBeenCalledTimes(1);
 	});
 
@@ -145,6 +187,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -157,6 +200,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 14,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -180,6 +224,7 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 
@@ -199,6 +244,7 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 		for (let attempt = 0; attempt < 4; attempt++)
@@ -224,6 +270,7 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 		for (let attempt = 0; attempt < 4; attempt++)
@@ -260,6 +307,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -281,6 +329,7 @@ describe('dispatchDueReminders with real persistence', () => {
 			channel: 'NTFY' as const,
 			selectedChannelConfigured: true,
 			leadDays: 7,
+			reminderTime: '08:00',
 			minimalContent: false
 		};
 		await dispatchDueReminders(createPorts(settings, send));
@@ -309,6 +358,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -342,6 +392,7 @@ describe('dispatchDueReminders with real persistence', () => {
 				channel: 'NTFY',
 				selectedChannelConfigured: false,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			})
 		);
@@ -374,6 +425,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -405,6 +457,7 @@ describe('dispatchDueReminders with real persistence', () => {
 					channel: 'NTFY',
 					selectedChannelConfigured: true,
 					leadDays: 7,
+					reminderTime: '08:00',
 					minimalContent: false
 				},
 				send
@@ -428,6 +481,7 @@ describe('dispatchDueReminders with real persistence', () => {
 				channel: 'NTFY',
 				selectedChannelConfigured: false,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			})
 		);
@@ -448,6 +502,7 @@ describe('dispatchDueReminders with real persistence', () => {
 				channel: 'NTFY',
 				selectedChannelConfigured: false,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			})
 		);
@@ -467,6 +522,7 @@ describe('dispatchDueReminders with real persistence', () => {
 				channel: 'NTFY',
 				selectedChannelConfigured: true,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			})
 		);
@@ -486,6 +542,7 @@ describe('dispatchDueReminders with real persistence', () => {
 				channel: 'NTFY',
 				selectedChannelConfigured: true,
 				leadDays: 7,
+				reminderTime: '08:00',
 				minimalContent: false
 			})
 		);

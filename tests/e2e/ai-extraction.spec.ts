@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * The deterministic fake provider (LIFEADMIN_AI_FAKE=1, no real key,
@@ -14,6 +14,40 @@ import { expect, test } from '@playwright/test';
  * fresh install would.
  */
 const MINIMAL_PDF = Buffer.from('%PDF-1.4\n%%EOF');
+
+async function createTuvItemWithAttachment(
+	page: Page,
+	title: string,
+	filename: string,
+	initialDate?: string
+) {
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill(title);
+	await page.getByLabel('Vorlage').selectOption({ label: 'TÜV / Hauptuntersuchung' });
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+	const itemUrl = page.url();
+	if (initialDate) {
+		await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+		await page.locator('#field-next_inspection input[type="date"]').fill(initialDate);
+		await page.getByRole('button', { name: 'Speichern' }).click();
+		await expect(page).toHaveURL(itemUrl);
+	}
+	const attachmentForm = page.locator('form[action="?/addAttachment"]');
+	await attachmentForm.locator('input[type="file"]').setInputFiles({
+		name: filename,
+		mimeType: 'application/pdf',
+		buffer: MINIMAL_PDF
+	});
+	await attachmentForm.getByRole('button', { name: 'Hinzufügen' }).click();
+	return itemUrl;
+}
+
+async function openExtractionReview(page: Page, filename: string) {
+	await page.getByRole('link', { name: filename }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await expect(page).toHaveURL(/\/suggestions\//);
+}
 
 test('AI extraction: disabled by default, full review/apply/dismiss flow, then disabled again', async ({
 	page
@@ -102,8 +136,11 @@ test('AI extraction: disabled by default, full review/apply/dismiss flow, then d
 	await expect(page).toHaveURL(/\/suggestions\//);
 	const inspectionSuggestion = page.locator('#suggestion-next_inspection');
 	await expect(inspectionSuggestion.getByText('Aktueller Wert: 1. Januar 2030')).toBeVisible();
-	await expect(inspectionSuggestion.getByText('Überschreibt den aktuellen Wert')).toBeVisible();
-	await expect(inspectionSuggestion.getByRole('checkbox')).not.toBeChecked();
+	await expect(inspectionSuggestion.getByText('Wert im Dokument: 15. März 2031')).toBeVisible();
+	await expect(inspectionSuggestion.getByLabel('Aktuellen Wert behalten')).toBeChecked();
+	await expect(
+		inspectionSuggestion.getByLabel('Wert aus dem Dokument verwenden')
+	).not.toBeChecked();
 
 	// 13/14. Dismiss: no field change.
 	await page.getByRole('button', { name: 'Verwerfen' }).click();
@@ -269,6 +306,198 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 			JSON.stringify({ overflow, layout })
 		).toEqual([]);
 	}
+
+	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Ausschalten' }).click();
+});
+
+/**
+ * Document Action suggestions and safe field comparison, end to end with the
+ * deterministic fake provider (see fakeProvider.ts): a deadline, an
+ * availability, a relative date and an already-done step. Nothing is created
+ * without selection, availability never becomes a due date, a later run
+ * offers no duplicate, and a conflicting value is only replaced by an
+ * explicit choice.
+ */
+test('Document actions: explicit selection, dates, no duplicates, safe conflict replace', async ({
+	page
+}) => {
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill('KFZ AI-Aktionen-Test');
+	await page.getByLabel('Vorlage').selectOption({ label: 'TÜV / Hauptuntersuchung' });
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+	const itemUrl = page.url();
+
+	await page
+		.locator('form[action="?/addAttachment"]')
+		.locator('input[type="file"]')
+		.setInputFiles({ name: 'pruefbericht.pdf', mimeType: 'application/pdf', buffer: MINIMAL_PDF });
+	await page
+		.locator('form[action="?/addAttachment"]')
+		.getByRole('button', { name: 'Hinzufügen' })
+		.click();
+
+	await page.goto('/settings');
+	await page.getByLabel('Ich habe verstanden, dass ausgewählte Dokumente an OpenAI').check();
+	await page.getByRole('button', { name: 'Einschalten' }).click();
+
+	await page.goto(itemUrl);
+	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await expect(page).toHaveURL(/\/suggestions\//);
+
+	// Mobile first: the whole review fits without horizontal scrolling.
+	const actionSuggestions = page.locator('#action-suggestions');
+	for (const width of [375, 390, 430]) {
+		await page.setViewportSize({ width, height: 800 });
+		await expect(actionSuggestions).toBeVisible();
+		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
+	}
+
+	// Three open suggestions; the already-done one is discarded. None is
+	// selected by default, so nothing would be created by a plain submit.
+	await expect(actionSuggestions.getByRole('checkbox')).toHaveCount(3);
+	await expect(actionSuggestions.getByRole('checkbox').first()).not.toBeChecked();
+	await expect(actionSuggestions.getByText('Bereits erledigter Schritt')).toHaveCount(0);
+	await expect(actionSuggestions.getByText('Verfügbar ab 1. April 2031')).toBeVisible();
+	// The absolute deadline and the relative one ("2 weeks before Nächste HU",
+	// resolved from this document's own value) land on the same date.
+	await expect(
+		actionSuggestions.locator('[data-action-date-selected]').filter({
+			hasText: 'Fällig bis 1. März 2031'
+		})
+	).toHaveCount(2);
+	const relativeActionDate = actionSuggestions
+		.getByLabel(/Termin bestätigen/)
+		.locator('xpath=..')
+		.locator('[data-action-date-selected]');
+	await page.locator('#suggestion-next_inspection input[type="checkbox"]').uncheck();
+	await expect(relativeActionDate).toContainText('Ohne Datum');
+	await page.locator('#suggestion-next_inspection input[type="checkbox"]').check();
+	await expect(relativeActionDate).toContainText('Fällig bis 1. März 2031');
+
+	await actionSuggestions.getByLabel('Unterlagen prüfen').check();
+	await actionSuggestions.getByLabel('Online-Portal nutzen').check();
+	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
+	await expect(page).toHaveURL(itemUrl);
+
+	// Ordinary actions: the deadline is the due date, the availability is
+	// only a note and never a due date, the unselected one does not exist.
+	const documents = page.locator('.timeline__step', { hasText: 'Unterlagen prüfen' });
+	await expect(documents).toContainText('1. März 2031');
+	const portal = page.locator('.timeline__step', { hasText: 'Online-Portal nutzen' });
+	await expect(portal).toContainText('Verfügbar ab 1. April 2031');
+	await expect(portal).not.toContainText('Fällig am');
+	await expect(page.getByText('Termin bestätigen')).toHaveCount(0);
+	await expect(
+		page.locator('.history-event__text', { hasText: 'Aufgabe hinzugefügt' })
+	).toHaveCount(2);
+
+	// A second run: the selected actions are not offered again, and the
+	// field values are identical, so they are only listed quietly.
+	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await expect(page).toHaveURL(/\/suggestions\//);
+	await expect(page.locator('#action-suggestions').getByRole('checkbox')).toHaveCount(1);
+	await expect(page.locator('#action-suggestions').getByText('Termin bestätigen')).toBeVisible();
+	await expect(page.locator('#known-suggestions')).toHaveCount(0);
+	await expect(page.locator('#already-present')).toBeVisible();
+	await page.getByRole('button', { name: 'Verwerfen' }).click();
+	await expect(page).toHaveURL(itemUrl);
+
+	// A conflict keeps the current value unless explicitly replaced.
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await page.locator('#field-next_inspection input[type="date"]').fill('2030-01-01');
+	await page.getByRole('button', { name: 'Speichern' }).click();
+	await expect(page).toHaveURL(itemUrl);
+
+	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
+	await expect(page).toHaveURL(itemUrl);
+	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2030-01-01');
+
+	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await page
+		.locator('#suggestion-next_inspection')
+		.getByLabel('Wert aus dem Dokument verwenden')
+		.check();
+	await expect(relativeActionDate).toContainText('Fällig bis 1. März 2031');
+	await page.locator('#action-suggestions').getByLabel('Termin bestätigen').check();
+	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
+	await expect(page).toHaveURL(itemUrl);
+	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2031-03-15');
+	const replacedAction = page.locator('.timeline__step', { hasText: 'Termin bestätigen' });
+	await expect(replacedAction).toContainText('1. März 2031');
+
+	// On a separate Item, deselect the new anchor and submit Accept all new.
+	// Its preview and the saved Action both use the automatically accepted anchor.
+	await page.goto('/items/new');
+	await page.getByLabel('Titel').fill('KFZ AI-Aktionen-ohne-Anker');
+	await page.getByLabel('Vorlage').selectOption({ label: 'TÜV / Hauptuntersuchung' });
+	await page.getByRole('button', { name: 'Anlegen' }).click();
+	await expect(page).toHaveURL(/\/items\/[0-9a-f-]+$/);
+	const noAnchorItemUrl = page.url();
+	await page
+		.locator('form[action="?/addAttachment"] input[type="file"]')
+		.setInputFiles({ name: 'ohne-anker.pdf', mimeType: 'application/pdf', buffer: MINIMAL_PDF });
+	await page
+		.locator('form[action="?/addAttachment"]')
+		.getByRole('button', { name: 'Hinzufügen' })
+		.click();
+	await page.getByRole('link', { name: 'ohne-anker.pdf' }).click();
+	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await expect(page).toHaveURL(/\/suggestions\//);
+	const noAnchorDate = page
+		.locator('#action-suggestions')
+		.getByLabel(/Termin bestätigen/)
+		.locator('xpath=..')
+		.locator('[data-action-date-selected]');
+	await page.locator('#suggestion-next_inspection input[type="checkbox"]').uncheck();
+	await expect(noAnchorDate).toContainText('Ohne Datum');
+	const noAnchorAcceptAllDate = page
+		.locator('#action-suggestions')
+		.getByLabel(/Termin bestätigen/)
+		.locator('xpath=../..')
+		.locator('[data-action-date-accept-all]');
+	await expect(noAnchorAcceptAllDate).toContainText('Fällig bis 1. März 2031');
+	await page.locator('#action-suggestions').getByLabel('Termin bestätigen').check();
+	await page.getByRole('button', { name: 'Alle neuen übernehmen' }).click();
+	await expect(page).toHaveURL(noAnchorItemUrl);
+	const acceptedAllAction = page.locator('.timeline__step', { hasText: 'Termin bestätigen' });
+	await expect(acceptedAllAction).toBeVisible();
+	await expect(acceptedAllAction).toContainText('1. März 2031');
+
+	// Accept-all ignores explicit replacements, so its preview remains based on
+	// the current anchor and the created Action must use that same date.
+	const acceptAllConflictUrl = await createTuvItemWithAttachment(
+		page,
+		'KFZ AI-Aktionen-Alle-neuen-Konflikt',
+		'alle-neuen-konflikt.pdf',
+		'2030-01-01'
+	);
+	await openExtractionReview(page, 'alle-neuen-konflikt.pdf');
+	await page
+		.locator('#suggestion-next_inspection')
+		.getByLabel('Wert aus dem Dokument verwenden')
+		.check();
+	const conflictAction = page
+		.locator('#action-suggestions')
+		.getByLabel(/Termin bestätigen/)
+		.locator('xpath=../..');
+	await expect(conflictAction.locator('[data-action-date-selected]')).toContainText('1. März 2031');
+	await expect(conflictAction.locator('[data-action-date-accept-all]')).toContainText(
+		'18. Dezember 2029'
+	);
+	await page.locator('#action-suggestions').getByLabel('Termin bestätigen').check();
+	await page.getByRole('button', { name: 'Alle neuen übernehmen' }).click();
+	await expect(page).toHaveURL(acceptAllConflictUrl);
+	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2030-01-01');
+	await expect(page.locator('.timeline__step', { hasText: 'Termin bestätigen' })).toContainText(
+		'18. Dezember 2029'
+	);
 
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Ausschalten' }).click();

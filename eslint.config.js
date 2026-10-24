@@ -63,6 +63,12 @@ export default tseslint.config(
 				// code until the Action detail dialogs needed to open/close
 				// themselves.
 				MouseEvent: 'readonly',
+				SubmitEvent: 'readonly',
+				Event: 'readonly',
+				File: 'readonly',
+				HTMLInputElement: 'readonly',
+				HTMLButtonElement: 'readonly',
+				setTimeout: 'readonly',
 				HTMLElement: 'readonly',
 				HTMLDialogElement: 'readonly',
 				document: 'readonly'

@@ -19,6 +19,15 @@
 		relativeTime: (value: string) => string;
 	} = $props();
 
+	let analyzing = $state(false);
+
+	// Only the separate analysis submission is pending feedback; routing is
+	// a normal quick submit. `disabled` follows state, after submission starts.
+	function startAnalyzing(event: SubmitEvent) {
+		analyzing =
+			(event.submitter as HTMLButtonElement | null)?.formAction.endsWith('?/analyze') ?? false;
+	}
+
 	function defaultTitle(filename: string): string {
 		return filename.replace(/\.[^.]+$/, '').trim() || filename;
 	}
@@ -50,7 +59,13 @@
 	}
 </script>
 
-<form method="POST" action="?/route" class="route-form">
+<form
+	method="POST"
+	action="?/route"
+	class="route-form"
+	aria-busy={analyzing}
+	onsubmit={startAnalyzing}
+>
 	<input type="hidden" name="documentId" value={document.id} />
 
 	<header class="document-head">
@@ -65,9 +80,14 @@
 			</p>
 		</div>
 		{#if data.aiAvailable}
-			<button class="text-action analyze-action" type="submit" formaction="?/analyze" formnovalidate
-				>{t('inbox.analyze')}</button
+			<button
+				class="text-action analyze-action"
+				type="submit"
+				formaction="?/analyze"
+				formnovalidate
+				disabled={analyzing}>{analyzing ? t('ai.analyzing') : t('inbox.analyze')}</button
 			>
+			{#if analyzing}<span class="hint" role="status">{t('ai.analyzingHint')}</span>{/if}
 		{/if}
 	</header>
 

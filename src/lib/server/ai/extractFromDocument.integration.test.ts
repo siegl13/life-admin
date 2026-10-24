@@ -10,6 +10,7 @@ import * as extractionRepo from '../db/repositories/extractionRepository';
 import * as itemRepo from '../db/repositories/itemRepository';
 import * as cycleRepo from '../db/repositories/cycleRepository';
 import * as fieldRepo from '../db/repositories/fieldRepository';
+import * as actionRepo from '../db/repositories/actionRepository';
 import * as attachmentRepo from '../db/repositories/attachmentRepository';
 import {
 	extractFromDocument,
@@ -72,8 +73,18 @@ function seedActiveItemWithAttachment() {
 function realPorts(
 	provider: DocumentExtractionProviderPort,
 	attachmentBytes: { readBytes: (key: string, maxBytes: number) => Uint8Array }
-) {
+): Parameters<typeof extractFromDocument>[0] {
 	return {
+		actions: {
+			listActions: (cycleId: string) => actionRepo.listActions(db, cycleId),
+			listDependencies: (cycleId: string) => actionRepo.listDependencies(db, cycleId),
+			setActionState: (itemId: string, actionId: string, state: never) =>
+				actionRepo.setActionState(db, itemId, actionId, state),
+			addManualAction: (cycleId: string, input: Parameters<typeof actionRepo.addManualAction>[2]) =>
+				actionRepo.addManualAction(db, cycleId, input),
+			setActionDueOverride: (itemId: string, actionId: string, date: string | null) =>
+				actionRepo.setActionDueOverride(db, itemId, actionId, date)
+		},
 		items: {
 			getItemById: (id: string) => itemRepo.getItemById(db, id),
 			createItem: (input: Parameters<typeof itemRepo.createItem>[1]) =>
@@ -101,6 +112,8 @@ function realPorts(
 			listByItem: (id: string) => attachmentRepo.listByItem(db, id),
 			listByCycle: (id: string) => attachmentRepo.listByCycle(db, id),
 			countByItem: (id: string) => attachmentRepo.countByItem(db, id),
+			rename: (itemId: string, id: string, filename: string) =>
+				attachmentRepo.rename(db, itemId, id, filename),
 			insert: (row: Parameters<typeof attachmentRepo.insert>[1]) => attachmentRepo.insert(db, row),
 			deleteById: (id: string) => attachmentRepo.deleteById(db, id),
 			listStorageKeysForItem: (id: string) => attachmentRepo.listStorageKeysForItem(db, id)
@@ -119,6 +132,13 @@ function realPorts(
 			getById: (runId: string) => extractionRepo.getById(db, runId),
 			findNewestPendingRun: (cycleId: string) => extractionRepo.findNewestPendingRun(db, cycleId),
 			listSuggestions: (runId: string) => extractionRepo.listSuggestions(db, runId),
+			listAdditionalSuggestions: (runId: string) =>
+				extractionRepo.listAdditionalSuggestions(db, runId),
+			listActionSuggestions: (runId: string) => extractionRepo.listActionSuggestions(db, runId),
+			addActions: (input: Parameters<typeof extractionRepo.addActions>[1]) =>
+				extractionRepo.addActions(db, input),
+			addAdditionalFields: (input: Parameters<typeof extractionRepo.addAdditionalFields>[1]) =>
+				extractionRepo.addAdditionalFields(db, input),
 			applyRun: (input: Parameters<typeof extractionRepo.applyRun>[1]) =>
 				extractionRepo.applyRun(db, input),
 			dismissRun: (input: Parameters<typeof extractionRepo.dismissRun>[1]) =>
@@ -160,7 +180,7 @@ describe('extractFromDocument (no-key path, real repositories)', () => {
 
 		await expect(
 			extractFromDocument(
-				realPorts(spyProvider, throwingReadBytes) as never,
+				realPorts(spyProvider, throwingReadBytes),
 				{ itemId, attachmentId },
 				BOUNDS
 			)
@@ -189,12 +209,13 @@ describe('extractFromDocument (post-claim failure, real repositories)', () => {
 
 		await expect(
 			extractFromDocument(
-				realPorts(provider, throwingReadBytes) as never,
+				realPorts(provider, throwingReadBytes),
 				{ itemId, attachmentId },
 				{ ...BOUNDS, hasApiKey: true }
 			)
 		).rejects.toThrow();
 
+		expect(throwingReadBytes.readBytes).toHaveBeenCalledTimes(1);
 		expect(provider.extract).not.toHaveBeenCalled();
 		const row = db.prepare('SELECT status FROM extraction_runs WHERE item_id = ?').get(itemId) as
 			{ status: string } | undefined;

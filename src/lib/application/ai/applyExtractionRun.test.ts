@@ -63,7 +63,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 				acceptedFieldKeys: ['contract_end']
 			})
 		);
-		expect(result).toEqual({ acceptedCount: 1 });
+		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 0, createdActionCount: 0 });
 	});
 
 	it('a field key posted by the browser that is not in the run is ignored, not trusted, and not counted', () => {
@@ -79,7 +79,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 				acceptedFieldKeys: ['contract_end']
 			})
 		);
-		expect(result).toEqual({ acceptedCount: 1 });
+		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 0, createdActionCount: 0 });
 	});
 
 	// Regression: accepting a suggestion for a `currency`-type known field
@@ -129,5 +129,179 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 			})
 		).toThrow(UnknownFieldError);
 		expect(p.runs.applyRun).not.toHaveBeenCalled();
+	});
+
+	describe('with selected Action suggestions', () => {
+		const describeDate = (kind: string, date: string) => `${kind} ${date}`;
+		const actionSuggestion = {
+			id: 'act-1',
+			title: 'Kündigung senden',
+			context: null,
+			evidence: null,
+			date: {
+				kind: 'DUE_BY',
+				value: null,
+				relative: { relation: 'BEFORE', amount: 10, unit: 'DAYS', anchorFieldKey: 'contract_end' }
+			},
+			position: 0,
+			accepted: false
+		};
+
+		function portsWithActions(fieldOverride?: unknown) {
+			const p = fakePorts(fieldOverride ? { fields: fieldOverride } : {});
+			return {
+				...p,
+				runs: { ...p.runs, listActionSuggestions: vi.fn(() => [actionSuggestion]) },
+				actions: { listActions: vi.fn(() => []) }
+			};
+		}
+
+		it('hands the Action to the same applyRun call, dated from the value that is saved', () => {
+			const p = portsWithActions();
+			const result = applyExtractionRun(p as never, {
+				itemId: 'item-1',
+				runId: 'run-1',
+				acceptedFieldKeys: ['contract_end'],
+				actions: { selectedSuggestionIds: ['act-1'], describeDate: describeDate as never }
+			});
+			expect(p.runs.applyRun).toHaveBeenCalledTimes(1);
+			expect(p.runs.applyRun).toHaveBeenCalledWith(
+				expect.objectContaining({
+					updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+					actions: [expect.objectContaining({ suggestionId: 'act-1', dueDate: '2031-03-05' })]
+				})
+			);
+			expect(result.createdActionCount).toBe(1);
+		});
+
+		it('persists nothing, Actions included, when a selected field no longer exists', () => {
+			const p = portsWithActions({ listFields: vi.fn(() => []) });
+			expect(() =>
+				applyExtractionRun(p as never, {
+					itemId: 'item-1',
+					runId: 'run-1',
+					acceptedFieldKeys: ['contract_end'],
+					actions: { selectedSuggestionIds: ['act-1'], describeDate: describeDate as never }
+				})
+			).toThrow(UnknownFieldError);
+			expect(p.runs.applyRun).not.toHaveBeenCalled();
+		});
+	});
+});
+
+describe('applyExtractionRun: comparison and conflict safety', () => {
+	function portsWithCurrent(current: { contract_end: string | null; note: string | null }) {
+		return fakePorts({
+			fields: {
+				listFields: vi.fn(() => [
+					{
+						fieldKey: 'contract_end',
+						label: 'Contract end',
+						type: 'date',
+						value: current.contract_end
+					},
+					{ fieldKey: 'note', label: 'Note', type: 'text', value: current.note }
+				])
+			}
+		});
+	}
+
+	function lastApply(p: ReturnType<typeof fakePorts>) {
+		return (p.runs.applyRun as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+	}
+
+	it('never overwrites a non-empty value that was only selected, not explicitly replaced', () => {
+		const p = portsWithCurrent({ contract_end: '2030-01-01', note: null });
+		const result = applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: ['contract_end', 'note']
+		});
+		expect(lastApply(p).updates).toEqual([{ fieldKey: 'note', value: 'hello' }]);
+		expect(lastApply(p).acceptedFieldKeys).toEqual(['note']);
+		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 1, createdActionCount: 0 });
+	});
+
+	it('replaces a conflicting value only on the explicit "use document value" choice', () => {
+		const p = portsWithCurrent({ contract_end: '2030-01-01', note: null });
+		const result = applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: [],
+			replaceFieldKeys: ['contract_end']
+		});
+		expect(lastApply(p).updates).toEqual([{ fieldKey: 'contract_end', value: '2031-03-15' }]);
+		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 0, createdActionCount: 0 });
+	});
+
+	it('keeping the current value (no replace choice) leaves the field untouched', () => {
+		const p = portsWithCurrent({ contract_end: '2030-01-01', note: 'kept' });
+		const result = applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: [],
+			replaceFieldKeys: []
+		});
+		expect(lastApply(p).updates).toEqual([]);
+		expect(result).toEqual({ changedCount: 0, keptCurrentCount: 0, createdActionCount: 0 });
+	});
+
+	it('ignores a value the Item already holds (whitespace-trimmed) and does not count it as a change', () => {
+		const p = portsWithCurrent({ contract_end: '2031-03-15', note: '  hello ' });
+		const result = applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: ['contract_end', 'note'],
+			replaceFieldKeys: ['note']
+		});
+		expect(lastApply(p).updates).toEqual([]);
+		expect(lastApply(p).acceptedFieldKeys).toEqual([]);
+		expect(result).toEqual({ changedCount: 0, keptCurrentCount: 0, createdActionCount: 0 });
+	});
+
+	it('re-classifies against the current value: a field filled since review is a conflict, not a silent overwrite', () => {
+		const p = portsWithCurrent({ contract_end: '2029-12-31', note: null });
+		applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			// The browser still posts it as a NEW (checkbox) selection.
+			acceptedFieldKeys: ['contract_end']
+		});
+		expect(lastApply(p).updates).toEqual([]);
+	});
+
+	it('accept all applies every NEW value, ignores identical ones, and leaves conflicts unresolved even with a replace choice', () => {
+		const p = fakePorts({
+			runs: {
+				getById: vi.fn(() => ({
+					id: 'run-1',
+					itemId: 'item-1',
+					cycleId: 'cycle-1',
+					status: 'NEW'
+				})),
+				listSuggestions: vi.fn(() => [
+					{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false },
+					{ fieldKey: 'note', value: 'hello', position: 1, accepted: false },
+					{ fieldKey: 'other', value: 'new', position: 2, accepted: false }
+				]),
+				applyRun: vi.fn()
+			},
+			fields: {
+				listFields: vi.fn(() => [
+					{ fieldKey: 'contract_end', label: 'Contract end', type: 'date', value: '2030-01-01' },
+					{ fieldKey: 'note', label: 'Note', type: 'text', value: 'hello' },
+					{ fieldKey: 'other', label: 'Other', type: 'text', value: null }
+				])
+			}
+		});
+		const result = applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: [],
+			replaceFieldKeys: ['contract_end'],
+			acceptAllNew: true
+		});
+		expect(lastApply(p).updates).toEqual([{ fieldKey: 'other', value: 'new' }]);
+		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 1, createdActionCount: 0 });
 	});
 });

@@ -46,6 +46,11 @@ export interface ExtractionRequest {
 	/** The one global user-editable instruction. */
 	userInstruction: string;
 	fields: readonly ExtractionFieldDefinition[];
+	/** Titles of the Item's existing Actions, passed only so the model can
+	 *  avoid suggesting an Action that already exists. Titles only: no
+	 *  descriptions, dates, states or ids. Optional for providers and
+	 *  fixtures that predate Action suggestions. */
+	existingActionTitles?: readonly string[];
 	document: ExtractionDocument;
 	timeoutMs: number;
 	maxOutputTokens: number;
@@ -73,8 +78,58 @@ export interface ExtractionAdditionalSuggestion {
 	value: string;
 }
 
+/**
+ * How a suggested Action's date should be read. DUE_BY and ON_DATE become
+ * the ordinary due date; AVAILABLE_FROM, APPROXIMATE and NONE never do (an
+ * availability or an estimate is not a deadline). Not a new scheduling
+ * model: it only decides whether the existing due date may be set.
+ */
+export type ActionDateKind = 'DUE_BY' | 'AVAILABLE_FROM' | 'ON_DATE' | 'APPROXIMATE' | 'NONE';
+export type ActionDateRelation = 'BEFORE' | 'AFTER';
+export type ActionDateUnit = 'DAYS' | 'WEEKS' | 'MONTHS' | 'YEARS';
+
+/** "<amount> <unit> BEFORE/AFTER <anchor>": the model only names the
+ *  relation. The application calculates the date (resolveActionDate.ts). */
+export interface ActionRelativeDate {
+	relation: ActionDateRelation;
+	amount: number;
+	unit: ActionDateUnit;
+	/** `fieldKey` of an Item date field. Null for a document anchor. */
+	anchorFieldKey: string | null;
+	/** Document anchor: a date the document states explicitly (YYYY-MM-DD)
+	 *  and that no Item field holds, with a short label for it. The model
+	 *  copies it; it never calculates the resulting date. */
+	anchorDate?: string | null;
+	anchorLabel?: string | null;
+}
+
+export interface ActionSuggestionDate {
+	kind: ActionDateKind;
+	/** Absolute ISO date stated in the document, if any. */
+	value: string | null;
+	relative: ActionRelativeDate | null;
+}
+
+/**
+ * A generic next step the document implies for the user (never a plain
+ * fact, which stays an Item field). Untrusted like every other suggestion:
+ * validated by `filterActionSuggestions.ts`, shown for review, and only
+ * turned into an ordinary Action after explicit selection.
+ */
+export interface ExtractionActionSuggestion {
+	title: string;
+	context: string | null;
+	/** Short quote or paraphrase from the document. Not model reasoning. */
+	evidence: string | null;
+	/** `ALREADY_DONE` suggestions are discarded; absent means open. */
+	status?: 'OPEN' | 'ALREADY_DONE' | null;
+	date: ActionSuggestionDate;
+}
+
 export interface ExtractionResult {
 	suggestions: readonly ExtractionSuggestion[];
+	/** Optional for the same reason as `additionalSuggestions`. */
+	actionSuggestions?: readonly ExtractionActionSuggestion[];
 	/** Optional so a provider (or a fixture) that predates this feature
 	 *  still type-checks and behaves exactly as before — absent is
 	 *  equivalent to "found nothing additional". */

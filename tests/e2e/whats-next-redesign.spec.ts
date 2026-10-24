@@ -163,9 +163,8 @@ test('native menu date-change link targets the DERIVED action anchor and sits be
 					});
 					return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
 				}
-				const panel = button.closest('.action-menu__panel')!;
 				const foreground = luminance(getComputedStyle(button).color);
-				const background = luminance(getComputedStyle(panel).backgroundColor);
+				const background = luminance(getComputedStyle(button).backgroundColor);
 				return (
 					(Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
 				);
@@ -485,21 +484,20 @@ test('375px: a long item title and an open action menu do not overflow the viewp
 
 		await page.goto('/');
 		const row = page.locator('.action-row', { hasText: 'Narrow task' });
-		await row.locator('summary').click();
 		// "Narrow task" is a MANUAL action, so it never offers the change-due-
-		// date link — the menu's always-present skip control is what this
-		// overflow check actually exercises.
-		await expect(row.getByRole('button', { name: 'Überspringen' })).toBeVisible();
+		// date link. Skip is a visible primary control beside completion.
+		const skip = row.getByRole('button', { name: 'Überspringen' });
+		await expect(skip).toBeVisible();
 		const done = await row.getByRole('button', { name: 'Erledigen: Narrow task' }).boundingBox();
 		const label = await row.locator('.action-row__label').boundingBox();
-		const more = await row.locator('summary').boundingBox();
+		const skipBox = await skip.boundingBox();
 		expect(done).not.toBeNull();
 		expect(label).not.toBeNull();
-		expect(more).not.toBeNull();
+		expect(skipBox).not.toBeNull();
 		expect(done!.width).toBe(44);
 		expect(done!.height).toBe(44);
 		expect(done!.x).toBeLessThan(label!.x);
-		expect(more!.x).toBeGreaterThan(label!.x);
+		expect(skipBox!.x).toBeGreaterThan(label!.x);
 
 		const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 		expect(scrollWidth).toBeLessThanOrEqual(375);
@@ -603,20 +601,28 @@ test('375px: filter chips stay on one scrollable row in German and English', asy
 			const focusedChip = page.locator('.filter-chip:focus-visible');
 			await expect(focusedChip).toHaveCount(1);
 			await expect(focusedChip).toHaveCSS('outline-style', 'solid');
-			const focusPosition = await focusedChip.evaluate((chip) => {
-				const chipRect = chip.getBoundingClientRect();
-				const bar = chip.closest('.filter-bar')!;
-				const barRect = bar.getBoundingClientRect();
-				const style = getComputedStyle(bar);
-				return {
-					left: chipRect.left - barRect.left,
-					right: barRect.right - chipRect.right,
-					paddingLeft: parseFloat(style.paddingLeft),
-					paddingRight: parseFloat(style.paddingRight)
-				};
-			});
-			expect(focusPosition.left).toBeGreaterThanOrEqual(focusPosition.paddingLeft);
-			expect(focusPosition.right).toBeGreaterThanOrEqual(focusPosition.paddingRight);
+			const readFocusPosition = () =>
+				focusedChip.evaluate((chip) => {
+					const chipRect = chip.getBoundingClientRect();
+					const bar = chip.closest('.filter-bar')!;
+					const barRect = bar.getBoundingClientRect();
+					const style = getComputedStyle(bar);
+					return {
+						left: chipRect.left - barRect.left,
+						right: barRect.right - chipRect.right,
+						paddingLeft: parseFloat(style.paddingLeft),
+						paddingRight: parseFloat(style.paddingRight)
+					};
+				});
+			const { paddingLeft, paddingRight } = await readFocusPosition();
+			// The browser may still be scrolling the focused chip into view.
+			await expect
+				.poll(async () => (await readFocusPosition()).left)
+				.toBeGreaterThanOrEqual(paddingLeft);
+			await expect
+				.poll(async () => (await readFocusPosition()).right)
+				// scrollWidth rounds fractional chip widths, so the end gap can lose up to 1px.
+				.toBeGreaterThanOrEqual(paddingRight - 1);
 			expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
 				375
 			);

@@ -33,6 +33,7 @@ import {
 	NOTIFY_KEYS,
 	validateNotificationSettings
 } from '$lib/application/notify/notifySettings';
+import { DEFAULT_REMINDER_TIME } from '$lib/domain/notify/reminderTime';
 import { selectChannel } from '$lib/server/notify/selectChannel';
 import { setSessionCookie } from '$lib/server/auth/cookies';
 import fs from 'node:fs';
@@ -129,6 +130,7 @@ export const load: PageServerLoad = ({ url }) => {
 			tokenSet: notificationSettings.tokenSet,
 			webhookSet: notificationSettings.webhookSet,
 			leadDays: notificationSettings.leadDays,
+			reminderTime: notificationSettings.reminderTime,
 			minimalContent: notificationSettings.minimalContent,
 			lastTickAt: getNotificationLastTick(getDb()),
 			saved: url.searchParams.get('notificationsSaved') === '1',
@@ -246,7 +248,8 @@ export const actions: Actions = {
 				baseUrl: String(data.get('baseUrl') ?? ''),
 				topic: String(data.get('topic') ?? ''),
 				webhookUrl: String(data.get('webhookUrl') ?? ''),
-				leadDays: String(data.get('leadDays') ?? '')
+				leadDays: String(data.get('leadDays') ?? ''),
+				reminderTime: String(data.get('reminderTime') ?? '')
 			});
 			saveNotificationSettings(getDb(), {
 				...values,
@@ -286,7 +289,8 @@ export const actions: Actions = {
 				baseUrl: String(data.get('baseUrl') ?? ''),
 				topic: String(data.get('topic') ?? ''),
 				webhookUrl: String(data.get('webhookUrl') ?? ''),
-				leadDays: String(data.get('leadDays') ?? '0')
+				leadDays: String(data.get('leadDays') ?? '0'),
+				reminderTime: String(data.get('reminderTime') ?? DEFAULT_REMINDER_TIME)
 			});
 		} catch (error) {
 			if (error instanceof InvalidNotificationSettingsError) {

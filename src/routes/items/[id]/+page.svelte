@@ -162,25 +162,25 @@
 	{/if}
 
 	{#if !isArchived && next}
-		<!-- Phone only (hidden >=768px): one sticky bar owning complete + a
-	     native secondary menu, positioned clear of the global tabbar (see
+		<!-- Phone only (hidden >=768px): one sticky bar owning complete + skip,
+	     with scheduling in a native secondary menu, positioned clear of the global tabbar (see
 	     .sticky-action-bar CSS using --mobile-floating-reserve). -->
 		<form method="POST" action="?/completeAction" class="sticky-action-bar">
 			<input type="hidden" name="actionId" value={next.action.id} />
 			<button type="submit" class="sticky-action-bar__primary">{t('whatsNext.done')}</button>
-			<details class="sticky-action-bar__more">
-				<summary aria-label={t('items.detail.more')}>⋯</summary>
-				<div class="sticky-action-bar__menu">
-					<button type="submit" formaction="?/skipAction" class="secondary">
-						{t('whatsNext.skip')}
-					</button>
-					{#if nextCanEditDue}
+			<button type="submit" formaction="?/skipAction" class="sticky-action-bar__primary secondary">
+				{t('whatsNext.skip')}
+			</button>
+			{#if nextCanEditDue}
+				<details class="sticky-action-bar__more">
+					<summary aria-label={t('items.detail.more')}>⋯</summary>
+					<div class="sticky-action-bar__menu">
 						<button type="button" class="secondary" onclick={() => openDueDialog(next!.action.id)}>
 							{t('items.detail.changeDueDate')}
 						</button>
-					{/if}
-				</div>
-			</details>
+					</div>
+				</details>
+			{/if}
 		</form>
 	{/if}
 

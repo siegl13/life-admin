@@ -25,6 +25,9 @@ function fakePorts(overrides: Partial<Record<string, unknown>> = {}) {
 				{ fieldKey: 'note', label: 'Note', type: 'text', value: null }
 			])
 		},
+		actions: {
+			listActions: vi.fn(() => [{ label: 'Flug umbuchen', description: 'secret', dueDate: null }])
+		},
 		attachments: {
 			getById: vi.fn(() => ({
 				id: 'att-1',
@@ -298,6 +301,57 @@ describe('extractFromDocument', () => {
 			expect.objectContaining({
 				suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
 				discardedCount: 1
+			})
+		);
+	});
+
+	it('sends only the titles of existing Actions as duplicate-prevention context', async () => {
+		const p = fakePorts();
+		await extractFromDocument(p as never, { itemId: 'item-1', attachmentId: 'att-1' }, BOUNDS);
+		const request = p.provider.extract.mock.calls[0][0];
+		expect(request.existingActionTitles).toEqual(['Flug umbuchen']);
+		expect(JSON.stringify(request)).not.toContain('secret');
+	});
+
+	it('persists valid Action suggestions and discards done, duplicate and empty ones', async () => {
+		const date = { kind: 'DUE_BY' as const, value: '2031-03-01', relative: null };
+		const p = fakePorts({
+			provider: {
+				providerId: 'fake',
+				modelId: 'fake-v1',
+				extract: vi.fn(async () => ({
+					providerId: 'fake',
+					modelId: 'fake-v1',
+					suggestions: [],
+					actionSuggestions: [
+						{ title: 'Unterlagen einreichen', context: null, evidence: 'bis 1. März', date },
+						{ title: 'Flug umbuchen', context: null, evidence: null, date },
+						{
+							title: 'Erledigt',
+							status: 'ALREADY_DONE' as const,
+							context: null,
+							evidence: null,
+							date
+						},
+						{ title: '  ', context: null, evidence: null, date }
+					]
+				}))
+			}
+		});
+		await extractFromDocument(p as never, { itemId: 'item-1', attachmentId: 'att-1' }, BOUNDS);
+		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
+			'run-1',
+			expect.objectContaining({
+				actionSuggestions: [
+					{
+						title: 'Unterlagen einreichen',
+						context: null,
+						evidence: 'bis 1. März',
+						date,
+						position: 0
+					}
+				],
+				discardedActionCount: 3
 			})
 		);
 	});

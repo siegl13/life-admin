@@ -1,7 +1,15 @@
 import crypto from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type {
+	ActionDateKind,
+	ActionDateRelation,
+	ActionDateUnit
+} from '$lib/application/ai/extraction';
+import type {
+	AddActionFromRunSelection,
+	AddActionsFromRunInput,
 	AddAdditionalFieldsInput,
+	ExtractionActionSuggestionRecord,
 	ApplyExtractionRunInput,
 	ClaimExtractionRunInput,
 	DismissExtractionRunInput,
@@ -17,6 +25,7 @@ import {
 	DailyExtractionLimitReachedError,
 	ExtractionRunNotReviewableError
 } from '$lib/application/ai/ports';
+import { addManualAction } from './actionRepository';
 import { insertCustomFieldRow } from './fieldRepository';
 import { applyFieldUpdatesAndRecalculate } from './scheduleRepository';
 import { assertCycleIsWritable } from './writeGuards';
@@ -96,10 +105,17 @@ export function markSucceeded(
 		const changed = db
 			.prepare(
 				`UPDATE extraction_runs
-				 SET status = 'NEW', suggested_count = ?, discarded_count = ?, discarded_additional_count = ?
+				 SET status = 'NEW', suggested_count = ?, discarded_count = ?, discarded_additional_count = ?,
+				     discarded_action_count = ?
 				 WHERE id = ? AND status = 'RUNNING'`
 			)
-			.run(input.suggestions.length, input.discardedCount, input.discardedAdditionalCount, runId);
+			.run(
+				input.suggestions.length,
+				input.discardedCount,
+				input.discardedAdditionalCount,
+				input.discardedActionCount ?? 0,
+				runId
+			);
 		if (changed.changes !== 1) return;
 
 		for (const suggestion of input.suggestions) {
@@ -120,6 +136,32 @@ export function markSucceeded(
 				suggestion.suggestedLabel,
 				suggestion.suggestedType,
 				suggestion.value,
+				suggestion.position
+			);
+		}
+
+		for (const suggestion of input.actionSuggestions ?? []) {
+			const relative = suggestion.date.relative;
+			db.prepare(
+				`INSERT INTO extraction_action_suggestions
+				 (id, run_id, title, context, evidence, date_kind, date_value,
+				  rel_relation, rel_amount, rel_unit, rel_anchor_key, rel_anchor_date, rel_anchor_label,
+				  position, accepted)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+			).run(
+				crypto.randomUUID(),
+				runId,
+				suggestion.title,
+				suggestion.context,
+				suggestion.evidence,
+				suggestion.date.kind,
+				suggestion.date.value,
+				relative?.relation ?? null,
+				relative?.amount ?? null,
+				relative?.unit ?? null,
+				relative?.anchorFieldKey ?? null,
+				relative?.anchorDate ?? null,
+				relative?.anchorLabel ?? null,
 				suggestion.position
 			);
 		}
@@ -192,6 +234,11 @@ export function applyRun(db: Database.Database, input: ApplyExtractionRunInput):
 				'UPDATE extraction_suggestions SET accepted = 1 WHERE run_id = ? AND field_key = ?'
 			).run(input.runId, fieldKey);
 		}
+
+		if (input.actions?.length) {
+			assertCycleIsWritable(db, input.cycleId);
+			insertActionsFromSuggestions(db, input.runId, input.cycleId, input.actions);
+		}
 	})();
 }
 
@@ -204,6 +251,105 @@ export function dismissRun(db: Database.Database, input: DismissExtractionRunInp
 		)
 		.run(input.reviewedAt, input.runId, input.itemId, input.cycleId);
 	if (changed.changes !== 1) throw new ExtractionRunNotReviewableError();
+}
+
+export function listActionSuggestions(
+	db: Database.Database,
+	runId: string
+): ExtractionActionSuggestionRecord[] {
+	const rows = db
+		.prepare(
+			`SELECT id, title, context, evidence, date_kind, date_value, rel_relation, rel_amount,
+			        rel_unit, rel_anchor_key, rel_anchor_date, rel_anchor_label, position, accepted
+			 FROM extraction_action_suggestions WHERE run_id = ? ORDER BY position`
+		)
+		.all(runId) as {
+		id: string;
+		title: string;
+		context: string | null;
+		evidence: string | null;
+		date_kind: string;
+		date_value: string | null;
+		rel_relation: string | null;
+		rel_amount: number | null;
+		rel_unit: string | null;
+		rel_anchor_key: string | null;
+		rel_anchor_date: string | null;
+		rel_anchor_label: string | null;
+		position: number;
+		accepted: number;
+	}[];
+	return rows.map((row) => ({
+		id: row.id,
+		title: row.title,
+		context: row.context,
+		evidence: row.evidence,
+		date: {
+			kind: row.date_kind as ActionDateKind,
+			value: row.date_value,
+			relative:
+				row.rel_relation &&
+				row.rel_amount &&
+				row.rel_unit &&
+				(row.rel_anchor_key || (row.rel_anchor_date && row.rel_anchor_label))
+					? {
+							relation: row.rel_relation as ActionDateRelation,
+							amount: row.rel_amount,
+							unit: row.rel_unit as ActionDateUnit,
+							anchorFieldKey: row.rel_anchor_key,
+							anchorDate: row.rel_anchor_date,
+							anchorLabel: row.rel_anchor_label
+						}
+					: null
+		},
+		position: row.position,
+		accepted: row.accepted === 1
+	}));
+}
+
+/**
+ * Creates ordinary MANUAL Actions from selected Action suggestions in one
+ * transaction. Guarded like `addAdditionalFields`: item/cycle writable and
+ * run still NEW first, so an applied or dismissed run can never create
+ * Actions. Each Action goes through `addManualAction`, the same insert a
+ * hand-added task uses: there is no separate "AI Action".
+ */
+export function addActions(db: Database.Database, input: AddActionsFromRunInput): void {
+	db.transaction(() => {
+		assertCycleIsWritable(db, input.cycleId);
+
+		const run = db
+			.prepare(`SELECT status FROM extraction_runs WHERE id = ? AND item_id = ? AND cycle_id = ?`)
+			.get(input.runId, input.itemId, input.cycleId) as { status: string } | undefined;
+		if (!run || run.status !== 'NEW') throw new ExtractionRunNotReviewableError();
+
+		insertActionsFromSuggestions(db, input.runId, input.cycleId, input.selections);
+	})();
+}
+
+function insertActionsFromSuggestions(
+	db: Database.Database,
+	runId: string,
+	cycleId: string,
+	selections: readonly AddActionFromRunSelection[]
+): void {
+	for (const selection of selections) {
+		const suggestion = db
+			.prepare(
+				`SELECT id FROM extraction_action_suggestions WHERE id = ? AND run_id = ? AND accepted = 0`
+			)
+			.get(selection.suggestionId, runId) as { id: string } | undefined;
+		if (!suggestion) throw new AdditionalSuggestionNotFoundError();
+
+		addManualAction(db, cycleId, {
+			label: selection.label,
+			dueDate: selection.dueDate,
+			description: selection.description
+		});
+		db.prepare(`UPDATE extraction_action_suggestions SET accepted = 1 WHERE id = ?`).run(
+			selection.suggestionId
+		);
+	}
 }
 
 export function listAdditionalSuggestions(

@@ -20,7 +20,9 @@ import {
 import type { FieldType } from '$lib/domain/field/field';
 import { ItemNotWritableError } from '$lib/server/db/repositories/writeGuards';
 import { recordHistoryEvent } from '$lib/application/history/itemHistory';
+import { formatDate } from '$lib/ui/format';
 import {
+	actionsPort,
 	attachmentsPort,
 	clock,
 	extractionRunsPort,
@@ -32,12 +34,15 @@ import {
 import type { Actions, PageServerLoad } from './$types';
 
 const ACCEPT_PREFIX = 'accept:';
+const RESOLVE_PREFIX = 'resolve:';
+const ACTION_PREFIX = 'action:';
 const ADD_PREFIX = 'add:';
+const REPLACE_CHOICE = 'replace';
 const SUPPORTED_ADDITIONAL_TYPES: readonly FieldType[] = ['text', 'date', 'currency'];
 
 export const load: PageServerLoad = ({ params }) => {
 	const detail = getExtractionRun(
-		{ runs: extractionRunsPort, fields: fieldsPort },
+		{ runs: extractionRunsPort, fields: fieldsPort, actions: actionsPort },
 		{ itemId: params.id, runId: params.runId }
 	);
 	if (!detail) error(404, 'Suggestion run not found');
@@ -67,7 +72,17 @@ export const load: PageServerLoad = ({ params }) => {
 		run: detail.run,
 		attachmentFilename,
 		suggestions: detail.suggestions,
-		additionalSuggestions: detail.additionalSuggestions
+		alreadyPresent: detail.alreadyPresent,
+		additionalSuggestions: detail.additionalSuggestions,
+		actionSuggestions: detail.actionSuggestions,
+		datePreviewFields: detail.datePreviewFields,
+		datePreviewSuggestions: detail.datePreviewSuggestions,
+		actionDates: Object.fromEntries(
+			detail.actionSuggestions.map((suggestion) => [suggestion.id, suggestion.date])
+		),
+		dateDependencies: Object.fromEntries(
+			detail.actionSuggestions.map((suggestion) => [suggestion.id, suggestion.dateDependencies])
+		)
 	};
 };
 
@@ -110,6 +125,16 @@ export const actions: Actions = {
 		const acceptedFieldKeys = [...formData.keys()]
 			.filter((key) => key.startsWith(ACCEPT_PREFIX))
 			.map((key) => key.slice(ACCEPT_PREFIX.length));
+		// A conflict is only replaced by an explicit "use document value"
+		// choice; any other value (including a missing one) keeps the current.
+		const replaceFieldKeys = [...formData.keys()]
+			.filter((key) => key.startsWith(RESOLVE_PREFIX))
+			.filter((key) => formData.get(key)?.toString() === REPLACE_CHOICE)
+			.map((key) => key.slice(RESOLVE_PREFIX.length));
+		const selectedActionIds = [...formData.keys()]
+			.filter((key) => key.startsWith(ACTION_PREFIX))
+			.map((key) => key.slice(ACTION_PREFIX.length));
+		const acceptAllNew = formData.get('intent')?.toString() === 'acceptAll';
 		const additionalSelections = [...formData.keys()]
 			.filter((key) => key.startsWith(ADD_PREFIX))
 			.map((key) => key.slice(ADD_PREFIX.length))
@@ -160,16 +185,45 @@ export const actions: Actions = {
 			recordAccepted(addedCount);
 		}
 
-		let acceptedCount: number;
+		// Field writes and the selected Actions (one ordinary Action each, with
+		// dates calculated from the values being saved) commit in one
+		// transaction. History events are recorded only after that commit.
+		let changedCount: number;
+		let createdActionCount: number;
 		try {
-			acceptedCount = applyExtractionRun(
-				{ runs: extractionRunsPort, fields: fieldsPort, clock },
-				{ itemId: params.id, runId: params.runId, acceptedFieldKeys }
-			).acceptedCount;
+			({ changedCount, createdActionCount } = applyExtractionRun(
+				{ runs: extractionRunsPort, fields: fieldsPort, actions: actionsPort, clock },
+				{
+					itemId: params.id,
+					runId: params.runId,
+					acceptedFieldKeys,
+					replaceFieldKeys,
+					acceptAllNew,
+					actions:
+						selectedActionIds.length > 0
+							? {
+									selectedSuggestionIds: selectedActionIds,
+									describeDate: (kind, date) =>
+										t(
+											kind === 'AVAILABLE_FROM'
+												? 'ai.action.availableFrom'
+												: 'ai.action.approximate',
+											{ date: formatDate(date) }
+										)
+								}
+							: undefined
+				}
+			));
 		} catch (err) {
 			return handleApplyActionError(err);
 		}
-		recordAccepted(acceptedCount);
+		for (let i = 0; i < createdActionCount; i += 1) {
+			recordHistoryEvent(
+				{ history: itemHistoryPort, ids: idsPort, clock },
+				{ itemId: params.id, actorKind: 'OWNER', eventType: 'ACTION_ADDED', payload: {} }
+			);
+		}
+		recordAccepted(changedCount);
 
 		redirect(303, `/items/${params.id}`);
 	},

@@ -8,7 +8,7 @@
  * and live next to the feature they serve instead.
  */
 export type { SuggestedFieldType } from './extraction';
-import type { SuggestedFieldType } from './extraction';
+import type { ActionSuggestionDate, SuggestedFieldType } from './extraction';
 
 export type ExtractionRunStatus = 'RUNNING' | 'NEW' | 'FAILED' | 'APPLIED' | 'DISMISSED';
 
@@ -52,6 +52,34 @@ export interface ExtractionAdditionalSuggestionRecord {
 	accepted: boolean;
 }
 
+/** A stored Action suggestion. Date semantics are kept as reported; the
+ *  concrete date is calculated at review/accept time (resolveActionDate). */
+export interface ExtractionActionSuggestionRecord {
+	id: string;
+	title: string;
+	context: string | null;
+	evidence: string | null;
+	date: ActionSuggestionDate;
+	position: number;
+	accepted: boolean;
+}
+
+/** One selected Action suggestion, already resolved to its final stored
+ *  form (label, description, due date) by `addActionsFromRun.ts`. */
+export interface AddActionFromRunSelection {
+	suggestionId: string;
+	label: string;
+	description: string | null;
+	dueDate: string | null;
+}
+
+export interface AddActionsFromRunInput {
+	runId: string;
+	itemId: string;
+	cycleId: string;
+	selections: readonly AddActionFromRunSelection[];
+}
+
 export interface ClaimExtractionRunInput {
 	id: string;
 	itemId: string;
@@ -87,6 +115,15 @@ export interface MarkExtractionRunSucceededInput {
 		position: number;
 	}[];
 	discardedAdditionalCount: number;
+	/** Optional so callers that predate Action suggestions still compile. */
+	actionSuggestions?: readonly {
+		title: string;
+		context: string | null;
+		evidence: string | null;
+		date: ActionSuggestionDate;
+		position: number;
+	}[];
+	discardedActionCount?: number;
 }
 
 export interface ApplyExtractionRunInput {
@@ -97,6 +134,9 @@ export interface ApplyExtractionRunInput {
 	 *  with this run's persisted suggestions. */
 	updates: readonly { fieldKey: string; value: string | null }[];
 	acceptedFieldKeys: readonly string[];
+	/** Selected Action suggestions, created after the field writes in the
+	 *  same transaction. */
+	actions?: readonly AddActionFromRunSelection[];
 	reviewedAt: string;
 }
 
@@ -162,6 +202,14 @@ export interface ExtractionRunRepositoryPort {
 	findNewestPendingRun(cycleId: string): ExtractionRun | null;
 	listSuggestions(runId: string): ExtractionSuggestionRecord[];
 	listAdditionalSuggestions(runId: string): ExtractionAdditionalSuggestionRecord[];
+	listActionSuggestions(runId: string): ExtractionActionSuggestionRecord[];
+	/** One transaction: guards the item/cycle is writable and the run is
+	 *  still `NEW`, creates one ordinary MANUAL Action per selection through
+	 *  the same insert `addManualAction` uses, and marks each selected
+	 *  suggestion accepted. Either every selection succeeds or none does.
+	 *  Throws {@link ExtractionRunNotReviewableError} /
+	 *  {@link AdditionalSuggestionNotFoundError} / `ItemNotWritableError`. */
+	addActions(input: AddActionsFromRunInput): void;
 	/** One transaction: guards the item/cycle is still writable and the run
 	 *  is still `NEW` (a run already applied/dismissed can never spawn more
 	 *  fields), creates one CUSTOM field per selection through the same

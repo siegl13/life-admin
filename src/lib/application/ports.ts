@@ -114,7 +114,10 @@ export interface ActionRepositoryPort {
 	 *  see actionRepository.setActionState and the Slice 8 review,
 	 *  finding 1. */
 	setActionState(itemId: string, actionId: string, newState: ActionState): Action;
-	addManualAction(cycleId: string, input: { label: string; dueDate: IsoDate | null }): Action;
+	addManualAction(
+		cycleId: string,
+		input: { label: string; dueDate: IsoDate | null; description?: string | null }
+	): Action;
 	/** Guarded exactly like `setActionState`: only succeeds for a DERIVED
 	 *  action belonging to `itemId`'s current ACTIVE cycle in an ACTIVE
 	 *  item. `overrideDate: null` clears the override. */
@@ -161,6 +164,8 @@ export interface Clock {
 	todayIso(): IsoDate;
 	nowIso(): string;
 	localHour(): number;
+	/** Minutes after local midnight. Optional: callers fall back to `localHour() * 60`. */
+	localMinuteOfDay?(): number;
 }
 
 export interface AttachmentRepositoryPort {

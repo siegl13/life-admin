@@ -704,6 +704,7 @@ describe('backup -> restore round trip (real data, not fabricated bytes)', () =>
 						channel: 'NTFY' as const,
 						selectedChannelConfigured: true,
 						leadDays: 0,
+						reminderTime: '08:00',
 						minimalContent: false
 					})
 				},

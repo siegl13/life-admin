@@ -6,12 +6,14 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase } from '../database';
 import {
+	addActions,
 	addAdditionalFields,
 	applyRun,
 	claimRun,
 	dismissRun,
 	findNewestPendingRun,
 	getById,
+	listActionSuggestions,
 	listAdditionalSuggestions,
 	listSuggestions,
 	markFailed,
@@ -26,6 +28,9 @@ import { ItemNotWritableError } from './writeGuards';
 import { createItem } from './itemRepository';
 import { listEvents } from './eventRepository';
 import { listActions } from './actionRepository';
+import { listFields } from './fieldRepository';
+import { applyExtractionRun } from '$lib/application/ai/applyExtractionRun';
+import { UnknownFieldError } from '$lib/application/items/updateItemFields';
 import { materializePlaybook } from '$lib/domain/playbook/materialize';
 import { normalizePlaybook } from '$lib/domain/playbook/normalize';
 import { parsePlaybookStructure } from '$lib/domain/playbook/schema';
@@ -870,5 +875,336 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				selections: [{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'x' }]
 			})
 		).toThrow(ItemNotWritableError);
+	});
+});
+
+describe('Document Action suggestions', () => {
+	function claimRunFor(id: string, itemId: string, cycleId: string, attachmentId: string) {
+		claimRun(db, {
+			id,
+			itemId,
+			cycleId,
+			attachmentId,
+			providerId: 'fake',
+			modelId: 'fake-v1',
+			createdAt: new Date().toISOString(),
+			windowStartIso: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+			dailyLimit: 20
+		});
+	}
+
+	function newRunWithActionSuggestions(itemId: string, cycleId: string, attachmentId: string) {
+		claimRunFor('run-1', itemId, cycleId, attachmentId);
+		markSucceeded(db, 'run-1', {
+			suggestions: [],
+			discardedCount: 0,
+			additionalSuggestions: [],
+			discardedAdditionalCount: 0,
+			actionSuggestions: [
+				{
+					title: 'Versicherung kündigen',
+					context: 'Schriftlich',
+					evidence: 'Kündigung drei Monate vor Ablauf',
+					date: {
+						kind: 'DUE_BY',
+						value: null,
+						relative: {
+							relation: 'BEFORE',
+							amount: 3,
+							unit: 'MONTHS',
+							anchorFieldKey: 'contract_end'
+						}
+					},
+					position: 0
+				},
+				{
+					title: 'Online einchecken',
+					context: null,
+					evidence: null,
+					date: { kind: 'AVAILABLE_FROM', value: '2031-05-01', relative: null },
+					position: 1
+				},
+				{
+					title: 'Koffer packen',
+					context: null,
+					evidence: null,
+					date: {
+						kind: 'DUE_BY',
+						value: null,
+						relative: {
+							relation: 'BEFORE',
+							amount: 1,
+							unit: 'DAYS',
+							anchorFieldKey: null,
+							anchorDate: '2031-06-15',
+							anchorLabel: 'Abflug'
+						}
+					},
+					position: 2
+				}
+			],
+			discardedActionCount: 1
+		});
+		return listActionSuggestions(db, 'run-1');
+	}
+
+	it('persists semantic date information and lists it back in order, unaccepted', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const suggestions = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+
+		expect(suggestions.map((s) => [s.title, s.accepted])).toEqual([
+			['Versicherung kündigen', false],
+			['Online einchecken', false],
+			['Koffer packen', false]
+		]);
+		expect(suggestions[2]?.date.relative).toEqual({
+			relation: 'BEFORE',
+			amount: 1,
+			unit: 'DAYS',
+			anchorFieldKey: null,
+			anchorDate: '2031-06-15',
+			anchorLabel: 'Abflug'
+		});
+		expect(suggestions[0]).toMatchObject({
+			context: 'Schriftlich',
+			evidence: 'Kündigung drei Monate vor Ablauf',
+			date: {
+				kind: 'DUE_BY',
+				value: null,
+				relative: { relation: 'BEFORE', amount: 3, unit: 'MONTHS', anchorFieldKey: 'contract_end' }
+			}
+		});
+		expect(suggestions[1]?.date).toEqual({
+			kind: 'AVAILABLE_FROM',
+			value: '2031-05-01',
+			relative: null
+		});
+	});
+
+	it('creates nothing until a suggestion is explicitly turned into an Action', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+		expect(listActions(db, cycleId)).toEqual([]);
+	});
+
+	it('turns a selected suggestion into an ordinary MANUAL action and marks it accepted', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const [first, second] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+
+		addActions(db, {
+			runId: 'run-1',
+			itemId,
+			cycleId,
+			selections: [
+				{
+					suggestionId: first!.id,
+					label: 'Versicherung kündigen',
+					description: 'Schriftlich',
+					dueDate: '2030-12-31'
+				}
+			]
+		});
+
+		const actions = listActions(db, cycleId);
+		expect(actions).toHaveLength(1);
+		expect(actions[0]).toMatchObject({
+			label: 'Versicherung kündigen',
+			description: 'Schriftlich',
+			state: 'OPEN',
+			dueKind: 'MANUAL',
+			dueDate: '2030-12-31'
+		});
+		const after = listActionSuggestions(db, 'run-1');
+		expect(after.find((s) => s.id === first!.id)?.accepted).toBe(true);
+		expect(after.find((s) => s.id === second!.id)?.accepted).toBe(false);
+		// The run is still reviewable: the field apply still follows.
+		expect(getById(db, 'run-1')?.status).toBe('NEW');
+	});
+
+	it('is all-or-nothing: an unknown suggestion id rolls back the Actions created before it', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+
+		expect(() =>
+			addActions(db, {
+				runId: 'run-1',
+				itemId,
+				cycleId,
+				selections: [
+					{ suggestionId: first!.id, label: 'A', description: null, dueDate: null },
+					{ suggestionId: 'not-a-real-id', label: 'B', description: null, dueDate: null }
+				]
+			})
+		).toThrow(AdditionalSuggestionNotFoundError);
+
+		expect(listActions(db, cycleId)).toEqual([]);
+		expect(listActionSuggestions(db, 'run-1').every((s) => !s.accepted)).toBe(true);
+	});
+
+	it('a suggestion cannot create a second Action (double submit)', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+		const input = {
+			runId: 'run-1',
+			itemId,
+			cycleId,
+			selections: [{ suggestionId: first!.id, label: 'A', description: null, dueDate: null }]
+		};
+		addActions(db, input);
+		expect(() => addActions(db, input)).toThrow(AdditionalSuggestionNotFoundError);
+		expect(listActions(db, cycleId)).toHaveLength(1);
+	});
+
+	it('refuses once the item is archived, and once the run is no longer NEW', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+		const input = {
+			runId: 'run-1',
+			itemId,
+			cycleId,
+			selections: [{ suggestionId: first!.id, label: 'A', description: null, dueDate: null }]
+		};
+
+		db.prepare(`UPDATE items SET status = 'ARCHIVED' WHERE id = ?`).run(itemId);
+		expect(() => addActions(db, input)).toThrow(ItemNotWritableError);
+		db.prepare(`UPDATE items SET status = 'ACTIVE' WHERE id = ?`).run(itemId);
+
+		db.prepare(
+			`UPDATE extraction_runs SET status = 'APPLIED', reviewed_at = ? WHERE id = 'run-1'`
+		).run(new Date().toISOString());
+		expect(() => addActions(db, input)).toThrow(ExtractionRunNotReviewableError);
+		expect(listActions(db, cycleId)).toEqual([]);
+	});
+
+	describe('applyRun with selected Actions (one transaction)', () => {
+		function contractEnd(cycleId: string) {
+			return (
+				db
+					.prepare('SELECT value FROM cycle_fields WHERE cycle_id = ? AND field_key = ?')
+					.get(cycleId, 'contract_end') as { value: string | null }
+			).value;
+		}
+
+		it('saves the field and creates the Action together', () => {
+			const { itemId, cycleId, attachmentId } = fixture();
+			const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+
+			applyRun(db, {
+				runId: 'run-1',
+				itemId,
+				cycleId,
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+				acceptedFieldKeys: ['contract_end'],
+				actions: [
+					{ suggestionId: first!.id, label: 'A', description: null, dueDate: '2030-12-15' }
+				],
+				reviewedAt: new Date().toISOString()
+			});
+
+			expect(contractEnd(cycleId)).toBe('2031-03-15');
+			expect(listActions(db, cycleId)).toHaveLength(1);
+			expect(getById(db, 'run-1')?.status).toBe('APPLIED');
+			expect(listActionSuggestions(db, 'run-1').find((s) => s.id === first!.id)?.accepted).toBe(
+				true
+			);
+		});
+
+		it('creates no Action when a selected field was deleted since the review (real ports)', () => {
+			const { itemId, cycleId, attachmentId } = fixture();
+			const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+			db.prepare(
+				`INSERT INTO extraction_suggestions (id, run_id, field_key, value, position) VALUES (?, 'run-1', 'contract_end', '2031-03-15', 0)`
+			).run(crypto.randomUUID());
+			db.prepare('DELETE FROM cycle_fields WHERE cycle_id = ? AND field_key = ?').run(
+				cycleId,
+				'contract_end'
+			);
+
+			expect(() =>
+				applyExtractionRun(
+					{
+						runs: {
+							getById: (id: string) => getById(db, id),
+							listSuggestions: (id: string) => listSuggestions(db, id),
+							listActionSuggestions: (id: string) => listActionSuggestions(db, id),
+							applyRun: (input: Parameters<typeof applyRun>[1]) => applyRun(db, input)
+						} as never,
+						fields: { listFields: (id: string) => listFields(db, id) } as never,
+						actions: { listActions: (id: string) => listActions(db, id) } as never,
+						clock: { nowIso: () => new Date().toISOString() } as never
+					},
+					{
+						itemId,
+						runId: 'run-1',
+						acceptedFieldKeys: ['contract_end'],
+						actions: { selectedSuggestionIds: [first!.id], describeDate: () => '' }
+					}
+				)
+			).toThrow(UnknownFieldError);
+
+			expect(listActions(db, cycleId)).toEqual([]);
+			expect(listActionSuggestions(db, 'run-1').every((s) => !s.accepted)).toBe(true);
+			expect(getById(db, 'run-1')?.status).toBe('NEW');
+		});
+
+		it('rolls back the Actions, the field write and the claim when the item became read-only', () => {
+			const { itemId, cycleId, attachmentId } = fixture();
+			const [first] = newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+			db.prepare(`UPDATE items SET status = 'ARCHIVED' WHERE id = ?`).run(itemId);
+
+			expect(() =>
+				applyRun(db, {
+					runId: 'run-1',
+					itemId,
+					cycleId,
+					updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+					acceptedFieldKeys: ['contract_end'],
+					actions: [
+						{ suggestionId: first!.id, label: 'A', description: null, dueDate: '2030-12-15' }
+					],
+					reviewedAt: new Date().toISOString()
+				})
+			).toThrow(ItemNotWritableError);
+
+			expect(contractEnd(cycleId)).toBeNull();
+			expect(listActions(db, cycleId)).toEqual([]);
+			expect(listActionSuggestions(db, 'run-1').every((s) => !s.accepted)).toBe(true);
+			expect(getById(db, 'run-1')?.status).toBe('NEW');
+		});
+
+		it('rolls back the field write when creating an Action fails', () => {
+			const { itemId, cycleId, attachmentId } = fixture();
+			newRunWithActionSuggestions(itemId, cycleId, attachmentId);
+
+			expect(() =>
+				applyRun(db, {
+					runId: 'run-1',
+					itemId,
+					cycleId,
+					updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+					acceptedFieldKeys: ['contract_end'],
+					actions: [
+						{ suggestionId: 'not-a-real-id', label: 'A', description: null, dueDate: null }
+					],
+					reviewedAt: new Date().toISOString()
+				})
+			).toThrow(AdditionalSuggestionNotFoundError);
+
+			expect(contractEnd(cycleId)).toBeNull();
+			expect(listActions(db, cycleId)).toEqual([]);
+			expect(getById(db, 'run-1')?.status).toBe('NEW');
+		});
+	});
+
+	it('runs without Action suggestions persist none', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		claimRunFor('run-1', itemId, cycleId, attachmentId);
+		markSucceeded(db, 'run-1', {
+			suggestions: [],
+			discardedCount: 0,
+			additionalSuggestions: [],
+			discardedAdditionalCount: 0
+		});
+		expect(listActionSuggestions(db, 'run-1')).toEqual([]);
 	});
 });

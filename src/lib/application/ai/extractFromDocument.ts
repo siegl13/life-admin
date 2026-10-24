@@ -3,6 +3,7 @@ import {
 	type AttachmentMimeType
 } from '../../domain/attachment/attachment';
 import type {
+	ActionRepositoryPort,
 	AttachmentRepositoryPort,
 	Clock,
 	CycleRepositoryPort,
@@ -24,8 +25,12 @@ import { getAiSettings } from './aiSettings';
 import { buildExtractionContract } from './extractionContract';
 import { filterSuggestions } from './filterSuggestions';
 import { filterAdditionalSuggestions } from './filterAdditionalSuggestions';
+import { filterActionSuggestions } from './filterActionSuggestions';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+/** Bounds the Item context sent to the provider for duplicate prevention. */
+const MAX_EXISTING_ACTION_TITLES = 50;
+const MAX_EXISTING_ACTION_TITLE_LENGTH = 120;
 
 /** One reason per rejection, kept distinguishable server-side (each maps
  *  to its own i18n key at the route) but never exposed as provider or
@@ -81,6 +86,7 @@ export async function extractFromDocument(
 		items: ItemRepositoryPort;
 		cycles: CycleRepositoryPort;
 		fields: FieldRepositoryPort;
+		actions: ActionRepositoryPort;
 		attachments: AttachmentRepositoryPort;
 		attachmentBytes: AttachmentReadPort;
 		settings: AppSettingsPort;
@@ -147,8 +153,12 @@ export async function extractFromDocument(
 		const fields = ports.fields
 			.listFields(cycle.id)
 			.map((field) => ({ fieldKey: field.fieldKey, label: field.label, type: field.type }));
+		const existingActionTitles = ports.actions
+			.listActions(cycle.id)
+			.slice(0, MAX_EXISTING_ACTION_TITLES)
+			.map((action) => action.label.slice(0, MAX_EXISTING_ACTION_TITLE_LENGTH));
 		const instruction = getAiSettings({ settings: ports.settings }).instruction;
-		const contract = buildExtractionContract(fields);
+		const contract = buildExtractionContract(fields, existingActionTitles);
 		const bytes = ports.attachmentBytes.readBytes(attachment.storageKey, bounds.maxDocumentBytes);
 		// `attachment.byteSize` is stored metadata and can disagree with the
 		// file actually on disk (e.g. a restored backup with a checksum
@@ -164,6 +174,7 @@ export async function extractFromDocument(
 			contract,
 			userInstruction: instruction,
 			fields,
+			existingActionTitles,
 			document: { mimeType: attachment.mimeType, bytes },
 			timeoutMs: bounds.timeoutMs,
 			maxOutputTokens: bounds.maxOutputTokens
@@ -174,7 +185,20 @@ export async function extractFromDocument(
 			result.additionalSuggestions ?? [],
 			fields
 		);
+		const { kept: keptActions, discarded: discardedActions } = filterActionSuggestions(
+			result.actionSuggestions ?? [],
+			fields,
+			existingActionTitles
+		);
 		ports.runs.markSucceeded(runId, {
+			actionSuggestions: keptActions.map((suggestion, position) => ({
+				title: suggestion.title,
+				context: suggestion.context,
+				evidence: suggestion.evidence,
+				date: suggestion.date,
+				position
+			})),
+			discardedActionCount: discardedActions.length,
 			suggestions: kept.map((suggestion, position) => ({ ...suggestion, position })),
 			discardedCount: discarded.length,
 			additionalSuggestions: keptAdditional.map((suggestion, position) => ({

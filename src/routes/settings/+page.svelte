@@ -374,7 +374,9 @@
 									? t('settings.notify.invalidTopic')
 									: form.notificationError === 'settings.notify.invalidWebhook'
 										? t('settings.notify.invalidWebhook')
-										: t('settings.notify.invalidLeadDays')}
+										: form.notificationError === 'settings.notify.invalidReminderTime'
+											? t('settings.notify.invalidReminderTime')
+											: t('settings.notify.invalidLeadDays')}
 						</div>{/if}
 					{#if form?.notificationTestError}<div class="notice notice--error">
 							{t('settings.notify.testFailed')}: {notificationFailureMessage(
@@ -454,6 +456,18 @@
 										value={data.notifications.leadDays}
 									/>
 									<span class="hint">{t('settings.notify.leadDaysHint')}</span>
+								</div>
+								<div class="field-row">
+									<label for="notify-ntfy-reminder-time">{t('settings.notify.reminderTime')}</label>
+									<input
+										id="notify-ntfy-reminder-time"
+										name="reminderTime"
+										type="time"
+										step="60"
+										required
+										value={data.notifications.reminderTime}
+									/>
+									<span class="hint">{t('settings.notify.reminderTimeHint')}</span>
 								</div>
 								<label class="checkbox-row"
 									><input
@@ -544,6 +558,19 @@
 										value={data.notifications.leadDays}
 									/>
 									<span class="hint">{t('settings.notify.leadDaysHint')}</span>
+								</div>
+								<div class="field-row">
+									<label for="notify-slack-reminder-time">{t('settings.notify.reminderTime')}</label
+									>
+									<input
+										id="notify-slack-reminder-time"
+										name="reminderTime"
+										type="time"
+										step="60"
+										required
+										value={data.notifications.reminderTime}
+									/>
+									<span class="hint">{t('settings.notify.reminderTimeHint')}</span>
 								</div>
 								<label class="checkbox-row"
 									><input

@@ -21,6 +21,36 @@ function request(): ExtractionRequest {
 	};
 }
 
+describe('fakeProvider action suggestions', () => {
+	it('returns a deadline, an availability, a relative date and an already-done step', async () => {
+		const result = await fakeProvider.extract(request());
+		const actions = result.actionSuggestions ?? [];
+		expect(actions.map((a) => [a.title, a.date.kind, a.status])).toEqual([
+			['Unterlagen prüfen', 'DUE_BY', 'OPEN'],
+			['Online-Portal nutzen', 'AVAILABLE_FROM', 'OPEN'],
+			['Bereits erledigter Schritt', 'NONE', 'ALREADY_DONE'],
+			['Termin bestätigen', 'DUE_BY', 'OPEN']
+		]);
+		expect(actions[3]?.date.relative?.anchorFieldKey).toBe('contract_end');
+	});
+
+	it('does not turn the plain field values it returns into Actions', async () => {
+		// Fixture only: shows the fake keeps facts (fields) and steps (Actions)
+		// apart. It says nothing about how a real model classifies text.
+		const result = await fakeProvider.extract(request());
+		const factValues = new Set(result.suggestions.map((s) => s.value));
+		for (const action of result.actionSuggestions ?? []) {
+			expect(factValues.has(action.title)).toBe(false);
+			expect(action.title).not.toMatch(/^\d/);
+		}
+	});
+
+	it('omits the relative suggestion when the Item has no date field', async () => {
+		const result = await fakeProvider.extract({ ...request(), fields: [FIELDS[2]!] });
+		expect(result.actionSuggestions?.some((a) => a.date.relative)).toBe(false);
+	});
+});
+
 describe('fakeProvider (deterministic suggestions)', () => {
 	it('produces valid suggestions plus documented invalid, duplicate, and unknown junk', async () => {
 		const result = await fakeProvider.extract(request());

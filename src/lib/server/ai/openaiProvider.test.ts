@@ -136,6 +136,76 @@ describe('createOpenAiProvider', () => {
 		expect(result.providerId).toBe('openai');
 	});
 
+	it('maps action suggestions with a relative date into the application shape', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse(
+				responsesApiEnvelope(
+					JSON.stringify({
+						suggestions: [],
+						action_suggestions: [
+							{
+								title: 'Versicherung kündigen',
+								context: null,
+								evidence: 'drei Monate vorher',
+								status: 'OPEN',
+								date: {
+									kind: 'DUE_BY',
+									value: null,
+									relative: {
+										relation: 'BEFORE',
+										amount: 3,
+										unit: 'MONTHS',
+										anchor_field_key: 'contract_end'
+									}
+								}
+							}
+						]
+					})
+				)
+			)
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
+		const result = await provider.extract(baseRequest());
+		expect(result.actionSuggestions).toEqual([
+			{
+				title: 'Versicherung kündigen',
+				context: null,
+				evidence: 'drei Monate vorher',
+				status: 'OPEN',
+				date: {
+					kind: 'DUE_BY',
+					value: null,
+					relative: {
+						relation: 'BEFORE',
+						amount: 3,
+						unit: 'MONTHS',
+						anchorFieldKey: 'contract_end',
+						anchorDate: null,
+						anchorLabel: null
+					}
+				}
+			}
+		]);
+	});
+
+	it('requires action_suggestions in the strict response schema sent to OpenAI', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse(responsesApiEnvelope(JSON.stringify({ suggestions: [] })))
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
+		await provider.extract(baseRequest());
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const schema = JSON.parse(init.body as string).text.format.schema;
+		expect(schema.required).toContain('action_suggestions');
+		expect(schema.properties.action_suggestions.items.required).toEqual([
+			'title',
+			'context',
+			'evidence',
+			'status',
+			'date'
+		]);
+	});
+
 	it('maps 401 to ExtractionUnavailableError', async () => {
 		fetchMock.mockResolvedValue(jsonResponse({}, 401));
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
