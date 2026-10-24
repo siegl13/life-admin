@@ -188,7 +188,7 @@
 			const target = resolve(`/items/[id]?historyCount=${nextVisible}#history-label`, {
 				id: itemId
 			});
-			goto(target, { keepFocus: true, noScroll: true, replaceState: true });
+			goto(target, { reset: false, replace: true });
 		}
 	}
 </script>

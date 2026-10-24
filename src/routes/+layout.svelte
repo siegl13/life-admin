@@ -2,7 +2,7 @@
 	import '@fontsource-variable/geist';
 	import '@fontsource-variable/geist-mono';
 	import '../app.css';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { t, setLocaleProvider, type Locale } from '$lib/i18n';

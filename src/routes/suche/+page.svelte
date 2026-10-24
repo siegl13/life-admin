@@ -56,14 +56,14 @@
 		loading = false;
 		if (nextQuery.length < 2) {
 			if (nextQuery.length === 0 && loadedData.query) {
-				goto(resolve('/suche'), { keepFocus: true, noScroll: true });
+				goto(resolve('/suche'), { reset: false });
 			}
 			return;
 		}
 		loadingTimer = globalThis.setTimeout(() => (loading = true), 500);
 		timer = globalThis.setTimeout(() => {
 			const destination = resolve(`/suche?q=${encodeURIComponent(loadedQuery)}`);
-			goto(destination, { keepFocus: true, noScroll: true }).finally(() => {
+			goto(destination, { reset: false }).finally(() => {
 				if (generation !== requestGeneration) return;
 				globalThis.clearTimeout(loadingTimer);
 				loading = false;
@@ -78,7 +78,7 @@
 		loading = false;
 		query = '';
 		loadedQuery = '';
-		goto(resolve('/suche'), { keepFocus: true, noScroll: true }).then(() => input.focus());
+		goto(resolve('/suche'), { reset: false }).then(() => input.focus());
 	}
 </script>
 
