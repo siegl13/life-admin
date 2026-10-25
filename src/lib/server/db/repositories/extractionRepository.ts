@@ -29,6 +29,7 @@ import { addManualAction } from './actionRepository';
 import { insertCustomFieldRow } from './fieldRepository';
 import { applyFieldUpdatesAndRecalculate } from './scheduleRepository';
 import { assertCycleIsWritable } from './writeGuards';
+import { FieldGroupTargetNotFoundError } from './fieldGroupRepository';
 
 interface RunRow {
 	id: string;
@@ -408,6 +409,10 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 				)
 				.get(selection.suggestionId, input.runId) as { id: string } | undefined;
 			if (!suggestion) throw new AdditionalSuggestionNotFoundError();
+			const group = db
+				.prepare('SELECT 1 FROM item_field_groups WHERE id = ? AND item_id = ?')
+				.get(selection.groupId, input.itemId);
+			if (!group) throw new FieldGroupTargetNotFoundError();
 
 			const field = insertCustomFieldRow(db, input.cycleId, {
 				label: selection.label,
@@ -419,6 +424,11 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 					{ fieldKey: field.fieldKey, value: selection.value }
 				]);
 			}
+			db.prepare(
+				`INSERT INTO item_field_group_assignments (item_id, field_key, group_id)
+				 VALUES (?, ?, ?)
+				 ON CONFLICT (item_id, field_key) DO UPDATE SET group_id = excluded.group_id`
+			).run(input.itemId, field.fieldKey, selection.groupId);
 
 			db.prepare(`UPDATE extraction_additional_suggestions SET accepted = 1 WHERE id = ?`).run(
 				selection.suggestionId

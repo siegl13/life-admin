@@ -199,7 +199,7 @@
 
 				<div class="form-panel">
 					{#each filteredAdditional as suggestion (suggestion.id)}
-						<AdditionalSuggestionRow {suggestion} />
+						<AdditionalSuggestionRow {suggestion} groups={data.fieldGroups} />
 					{/each}
 					{#if filteredAdditional.length === 0}
 						<p class="hint">{t('ai.additional.searchNoResults')}</p>

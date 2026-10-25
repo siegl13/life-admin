@@ -528,6 +528,8 @@ export const en: Record<TranslationKey, string> = {
 	'ai.additional.submit': 'Add selected',
 	'ai.additional.noneSelected': 'Select at least one detail.',
 	'ai.additional.source': 'Source:',
+	'ai.additional.group': 'Group',
+	'ai.additional.editDetails': 'Edit details',
 	'ai.error.rateLimited':
 		'The daily limit for automatic recognition has been reached. Please try again tomorrow.',
 	'ai.error.providerRateLimited':

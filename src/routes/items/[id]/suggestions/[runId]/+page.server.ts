@@ -19,6 +19,7 @@ import {
 } from '$lib/application/ai/ports';
 import type { FieldType } from '$lib/domain/field/field';
 import { ItemNotWritableError } from '$lib/server/db/repositories/writeGuards';
+import { FieldGroupTargetNotFoundError } from '$lib/server/db/repositories/fieldGroupRepository';
 import { recordHistoryEvent } from '$lib/application/history/itemHistory';
 import { formatDate } from '$lib/ui/format';
 import {
@@ -27,6 +28,7 @@ import {
 	clock,
 	extractionRunsPort,
 	fieldsPort,
+	fieldGroupsPort,
 	idsPort,
 	itemHistoryPort,
 	itemsPort
@@ -42,7 +44,12 @@ const SUPPORTED_ADDITIONAL_TYPES: readonly FieldType[] = ['text', 'date', 'curre
 
 export const load: PageServerLoad = ({ params }) => {
 	const detail = getExtractionRun(
-		{ runs: extractionRunsPort, fields: fieldsPort, actions: actionsPort },
+		{
+			runs: extractionRunsPort,
+			fields: fieldsPort,
+			actions: actionsPort,
+			fieldGroups: fieldGroupsPort
+		},
 		{ itemId: params.id, runId: params.runId }
 	);
 	if (!detail) error(404, 'Suggestion run not found');
@@ -74,6 +81,7 @@ export const load: PageServerLoad = ({ params }) => {
 		suggestions: detail.suggestions,
 		alreadyPresent: detail.alreadyPresent,
 		additionalSuggestions: detail.additionalSuggestions,
+		fieldGroups: detail.fieldGroups,
 		actionSuggestions: detail.actionSuggestions,
 		datePreviewFields: detail.datePreviewFields,
 		datePreviewSuggestions: detail.datePreviewSuggestions,
@@ -99,6 +107,9 @@ function handleApplyActionError(err: unknown) {
 		// pending review — mirrors the same race already handled on the
 		// item detail page's own addAttachment action.
 		return fail(400, { error: t('items.detail.archivedReadOnly') });
+	}
+	if (err instanceof FieldGroupTargetNotFoundError) {
+		return fail(400, { error: t('ai.error.failed') });
 	}
 	if (
 		err instanceof UnknownFieldError ||
@@ -148,7 +159,8 @@ export const actions: Actions = {
 					label: formData.get(`label:${suggestionId}`)?.toString() ?? '',
 					type,
 					value: formData.get(`value:${suggestionId}`)?.toString() ?? '',
-					currencyCode: formData.get(`currency:${suggestionId}`)?.toString()
+					currencyCode: formData.get(`currency:${suggestionId}`)?.toString(),
+					groupId: formData.get(`group:${suggestionId}`)?.toString() ?? ''
 				};
 			});
 

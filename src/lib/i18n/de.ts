@@ -547,6 +547,8 @@ export const de = {
 	'ai.additional.submit': 'Ausgewählte hinzufügen',
 	'ai.additional.noneSelected': 'Bitte wähle mindestens eine Angabe aus.',
 	'ai.additional.source': 'Quelle:',
+	'ai.additional.group': 'Gruppe',
+	'ai.additional.editDetails': 'Angaben bearbeiten',
 	'ai.error.rateLimited':
 		'Das tägliche Limit für die automatische Erkennung ist erreicht. Bitte versuche es morgen erneut.',
 	'ai.error.providerRateLimited':

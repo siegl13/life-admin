@@ -36,7 +36,13 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 			itemId: 'item-1',
 			runId: 'run-1',
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Renamed Label', type: 'text', value: 'CUPRA Born' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Renamed Label',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: 'general'
+				}
 			]
 		});
 		expect(p.runs.addAdditionalFields).toHaveBeenCalledWith({
@@ -44,7 +50,13 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 			itemId: 'item-1',
 			cycleId: 'cycle-1',
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Renamed Label', type: 'text', value: 'CUPRA Born' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Renamed Label',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: 'general'
+				}
 			]
 		});
 	});
@@ -60,14 +72,21 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 					label: 'Monatliche Rate',
 					type: 'currency',
 					value: '351',
-					currencyCode: 'EUR'
+					currencyCode: 'EUR',
+					groupId: 'general'
 				}
 			]
 		});
 		expect(p.runs.addAdditionalFields).toHaveBeenCalledWith(
 			expect.objectContaining({
 				selections: [
-					{ suggestionId: 'sug-1', label: 'Monatliche Rate', type: 'currency', value: '351.00 EUR' }
+					{
+						suggestionId: 'sug-1',
+						label: 'Monatliche Rate',
+						type: 'currency',
+						value: '351.00 EUR',
+						groupId: 'general'
+					}
 				]
 			})
 		);
@@ -79,7 +98,9 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 			addAdditionalFieldsFromRun(p as never, {
 				itemId: 'item-1',
 				runId: 'run-1',
-				selections: [{ suggestionId: 'sug-1', label: '   ', type: 'text', value: 'x' }]
+				selections: [
+					{ suggestionId: 'sug-1', label: '   ', type: 'text', value: 'x', groupId: 'general' }
+				]
 			})
 		).toThrow(FieldLabelRequiredError);
 		expect(p.runs.addAdditionalFields).not.toHaveBeenCalled();
@@ -91,7 +112,15 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 			addAdditionalFieldsFromRun(p as never, {
 				itemId: 'item-1',
 				runId: 'run-1',
-				selections: [{ suggestionId: 'sug-1', label: 'Termin', type: 'date', value: 'no-a-date' }]
+				selections: [
+					{
+						suggestionId: 'sug-1',
+						label: 'Termin',
+						type: 'date',
+						value: 'no-a-date',
+						groupId: 'general'
+					}
+				]
 			})
 		).toThrow(InvalidDateValueError);
 		expect(p.runs.addAdditionalFields).not.toHaveBeenCalled();
@@ -109,7 +138,8 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 						label: 'Rate',
 						type: 'currency',
 						value: '351.00',
-						currencyCode: ''
+						currencyCode: '',
+						groupId: 'general'
 					}
 				]
 			})
@@ -124,8 +154,20 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 				itemId: 'item-1',
 				runId: 'run-1',
 				selections: [
-					{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-					{ suggestionId: 'sug-2', label: 'Termin', type: 'date', value: 'not-a-date' }
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'CUPRA Born',
+						groupId: 'general'
+					},
+					{
+						suggestionId: 'sug-2',
+						label: 'Termin',
+						type: 'date',
+						value: 'not-a-date',
+						groupId: 'general'
+					}
 				]
 			})
 		).toThrow(InvalidDateValueError);
@@ -138,8 +180,20 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 			itemId: 'item-1',
 			runId: 'run-1',
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-				{ suggestionId: 'sug-2', label: 'Vertragsdauer', type: 'text', value: '48 Monate' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Fahrzeugmodell',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: 'general'
+				},
+				{
+					suggestionId: 'sug-2',
+					label: 'Vertragsdauer',
+					type: 'text',
+					value: '48 Monate',
+					groupId: 'general'
+				}
 			]
 		});
 		expect(result).toEqual({ addedCount: 2 });
@@ -147,8 +201,20 @@ describe('addAdditionalFieldsFromRun (AI Extraction 1.1: accepted suggestions be
 		expect(p.runs.addAdditionalFields).toHaveBeenCalledWith(
 			expect.objectContaining({
 				selections: [
-					{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-					{ suggestionId: 'sug-2', label: 'Vertragsdauer', type: 'text', value: '48 Monate' }
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'CUPRA Born',
+						groupId: 'general'
+					},
+					{
+						suggestionId: 'sug-2',
+						label: 'Vertragsdauer',
+						type: 'text',
+						value: '48 Monate',
+						groupId: 'general'
+					}
 				]
 			})
 		);

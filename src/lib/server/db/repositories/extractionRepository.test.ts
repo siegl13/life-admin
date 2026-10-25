@@ -29,6 +29,7 @@ import { createItem } from './itemRepository';
 import { listEvents } from './eventRepository';
 import { listActions } from './actionRepository';
 import { listFields } from './fieldRepository';
+import { insertInitialFieldGroups } from './fieldGroupRepository';
 import { applyExtractionRun } from '$lib/application/ai/applyExtractionRun';
 import { UnknownFieldError } from '$lib/application/items/updateItemFields';
 import { materializePlaybook } from '$lib/domain/playbook/materialize';
@@ -118,7 +119,15 @@ function fixture() {
 	const cycleId = insertCycle(itemId);
 	const attachmentId = insertAttachment(itemId);
 	insertField(cycleId, 'contract_end', 'date', null);
+	insertInitialFieldGroups(db, itemId, { groups: [], fields: [], events: [], actions: [] });
 	return { itemId, cycleId, attachmentId };
+}
+
+function getDefaultGroupId(itemId: string): string {
+	const row = db
+		.prepare('SELECT id FROM item_field_groups WHERE item_id = ? AND is_default = 1')
+		.get(itemId) as { id: string };
+	return row.id;
 }
 
 describe('claimRun', () => {
@@ -802,7 +811,13 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 			itemId,
 			cycleId,
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Fahrzeugmodell',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: getDefaultGroupId(itemId)
+				}
 			]
 		});
 
@@ -815,6 +830,9 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 		expect(listAdditionalSuggestions(db, 'run-1').find((s) => s.id === 'sug-1')?.accepted).toBe(
 			true
 		);
+		expect(
+			db.prepare('SELECT group_id FROM item_field_group_assignments WHERE item_id = ?').get(itemId)
+		).toEqual({ group_id: getDefaultGroupId(itemId) });
 	});
 
 	it('adding several selections in one call is atomic: all succeed together', () => {
@@ -826,8 +844,20 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 			itemId,
 			cycleId,
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-				{ suggestionId: 'sug-2', label: 'Monatliche Rate', type: 'currency', value: '351.00 EUR' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Fahrzeugmodell',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: getDefaultGroupId(itemId)
+				},
+				{
+					suggestionId: 'sug-2',
+					label: 'Monatliche Rate',
+					type: 'currency',
+					value: '351.00 EUR',
+					groupId: getDefaultGroupId(itemId)
+				}
 			]
 		});
 
@@ -840,6 +870,48 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 		expect(count.n).toBe(3);
 	});
 
+	it('rejects unknown and foreign groups and rolls back earlier writes', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const foreignItem = insertItem();
+		insertCycle(foreignItem);
+		insertNewRunWithAdditionalSuggestions(itemId, cycleId, attachmentId);
+		insertInitialFieldGroups(db, foreignItem, { groups: [], fields: [], events: [], actions: [] });
+		const foreignGroupId = getDefaultGroupId(foreignItem);
+
+		for (const groupId of ['unknown-group', foreignGroupId]) {
+			expect(() =>
+				addAdditionalFields(db, {
+					runId: 'run-1',
+					itemId,
+					cycleId,
+					selections: [
+						{
+							suggestionId: 'sug-1',
+							label: 'First',
+							type: 'text',
+							value: 'written',
+							groupId: getDefaultGroupId(itemId)
+						},
+						{ suggestionId: 'sug-2', label: 'Second', type: 'text', value: 'bad target', groupId }
+					]
+				})
+			).toThrow();
+			expect(
+				(
+					db.prepare('SELECT COUNT(*) n FROM cycle_fields WHERE cycle_id = ?').get(cycleId) as {
+						n: number;
+					}
+				).n
+			).toBe(1);
+			expect(listAdditionalSuggestions(db, 'run-1').every((s) => !s.accepted)).toBe(true);
+			expect(
+				db
+					.prepare('SELECT COUNT(*) n FROM item_field_group_assignments WHERE item_id = ?')
+					.get(itemId)
+			).toEqual({ n: 0 });
+		}
+	});
+
 	it('a suggestion id that does not belong to this run creates nothing (atomic rollback)', () => {
 		const { itemId, cycleId, attachmentId } = fixture();
 		insertNewRunWithAdditionalSuggestions(itemId, cycleId, attachmentId);
@@ -850,8 +922,20 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				itemId,
 				cycleId,
 				selections: [
-					{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-					{ suggestionId: 'not-a-real-id', label: 'Ghost', type: 'text', value: 'x' }
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'CUPRA Born',
+						groupId: getDefaultGroupId(itemId)
+					},
+					{
+						suggestionId: 'not-a-real-id',
+						label: 'Ghost',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
 				]
 			})
 		).toThrow(AdditionalSuggestionNotFoundError);
@@ -875,7 +959,15 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				runId: 'run-1',
 				itemId,
 				cycleId,
-				selections: [{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'x' }]
+				selections: [
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
+				]
 			})
 		).toThrow(ExtractionRunNotReviewableError);
 	});
@@ -890,7 +982,15 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				runId: 'run-1',
 				itemId,
 				cycleId,
-				selections: [{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'x' }]
+				selections: [
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
+				]
 			})
 		).toThrow(ItemNotWritableError);
 	});

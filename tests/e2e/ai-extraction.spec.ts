@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * The deterministic fake provider (LIFEADMIN_AI_FAKE=1, no real key,
@@ -53,6 +55,7 @@ async function openExtractionReview(page: Page, filename: string) {
 	await page.getByRole('link', { name: filename }).click();
 	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
 	await expect(page).toHaveURL(/\/suggestions\//);
+	await expect(page.locator('.app-fab')).toHaveCount(0);
 }
 
 test('AI extraction: disabled by default, full review/apply/dismiss flow, then disabled again', async ({
@@ -233,6 +236,16 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	await expect(
 		additional.getByText('Zusätzliche Information: Randnotiz aus dem Dokument', { exact: true })
 	).toBeVisible();
+	const visualEvidence = path.resolve('.agent/supervisor/group-assignment-final/visual');
+	fs.mkdirSync(visualEvidence, { recursive: true });
+	for (const width of [375, 390, 430]) {
+		await page.setViewportSize({ width, height: 900 });
+		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
+		await page.screenshot({ path: path.join(visualEvidence, `suggestions-${width}.png`) });
+		await additional.scrollIntoViewIfNeeded();
+		await page.screenshot({ path: path.join(visualEvidence, `additional-fields-${width}.png`) });
+	}
+	await page.evaluate(() => window.scrollTo(0, 0));
 	// The 4th fixed suggestion duplicates the known field's own label —
 	// server-side dedup (filterAdditionalSuggestions) must have discarded
 	// it before it ever reached this page.
@@ -252,14 +265,20 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 		hasText: 'Zusätzliche Information'
 	});
 	await infoRow.getByRole('checkbox').check();
+	await infoRow.locator('details > summary').click();
 	await infoRow.getByLabel('Bezeichnung').fill('Vertragsende');
 	await infoRow.getByLabel('Typ').selectOption('date');
 	await expect(infoRow.getByLabel('Wert')).toHaveAttribute('type', 'date');
 	await infoRow.getByLabel('Wert').fill('2032-04-05');
+	await expect(
+		infoRow.getByRole('combobox', { name: 'Gruppe' }).locator('option:checked')
+	).toHaveText('Allgemein');
+	await infoRow.getByRole('combobox', { name: 'Gruppe' }).selectOption({ label: 'Fahrzeug' });
 
 	// Select the currency suggestion, rename it, and add it.
 	const rateRow = additional.locator('.additional-suggestion', { hasText: 'Monatliche Rate' });
 	await rateRow.getByRole('checkbox').check();
+	await rateRow.locator('details > summary').click();
 	await rateRow.getByLabel('Bezeichnung').fill('Leasingrate');
 	await additional.getByRole('button', { name: 'Ausgewählte hinzufügen' }).click();
 
@@ -279,6 +298,17 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	await expect(fieldsView.locator('.data-row', { hasText: 'Vertragsende' })).toContainText(
 		'5. April 2032'
 	);
+	const vehicleGroup = page.locator('.facts-group').filter({
+		has: page.locator('.facts-group__label', { hasText: 'Fahrzeug' })
+	});
+	await expect(vehicleGroup.locator('.data-row__key', { hasText: 'Vertragsende' })).toHaveCount(1);
+	await page.reload();
+	const persistedVehicleGroup = page.locator('.facts-group').filter({
+		has: page.locator('.facts-group__label', { hasText: 'Fahrzeug' })
+	});
+	await expect(
+		persistedVehicleGroup.locator('.data-row__key', { hasText: 'Vertragsende' })
+	).toHaveCount(1);
 	const historyEvents = page.locator('.history-event__text');
 	await expect(historyEvents).toHaveCount(3);
 	await expect(

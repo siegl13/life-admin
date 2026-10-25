@@ -175,6 +175,7 @@ export interface AddAdditionalFieldSelection {
 	label: string;
 	type: SuggestedFieldType;
 	value: string | null;
+	groupId: string;
 }
 
 export interface AddAdditionalFieldsInput {
