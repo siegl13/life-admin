@@ -17,7 +17,8 @@ RUN npm prune --omit=dev
 
 # Runtime stage: no build toolchain, non-root user, only what's needed to
 # run the built app.
-# ORIGIN is intentionally not baked in. It must match the operator's URL.
+# No origin is baked into the build or this image. runtime/start.js reads
+# ORIGIN, PROTOCOL_HEADER, HOST_HEADER and PORT_HEADER at container start.
 # BODY_SIZE_LIMIT is adapter-node's own request-body cap. It must stay above
 # MAX_ARCHIVE_BYTES (256 MiB, src/lib/server/backup/archive.ts) so a restore
 # upload is never rejected at the transport layer before our own archive-size
@@ -44,6 +45,7 @@ WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
+COPY --from=build /app/runtime ./runtime
 COPY --from=build /app/package.json ./package.json
 COPY playbooks ./playbooks
 
@@ -54,4 +56,4 @@ EXPOSE 3000 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 	CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "build"]
+CMD ["node", "runtime/start.js"]

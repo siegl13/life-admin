@@ -10,12 +10,12 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"preview": "node build",
+		"preview": "node runtime/start.js",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:unit": "vitest run",
-		"test:e2e": "ORIGIN=http://127.0.0.1:4173 vite build && ORIGIN=http://127.0.0.1:4173 playwright test",
+		"test:e2e": "vite build && playwright test",
 		"test": "npm run test:unit && npm run test:e2e",
 		"playbooks:validate": "tsx scripts/validate-playbooks.ts",
 		"verify": "npm run lint && npm run check && npm run playbooks:validate && npm run test:unit && npm run build"

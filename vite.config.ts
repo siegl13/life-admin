@@ -7,9 +7,6 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			adapter: adapter(),
-			paths: {
-				origin: process.env.ORIGIN || 'http://localhost:3000'
-			},
 			csp: {
 				mode: 'auto',
 				directives: {

@@ -45,12 +45,9 @@ a named volume. Open `http://localhost:3000` and create the Owner
 account: the first person to reach the service claims it, so don't leave
 it open on a public network before that.
 
-**The one thing that trips people up:** if you access Life Admin at
-anything other than `http://localhost:3000` (a LAN IP, a custom
-hostname, a different port, a reverse proxy), you must set `ORIGIN` in
-`compose.yaml` to match exactly, or every form submission fails with
-"Cross-site POST form submissions are forbidden." See
-[Configuration](#configuration).
+Over plain HTTP, any hostname or port works without extra settings
+(`http://192.168.1.20:3000`, `http://nas.local:3000`). Behind a reverse
+proxy, see [Access and HTTPS](#access-and-https).
 
 ## Features
 
@@ -130,10 +127,30 @@ actions as you go.
 ### Access and HTTPS
 
 Plain HTTP sends the password and session cookie unencrypted, so only
-use it on a trusted home network. For HTTPS, put a reverse proxy in
-front and set `ORIGIN`, `PROTOCOL_HEADER=x-forwarded-proto`, and
-`HOST_HEADER=x-forwarded-host`; the Secure cookie flag turns on by
-itself (`LIFEADMIN_COOKIE_SECURE` can override it).
+use it on a trusted home network. For HTTPS, put a reverse proxy in front.
+
+The image contains no origin, so the same image works at any hostname.
+Form submissions are checked against the origin of the request. The
+server picks it like this:
+
+1. **`ORIGIN` set** (for example `ORIGIN=https://life-admin.example.com`):
+   this is the only accepted origin. It must be `scheme://host[:port]`
+   with `http` or `https`, and no path. Any other value stops the server
+   at startup. This is the safest choice behind a proxy.
+2. **`PROTOCOL_HEADER` / `HOST_HEADER` / `PORT_HEADER` set**
+   (for example `x-forwarded-proto` and `x-forwarded-host`): the origin
+   is read from these headers. Only enable this if a reverse proxy in
+   front of Life Admin overwrites these headers on every request and
+   nobody can reach port 3000 directly. Otherwise a client can forge
+   them. Set `LIFEADMIN_COOKIE_SECURE=true` if the proxy serves HTTPS and
+   you do not set `ORIGIN`.
+3. **Nothing set** (direct access): the origin is `http://` plus the
+   `Host` header. `X-Forwarded-*` headers are ignored.
+
+If `ORIGIN` is set, it wins over the header settings. The Secure cookie
+flag turns on by itself when `ORIGIN` starts with `https://`
+(`LIFEADMIN_COOKIE_SECURE` can override it). Cross-site form submissions
+are rejected in every mode.
 
 Forgot the password? Set `LIFEADMIN_RESET_OWNER_PASSWORD`, restart, sign
 in, then remove the variable and restart again.
@@ -235,8 +252,9 @@ safety copies can be pulled without stopping:
 - Security vulnerability: see [SECURITY.md](SECURITY.md), don't use a
   public issue.
 - Something not working after setup: check
-  [Access and HTTPS](#access-and-https) for the `ORIGIN` pitfall first,
-  it's the most common cause of failed form submissions.
+  [Access and HTTPS](#access-and-https) first. Behind a reverse proxy,
+  a wrong or missing `ORIGIN` or proxy header setting is the most common
+  cause of failed form submissions (403).
 
 ## Releases
 

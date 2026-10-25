@@ -36,15 +36,17 @@ export default defineConfig({
 		locale: 'de-DE'
 	},
 	webServer: {
-		command: 'node build',
+		// No ORIGIN: the suite runs in direct mode, where the origin is
+		// http:// plus the Host header (see runtime/origin.js).
+		command: 'node runtime/start.js',
 		port: 4173,
 		env: {
 			PORT: '4173',
 			LIFEADMIN_DATA_DIR: e2eDataDir,
-			// Required by adapter-node's CSRF origin check (defaults to
-			// assuming HTTPS otherwise) — must match baseURL exactly, or
-			// every form-based test fails with a 403.
-			ORIGIN: 'http://127.0.0.1:4173',
+			ORIGIN: '',
+			PROTOCOL_HEADER: '',
+			HOST_HEADER: '',
+			PORT_HEADER: '',
 			BODY_SIZE_LIMIT: '280M',
 			// Deterministic fake provider: NODE_ENV is not 'production' here, so
 			// the gate in selectProvider.ts opens. No document ever leaves this
