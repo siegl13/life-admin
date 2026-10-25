@@ -67,7 +67,8 @@ const noEvents: EventRepositoryPort = { listEvents: vi.fn(() => []) };
 const noFields: FieldRepositoryPort = {
 	listFields: vi.fn(() => []),
 	addCustomField: vi.fn(),
-	removeCustomField: vi.fn()
+	removeCustomField: vi.fn(),
+	setFieldConfirmed: vi.fn()
 };
 
 describe('getItemWorkflow', () => {
@@ -262,7 +263,8 @@ describe('getItemWorkflow', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => [field({ fieldKey: 'contract_end', label: 'Vertragsende' })]),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 
 		const workflow = getItemWorkflow({ cycles, actions, events, fields }, 'item-1')!;

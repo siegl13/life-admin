@@ -15,6 +15,7 @@ const { clock, history, runs, fields, items, actionsRepo } = vi.hoisted(() => ({
 		listSuggestions: vi.fn().mockReturnValue([]),
 		applyRun: vi.fn(),
 		addAdditionalFields: vi.fn(),
+		listAdditionalSuggestions: vi.fn().mockReturnValue([]),
 		listActionSuggestions: vi.fn().mockReturnValue([]),
 		addActions: vi.fn()
 	},
@@ -204,7 +205,9 @@ describe('applied AI suggestions history recording', () => {
 		}
 
 		expect(runs.applyRun).toHaveBeenCalledWith(
-			expect.objectContaining({ updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }] })
+			expect.objectContaining({
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }]
+			})
 		);
 		expect(history.insert).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -231,7 +234,7 @@ describe('applied AI suggestions history recording', () => {
 		}
 
 		expect(runs.applyRun).toHaveBeenCalledWith(
-			expect.objectContaining({ updates: [{ fieldKey: 'note', value: 'hello' }] })
+			expect.objectContaining({ updates: [{ fieldKey: 'note', value: 'hello', sourceText: null }] })
 		);
 	});
 
@@ -339,7 +342,7 @@ describe('applied AI suggestions history recording', () => {
 		// 2031-03-15 (replacement) minus 10 days, not 2030-01-01 minus 10 days.
 		expect(runs.applyRun).toHaveBeenCalledWith(
 			expect.objectContaining({
-				updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }],
 				actions: [expect.objectContaining({ dueDate: '2031-03-05' })]
 			})
 		);

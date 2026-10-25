@@ -35,6 +35,7 @@ export interface ExtractionRun {
 export interface ExtractionSuggestionRecord {
 	fieldKey: string;
 	value: string;
+	sourceText: string | null;
 	position: number;
 	accepted: boolean;
 }
@@ -107,7 +108,12 @@ export interface ClaimExtractionRunInput {
 export class DailyExtractionLimitReachedError extends Error {}
 
 export interface MarkExtractionRunSucceededInput {
-	suggestions: readonly { fieldKey: string; value: string; position: number }[];
+	suggestions: readonly {
+		fieldKey: string;
+		value: string;
+		sourceText?: string | null;
+		position: number;
+	}[];
 	discardedCount: number;
 	additionalSuggestions: readonly {
 		suggestedLabel: string;
@@ -143,7 +149,7 @@ export interface ApplyExtractionRunInput {
 	cycleId: string;
 	/** Already validated (normalizeFieldUpdates) and already intersected
 	 *  with this run's persisted suggestions. */
-	updates: readonly { fieldKey: string; value: string | null }[];
+	updates: readonly { fieldKey: string; value: string | null; sourceText?: string | null }[];
 	acceptedFieldKeys: readonly string[];
 	/** Selected Action suggestions, created after the field writes in the
 	 *  same transaction. */
@@ -184,6 +190,7 @@ export interface AddAdditionalFieldSelection {
 	label: string;
 	type: SuggestedFieldType;
 	value: string | null;
+	evidence?: string | null;
 	groupId: string;
 }
 

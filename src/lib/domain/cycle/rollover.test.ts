@@ -31,6 +31,8 @@ function field(overrides: Partial<Field>): Field {
 		recommended: false,
 		position: 0,
 		value: null,
+		sourceText: null,
+		confirmed: false,
 		...overrides
 	};
 }

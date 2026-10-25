@@ -16,6 +16,7 @@ function fakePorts(overrides: Partial<Record<string, unknown>> = {}) {
 				cycleId: 'cycle-1',
 				status: 'NEW'
 			})),
+			listAdditionalSuggestions: vi.fn(() => []),
 			addAdditionalFields: vi.fn()
 		},
 		...overrides

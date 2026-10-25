@@ -52,6 +52,10 @@
 					<span class="meta">
 						{t('ai.review.documentValue')}: {display(suggestion.suggestedValue)}
 					</span>
+					{#if suggestion.sourceText}
+						<span class="meta">{t('items.detail.fieldSource')}: <q>{suggestion.sourceText}</q></span
+						>
+					{/if}
 				</span>
 			</label>
 		</fieldset>
@@ -73,5 +77,8 @@
 			{t('ai.review.currentValue')}: {t('ai.review.emptyValue')}
 		</p>
 		<p>{t('ai.review.suggestedValue')}: {display(suggestion.suggestedValue)}</p>
+		{#if suggestion.sourceText}
+			<p class="hint">{t('items.detail.fieldSource')}: <q>{suggestion.sourceText}</q></p>
+		{/if}
 	{/if}
 </div>

@@ -36,6 +36,9 @@
 		<span class="additional-suggestion__suggested">
 			{suggestion.suggestedLabel}
 			<span class="meta">{displaySuggestedValue()}</span>
+			{#if suggestion.evidence}
+				<span class="meta">{t('items.detail.fieldSource')}: <q>{suggestion.evidence}</q></span>
+			{/if}
 		</span>
 	</label>
 	{#if suggestion.evidence}

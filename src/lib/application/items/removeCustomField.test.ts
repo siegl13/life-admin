@@ -23,7 +23,8 @@ describe('removeCustomField (application use case)', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		expect(() =>
 			removeCustomField({ cycles, fields }, { itemId: 'item-1', fieldKey: 'c_note' })
@@ -41,7 +42,8 @@ describe('removeCustomField (application use case)', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		removeCustomField({ cycles, fields }, { itemId: 'item-1', fieldKey: 'c_note' });
 		expect(fields.removeCustomField).toHaveBeenCalledWith(CYCLE.id, 'c_note');
@@ -61,7 +63,8 @@ describe('removeCustomField (application use case)', () => {
 			addCustomField: vi.fn(),
 			removeCustomField: vi.fn(() => {
 				throw boom;
-			})
+			}),
+			setFieldConfirmed: vi.fn()
 		};
 		expect(() =>
 			removeCustomField({ cycles, fields }, { itemId: 'item-1', fieldKey: 'valid_until' })

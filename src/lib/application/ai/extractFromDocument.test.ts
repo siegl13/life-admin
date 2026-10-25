@@ -299,7 +299,9 @@ describe('extractFromDocument', () => {
 		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
 			'run-1',
 			expect.objectContaining({
-				suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+				suggestions: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null, position: 0 }
+				],
 				discardedCount: 1
 			})
 		);
@@ -347,7 +349,9 @@ describe('extractFromDocument', () => {
 		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
 			'run-1',
 			expect.objectContaining({
-				suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+				suggestions: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null, position: 0 }
+				],
 				actionSuggestions: [],
 				discardedActionCount: 0,
 				diagnostics: {

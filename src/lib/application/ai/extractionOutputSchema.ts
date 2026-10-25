@@ -15,7 +15,8 @@ export const extractionOutputSchema = z
 				z
 					.object({
 						field_key: z.string().min(1).max(64),
-						value: z.string().max(2000)
+						value: z.string().max(2000),
+						source_text: z.string().max(2000).nullish()
 					})
 					.strict()
 			)

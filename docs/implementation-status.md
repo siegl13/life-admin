@@ -9,6 +9,24 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Transfer date and time display (`transfer-date-time-display`)
+
+Pickup date and time are ordinary Item fields with independent confirmation.
+Confirmation starts false, survives unchanged saves and resets only when that
+field's value changes. Empty fields cannot be confirmed. A time such as
+`12:30` remains a local wall-clock value and is never timezone-converted.
+
+Field values may show a bounded source excerpt when extraction supplied one.
+Existing additional-suggestion evidence is reused for new fields created from
+those suggestions; no duplicate provenance column is added. Migration `0021`
+adds confirmation and source storage without backfilling existing values.
+
+Verification on the integration branch: `npm run verify` passes. All seven
+field-confirmation E2E tests pass. The full E2E run had 231 passing tests and
+four failures: one feature test was corrected and passes on its focused rerun;
+three existing Inbox-related tests fail only in the full-suite run and pass
+when run independently. A clean full-suite rerun remains open.
+
 ## Group assignment - Additional document fields (`group-assignment`)
 
 **Status: READY TO COMMIT. Full verification, responsive review, and independent

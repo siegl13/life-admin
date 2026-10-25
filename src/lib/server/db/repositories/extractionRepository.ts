@@ -20,6 +20,7 @@ import type {
 	MarkExtractionRunSucceededInput,
 	SuggestedFieldType
 } from '$lib/application/ai/ports';
+import { normalizeSourceText } from '$lib/domain/field/field';
 import {
 	AdditionalSuggestionNotFoundError,
 	DailyExtractionLimitReachedError,
@@ -122,9 +123,16 @@ export function markSucceeded(
 
 		for (const suggestion of input.suggestions) {
 			db.prepare(
-				`INSERT INTO extraction_suggestions (id, run_id, field_key, value, position, accepted)
-				 VALUES (?, ?, ?, ?, ?, 0)`
-			).run(crypto.randomUUID(), runId, suggestion.fieldKey, suggestion.value, suggestion.position);
+				`INSERT INTO extraction_suggestions (id, run_id, field_key, value, source_text, position, accepted)
+				 VALUES (?, ?, ?, ?, ?, ?, 0)`
+			).run(
+				crypto.randomUUID(),
+				runId,
+				suggestion.fieldKey,
+				suggestion.value,
+				normalizeSourceText(suggestion.sourceText),
+				suggestion.position
+			);
 		}
 
 		for (const suggestion of input.additionalSuggestions) {
@@ -212,16 +220,18 @@ export function listSuggestions(
 	runId: string
 ): ExtractionSuggestionRecord[] {
 	const query =
-		'SELECT field_key, value, position, accepted FROM extraction_suggestions WHERE run_id = ? ORDER BY position';
+		'SELECT field_key, value, source_text, position, accepted FROM extraction_suggestions WHERE run_id = ? ORDER BY position';
 	const rows = db.prepare(query).all(runId) as {
 		field_key: string;
 		value: string;
+		source_text: string | null;
 		position: number;
 		accepted: number;
 	}[];
 	return rows.map((row) => ({
 		fieldKey: row.field_key,
 		value: row.value,
+		sourceText: row.source_text,
 		position: row.position,
 		accepted: row.accepted === 1
 	}));
@@ -425,9 +435,11 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 		for (const selection of input.selections) {
 			const suggestion = db
 				.prepare(
-					`SELECT id FROM extraction_additional_suggestions WHERE id = ? AND run_id = ? AND accepted = 0`
+					`SELECT id, evidence, suggested_type, value FROM extraction_additional_suggestions
+					 WHERE id = ? AND run_id = ? AND accepted = 0`
 				)
-				.get(selection.suggestionId, input.runId) as { id: string } | undefined;
+				.get(selection.suggestionId, input.runId) as
+				{ id: string; evidence: string | null; suggested_type: string; value: string } | undefined;
 			if (!suggestion) throw new AdditionalSuggestionNotFoundError();
 			const group = db
 				.prepare('SELECT 1 FROM item_field_groups WHERE id = ? AND item_id = ?')
@@ -441,7 +453,14 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 
 			if (selection.value !== null) {
 				applyFieldUpdatesAndRecalculate(db, input.cycleId, [
-					{ fieldKey: field.fieldKey, value: selection.value }
+					{
+						fieldKey: field.fieldKey,
+						value: selection.value,
+						sourceText:
+							selection.value === suggestion.value && selection.type === suggestion.suggested_type
+								? suggestion.evidence
+								: null
+					}
 				]);
 			}
 			db.prepare(

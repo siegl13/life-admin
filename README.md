@@ -101,6 +101,16 @@ groups appear first. Group names, order and assignments stay with the Item
 when you start a new cycle; field values still follow the Playbook's reset rules.
 Empty fields remain available in the edit form. Archived Items are read-only.
 
+Each value shows whether you confirmed it. A value starts as **Not confirmed**,
+also when a document suggestion filled it. Use **Confirm** to mark it, and
+**Withdraw confirmation** to undo that. Every field has its own state, so a
+date and a time are confirmed separately. Changing a value resets only that
+field's confirmation. A value you save unchanged keeps it. A field without a
+value cannot be confirmed. A time such as `12:30` is stored as written. It is
+a local time and is never converted to another timezone. Dates follow the
+selected language. If a document suggestion came with a short excerpt, the
+value shows it as **Source**. Manual and older values have no source line.
+
 Documents, related Items and history follow the fields. Document suggestions
 show their source in history when available. Older events keep generic text.
 Add-task and archive controls are under **More options** at the bottom.
@@ -206,6 +216,10 @@ LIFEADMIN_OPENAI_API_KEY=sk-...
 Under Docker Compose, copy `.env.example` to `.env`, fill in the key,
 uncomment `env_file: .env` in `compose.yaml`, then `docker compose up -d`
 again (`compose.yaml` ignores `.env.example` itself).
+
+Each suggested value may come with a short excerpt of the document (at most
+300 characters). It is shown during review and stored with the value only when
+you accept the suggestion unchanged. Longer excerpts are dropped.
 
 Only the selected document's bytes, its MIME type, the current
 cycle's field labels, and the titles of the Item's existing tasks (to

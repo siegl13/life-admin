@@ -54,6 +54,9 @@ export function addAdditionalFieldsFromRun(
 ): AddAdditionalFieldsFromRunResult {
 	const run = ports.runs.getById(input.runId);
 	if (!run || run.itemId !== input.itemId) throw new ExtractionRunNotFoundError();
+	const suggestionsById = new Map(
+		ports.runs.listAdditionalSuggestions(run.id).map((suggestion) => [suggestion.id, suggestion])
+	);
 
 	const selections = input.selections.map((selection) => {
 		const label = selection.label.trim();
@@ -65,12 +68,18 @@ export function addAdditionalFieldsFromRun(
 			selection.value,
 			selection.currencyCode
 		);
+		const suggestion = suggestionsById.get(selection.suggestionId);
+		const evidenceMatches =
+			suggestion !== undefined &&
+			suggestion.suggestedType === selection.type &&
+			suggestion.value === value;
 		return {
 			suggestionId: selection.suggestionId,
 			label,
 			type: selection.type,
 			value,
-			groupId: selection.groupId
+			groupId: selection.groupId,
+			...(evidenceMatches && suggestion.evidence ? { evidence: suggestion.evidence } : {})
 		};
 	});
 

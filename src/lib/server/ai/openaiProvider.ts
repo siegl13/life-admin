@@ -55,9 +55,10 @@ const RESPONSE_JSON_SCHEMA = {
 				type: 'object',
 				properties: {
 					field_key: { type: 'string' },
-					value: { type: 'string' }
+					value: { type: 'string' },
+					source_text: { type: ['string', 'null'] }
 				},
-				required: ['field_key', 'value'],
+				required: ['field_key', 'value', 'source_text'],
 				additionalProperties: false
 			}
 		},
@@ -374,7 +375,8 @@ export function createOpenAiProvider(
 				},
 				suggestions: parsed.data.suggestions.map((s) => ({
 					fieldKey: s.field_key,
-					value: s.value
+					value: s.value,
+					sourceText: s.source_text ?? null
 				})),
 				additionalSuggestions: (parsed.data.additional_suggestions ?? []).map((s) => ({
 					suggestedLabel: s.suggested_label,

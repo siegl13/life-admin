@@ -23,6 +23,7 @@ export interface SuggestionForReview {
 	/** Loaded locally, never sent to the provider (see extraction.ts). */
 	currentValue: string | null;
 	suggestedValue: string;
+	sourceText: string | null;
 	comparison: FieldComparison;
 }
 
@@ -140,6 +141,7 @@ export function getExtractionRun(
 				type: field.type,
 				currentValue: field.value,
 				suggestedValue: suggestion.value,
+				sourceText: suggestion.sourceText,
 				comparison: compareFieldValue(field.value, suggestion.value)
 			};
 		})

@@ -61,6 +61,8 @@ export interface ExtractionSuggestion {
 	/** Always a raw string. Typing is the application's job (filterSuggestions,
 	 *  then normalizeFieldUpdates), never the model's. */
 	value: string;
+	/** Short exact excerpt supporting the value, when available. */
+	sourceText?: string | null;
 }
 
 /**
@@ -76,7 +78,7 @@ export interface ExtractionAdditionalSuggestion {
 	suggestedLabel: string;
 	suggestedType: SuggestedFieldType;
 	value: string;
-	/** Optional short literal excerpt from the source document. */
+	/** Reuse the established evidence contract for additional suggestions. */
 	evidence?: string | null;
 }
 

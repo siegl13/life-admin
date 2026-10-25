@@ -24,7 +24,8 @@ describe('addCustomField (application use case)', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		expect(() =>
 			addCustomField({ cycles, fields }, { itemId: 'item-1', label: '  ', type: 'text' })
@@ -43,7 +44,8 @@ describe('addCustomField (application use case)', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		expect(() =>
 			addCustomField({ cycles, fields }, { itemId: 'item-1', label: 'Note', type: 'text' })
@@ -67,12 +69,15 @@ describe('addCustomField (application use case)', () => {
 			origin: 'CUSTOM',
 			recommended: false,
 			position: 0,
-			value: null
+			value: null,
+			sourceText: null,
+			confirmed: false
 		};
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(() => createdField),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 
 		const result = addCustomField(

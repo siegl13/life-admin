@@ -28,6 +28,8 @@ function field(overrides: Partial<Field>): Field {
 		recommended: true,
 		position: 0,
 		value: null,
+		sourceText: null,
+		confirmed: false,
 		...overrides
 	};
 }
@@ -44,7 +46,8 @@ function ports(fields: Field[], cycle: typeof CYCLE | null = CYCLE) {
 	const fieldsPort: FieldRepositoryPort = {
 		listFields: vi.fn(() => fields),
 		addCustomField: vi.fn(),
-		removeCustomField: vi.fn()
+		removeCustomField: vi.fn(),
+		setFieldConfirmed: vi.fn()
 	};
 	const schedule: ScheduleRepositoryPort = {
 		applyFieldUpdatesAndRecalculate: vi.fn((_cycleId, updates) => {
