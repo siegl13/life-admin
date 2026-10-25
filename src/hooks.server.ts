@@ -1,4 +1,5 @@
-import { error, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import { randomUUID } from 'node:crypto';
 import { authenticateSession } from '$lib/application/auth/authenticateSession';
 import {

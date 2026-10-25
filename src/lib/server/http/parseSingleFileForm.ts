@@ -144,7 +144,7 @@ export async function parseSingleFileForm(
 					if (stream.truncated) return; // 'limit' handler above already rejected
 					result = {
 						fieldName: name,
-						filename: info.filename,
+						filename: info.filename ?? '',
 						mimeType: info.mimeType,
 						path: filePath,
 						byteLength

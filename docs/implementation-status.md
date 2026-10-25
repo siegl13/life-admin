@@ -9,6 +9,133 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## PR 59 - Deployment-independent production origin (`pr-59-origin`)
+
+**Status: IMPLEMENTED. Full automated verification passed on the final
+candidate (supervisor attempt 6). Final-candidate Docker runtime and
+linux/amd64 + linux/arm64 image checks also passed. Supervisor operational
+acceptance is being recorded.**
+
+- Root cause: `vite.config.ts` set `paths.origin` to
+  `process.env.ORIGIN || 'http://localhost:3000'`. adapter-node 6 bakes that
+  value into `build/` and no longer reads `ORIGIN` at runtime. Without a baked
+  origin it assumes `https` unless `PROTOCOL_HEADER` is set, which would break
+  direct HTTP POSTs. (Read from the generated `build/server/adapter-node-handler.js`
+  of adapter-node 6.0.0, `get_origin()` and the `origin` import.)
+- Fix: `paths.origin` removed, so the build has no origin. New entry point
+  `runtime/start.js` (used by Docker `CMD`, `npm run preview`, Playwright)
+  validates `ORIGIN` at startup and starts the unchanged adapter build.
+  `runtime/origin.js` picks the mode: `ORIGIN` set (pinned, strict
+  `scheme://host[:port]`, invalid value exits 1), operator-set
+  `PROTOCOL_HEADER`/`HOST_HEADER`/`PORT_HEADER` (trusted proxy), or direct
+  (`http://` plus Host, forwarded headers ignored). CSRF is unchanged.
+- Tests added: `tests/unit/runtimeOrigin.test.ts`; `tests/e2e/runtime-origin.spec.ts`
+  (production build, no rebuild between cases: direct non-localhost GET and POST,
+  forged forwarded headers, runtime `ORIGIN`, trusted proxy, foreign origin 403,
+  invalid `ORIGIN` startup failure). `test:e2e` no longer sets `ORIGIN` at build
+  or run time.
+- Docs changed: README, `.env.example`, `compose.yaml`, Dockerfile comments.
+- Review round 1 fix: an `ORIGIN` with an explicit default port (`http://host:80`,
+  `https://host:443`) was rejected at startup. It is now accepted and normalized
+  (the browser never sends the default port in `Origin`). The parser checks the
+  authority-only shape on the raw text instead of comparing `url.origin`. Added
+  unit cases and an e2e case that starts the build with `ORIGIN=http://...:80`.
+- Latest full results (supervisor attempt 6, final candidate, evidence in
+  `verification/attempt-06.log` and its two command logs under
+  `.agent/supervisor/pr-59-origin-sonnet/pr-59-origin/`):
+  `npm run verify` exit 0 (133 test files, 1239 tests passed) and
+  `npm run test:e2e` exit 0 (228 passed). This includes the review round 2
+  correction: the parser rejects backslashes and parsed non-origin components.
+  Focused checks: 23 origin unit tests and 7 Playwright tests (6 origin cases
+  plus the setup project).
+- Framework docs comparison (read 2026-10-24; package versions pinned in
+  `package.json`: `@sveltejs/kit` 3.1.0 and `@sveltejs/adapter-node` 6.0.0):
+  - SvelteKit's [`paths.origin` docs](https://svelte.dev/docs/kit/@sveltejs-kit-vite#paths)
+    describe a configured origin as build-time configuration. The installed
+    adapter output confirms that a configured origin is embedded in the build.
+  - The [CSRF docs](https://svelte.dev/docs/kit/@sveltejs-kit-vite#csrf) confirm
+    that form-action origin checking is enabled by default. This change does not
+    disable it; production E2E checks accept same-origin POSTs and reject foreign
+    origins with 403.
+  - The [adapter-node docs](https://svelte.dev/docs/kit/adapter-node) say
+    forwarded headers are used only when explicitly configured, and must be
+    trusted. This matches the installed adapter behavior and the runtime
+    bootstrap, which ignores forwarded headers by default and honors them only
+    when the operator sets the header names.
+  - The docs describe the supported configuration and security boundary. The
+    installed adapter-node 6.0.0 generated handler was also inspected: without
+    a baked origin it derives the request URL from protocol/host headers, with
+    the protocol defaulting to HTTPS unless `PROTOCOL_HEADER` is configured.
+    Runtime `ORIGIN` is therefore validated and translated into internal
+    adapter headers before importing the built server. No conflict was found.
+    The online docs are rolling documentation, so package-version-specific
+    details were checked against the installed 3.1.0/6.0.0 artifacts.
+- Final-candidate Docker verification: built local image
+  `lifeadmin-pr59-origin:verification`, ID
+  `sha256:dff75b360b42baa6720978a7152478bc65eb23242afda1d23144d985ea141b25`,
+  after the final parser correction. Container image IDs matched in direct HTTP,
+  runtime `ORIGIN`, and trusted-proxy modes. Health GETs returned 200; direct
+  setup GET/POST returned 200/303 with a session cookie. In all three modes,
+  same-origin login POST returned 303 with a session cookie, and foreign-origin
+  login POST returned 403. Spoofed forwarding headers did not change the direct
+  origin. Logs and detailed request evidence are recorded in
+  `.agent/supervisor/pr-59-origin-sonnet/pr-59-origin/operational-evidence/docker-final.md`.
+  The project container, network, and volume were removed after logs were saved.
+- Final-candidate OCI export passed for linux/amd64 and linux/arm64 using a
+  temporary named `docker-container` Buildx builder. The OCI index digest is
+  `sha256:7387fa1261a38b84e9819855f9b90398149011194366acbee4a11819f9223b19`.
+  The temporary builder was removed. No image was pushed.
+- Next safe work: see "PR 59 integration" below. No later origin unit is
+  started; unrelated migration integration remains separate.
+
+### PR 59 integration (`integrate-pr-59-origin`)
+
+**Status: READY for human approval and normal GitHub checks on PR #59. Full
+automated verification passed on Vite 8.3.5 (supervisor attempt 2). Vendor
+evidence, Docker runtime checks, and a linux/amd64 + linux/arm64 OCI build pass.
+Independent review of the complete diff found no open implementation finding.**
+
+- Baseline confirmed: branch `fix/pr-59-runtime-origin`, HEAD `1a2fc24e` (the
+  SvelteKit 3 / adapter-node 6 upgrade), whose parent is `origin/main`
+  `49c0c72f`. It equals the remote PR branch head. Local `main` is stale
+  (`8f886a40`), so diff against `origin/main`.
+- Candidate: uncommitted. 8 modified files (`.env.example`, `Dockerfile`,
+  `README.md`, `compose.yaml`, `package.json`, `playwright.config.ts`,
+  `vite.config.ts`, `docs/implementation-status.md`) plus 4 new files (`runtime/origin.js`, `runtime/start.js`,
+  `tests/e2e/runtime-origin.spec.ts`, `tests/unit/runtimeOrigin.test.ts`).
+- Candidate content hashes and detailed gate evidence are recorded in:
+  `.agent/supervisor/pr-59-origin-integration-sonnet/integrate-pr-59-origin/integration-evidence.md`.
+- Full verification, supervisor attempt 2 (Vite 8.3.5, as pinned in
+  `package.json` and `package-lock.json`): `npm run verify` exit 0 (133 test
+  files, 1239 tests) and `npm run test:e2e` exit 0 (228 passed). Evidence:
+  `.agent/supervisor/pr-59-origin-integration-sonnet/integrate-pr-59-origin/verification/attempt-02.log`
+  and its two command logs. Attempt 1 ran on an installed Vite 8.3.4 and is
+  superseded.
+- Focused checks (`npx vitest run tests/unit/runtimeOrigin.test.ts`, 23 passed;
+  `npx playwright test tests/e2e/runtime-origin.spec.ts`, 7 passed) were rerun
+  after `npm ci` on locked Vite 8.3.5. The origin unit and E2E cases are also
+  part of the attempt-2 full runs.
+- Vendor links and conclusions are in the evidence note.
+- Docker runtime checks passed using one image, ID
+  `sha256:dff75b360b42baa6720978a7152478bc65eb23242afda1d23144d985ea141b25`:
+  direct HTTP ignored spoofed forwarded headers, runtime `ORIGIN` pinned the
+  accepted origin, and trusted-proxy headers were honored only when configured.
+  Every mode accepted a same-origin POST (303 with session cookie) and rejected
+  foreign origins (403). The final-source OCI export contains linux/amd64 and
+  linux/arm64 manifests under index digest
+  `sha256:0a50ae1d1cc4b12aae4218063fe9c569300e414c4dfaf8c612159018072ff788`.
+  Only the ARM64 runtime image was executed locally; no image was pushed.
+- Independent review of the complete diff against `origin/main`: rounds 1 to 5
+  (`.agent/supervisor/pr-59-origin-integration-sonnet/integrate-pr-59-origin/reviews/round-01.md`
+  to `round-05.md`). The only findings were verification and status-metadata
+  gaps (Vite 8.3.4 vs 8.3.5, stale status text), all corrected here. The final
+  independent review reports no open findings.
+- Open gates: none for this unit.
+- Next safe work: human approval and normal GitHub checks on PR #59. No commit,
+  push, merge or release is authorized here. There is no later executable unit.
+- The `pr-59-origin` results above describe the prerequisite unit and do not
+  replace these integration checks.
+
 ## Part B - Change a due date from What's next (`part-b-whats-next-due-date-dialog`)
 
 **Status: IMPLEMENTATION COMPLETE. Automated verification, browser checks and
