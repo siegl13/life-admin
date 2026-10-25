@@ -25,6 +25,25 @@ export interface Field {
 	recommended: boolean;
 	position: number;
 	value: string | IsoDate | null;
+	/** Short exact excerpt of the document the current value was extracted
+	 *  from. Null for manual, historical or evidence-less values. */
+	sourceText: string | null;
+	/** Explicit user confirmation of the current value. Never set by
+	 *  extraction; reset whenever the value changes. */
+	confirmed: boolean;
+}
+
+export const MAX_FIELD_SOURCE_TEXT_LENGTH = 300;
+
+/**
+ * Bounds an extracted source excerpt: whitespace collapsed, trimmed, and
+ * `null` when empty or longer than the limit. A too-long excerpt is dropped
+ * instead of truncated, because a cut quote is no longer exact.
+ */
+export function normalizeSourceText(raw: string | null | undefined): string | null {
+	const text = raw?.replace(/\s+/gu, ' ').trim() ?? '';
+	if (text === '' || text.length > MAX_FIELD_SOURCE_TEXT_LENGTH) return null;
+	return text;
 }
 
 /**

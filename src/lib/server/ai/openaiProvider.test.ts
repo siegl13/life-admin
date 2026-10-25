@@ -126,13 +126,27 @@ describe('createOpenAiProvider', () => {
 		fetchMock.mockResolvedValue(
 			jsonResponse(
 				responsesApiEnvelope(
-					JSON.stringify({ suggestions: [{ field_key: 'contract_end', value: '2027-12-31' }] })
+					JSON.stringify({
+						suggestions: [
+							{
+								field_key: 'contract_end',
+								value: '2027-12-31',
+								source_text: 'Laufzeit bis 31.12.2027'
+							}
+						]
+					})
 				)
 			)
 		);
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
 		const result = await provider.extract(baseRequest());
-		expect(result.suggestions).toEqual([{ fieldKey: 'contract_end', value: '2027-12-31' }]);
+		expect(result.suggestions).toEqual([
+			{
+				fieldKey: 'contract_end',
+				value: '2027-12-31',
+				sourceText: 'Laufzeit bis 31.12.2027'
+			}
+		]);
 		expect(result.providerId).toBe('openai');
 	});
 

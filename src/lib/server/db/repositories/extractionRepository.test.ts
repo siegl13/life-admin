@@ -273,7 +273,14 @@ describe('claimRun', () => {
 		db.prepare('DELETE FROM attachments WHERE id = ?').run(attachmentId);
 
 		markSucceeded(db, 'run-1', {
-			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+			suggestions: [
+				{
+					fieldKey: 'contract_end',
+					value: '2031-03-15',
+					sourceText: 'Laufzeit bis 15.03.2031',
+					position: 0
+				}
+			],
 			discardedCount: 0,
 			additionalSuggestions: [],
 			discardedAdditionalCount: 0
@@ -432,7 +439,14 @@ describe('markSucceeded / markFailed', () => {
 		const { itemId, cycleId, attachmentId } = fixture();
 		claimRunFor('run-1', itemId, cycleId, attachmentId);
 		markSucceeded(db, 'run-1', {
-			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+			suggestions: [
+				{
+					fieldKey: 'contract_end',
+					value: '2031-03-15',
+					sourceText: 'Laufzeit bis 15.03.2031',
+					position: 0
+				}
+			],
 			discardedCount: 2,
 			additionalSuggestions: [
 				{
@@ -450,7 +464,13 @@ describe('markSucceeded / markFailed', () => {
 		expect(run.suggestedCount).toBe(1);
 		expect(run.discardedCount).toBe(2);
 		expect(listSuggestions(db, 'run-1')).toEqual([
-			{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false }
+			{
+				fieldKey: 'contract_end',
+				value: '2031-03-15',
+				sourceText: 'Laufzeit bis 15.03.2031',
+				position: 0,
+				accepted: false
+			}
 		]);
 		expect(listAdditionalSuggestions(db, 'run-1')).toMatchObject([
 			{

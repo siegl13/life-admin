@@ -109,7 +109,8 @@ function ports(opts: {
 				})) as never
 		),
 		addCustomField: vi.fn(),
-		removeCustomField: vi.fn()
+		removeCustomField: vi.fn(),
+		setFieldConfirmed: vi.fn()
 	};
 	const actions: ActionRepositoryPort = {
 		listActions: vi.fn(

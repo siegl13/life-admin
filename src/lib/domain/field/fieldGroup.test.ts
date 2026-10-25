@@ -24,7 +24,9 @@ function field(fieldKey: string, position: number, value: string | null = null):
 		origin: 'PLAYBOOK',
 		recommended: false,
 		position,
-		value
+		value,
+		sourceText: null,
+		confirmed: false
 	};
 }
 

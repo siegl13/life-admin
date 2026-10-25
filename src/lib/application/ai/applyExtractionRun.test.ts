@@ -42,6 +42,37 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 		).toThrow(ExtractionRunNotFoundError);
 	});
 
+	it('hands the stored source excerpt of an accepted suggestion to applyRun, and only for accepted keys', () => {
+		const p = fakePorts({
+			runs: {
+				...fakePorts().runs,
+				listSuggestions: vi.fn(() => [
+					{
+						fieldKey: 'contract_end',
+						value: '2031-03-15',
+						sourceText: 'Laufzeit bis 15.03.2031',
+						position: 0,
+						accepted: false
+					},
+					{ fieldKey: 'note', value: 'hello', sourceText: null, position: 1, accepted: false }
+				])
+			}
+		});
+		applyExtractionRun(p as never, {
+			itemId: 'item-1',
+			runId: 'run-1',
+			acceptedFieldKeys: ['contract_end', 'note']
+		});
+		expect(p.runs.applyRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				updates: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: 'Laufzeit bis 15.03.2031' },
+					{ fieldKey: 'note', value: 'hello', sourceText: null }
+				]
+			})
+		);
+	});
+
 	it('accepting none writes nothing through updates but still calls applyRun (marks APPLIED with zero accepted keys)', () => {
 		const p = fakePorts();
 		applyExtractionRun(p as never, { itemId: 'item-1', runId: 'run-1', acceptedFieldKeys: [] });
@@ -59,7 +90,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 		});
 		expect(p.runs.applyRun).toHaveBeenCalledWith(
 			expect.objectContaining({
-				updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }],
 				acceptedFieldKeys: ['contract_end']
 			})
 		);
@@ -75,7 +106,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 		});
 		expect(p.runs.applyRun).toHaveBeenCalledWith(
 			expect.objectContaining({
-				updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+				updates: [{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }],
 				acceptedFieldKeys: ['contract_end']
 			})
 		);
@@ -114,7 +145,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 		});
 		expect(p.runs.applyRun).toHaveBeenCalledWith(
 			expect.objectContaining({
-				updates: [{ fieldKey: 'monthly_rate', value: '45.00 EUR' }]
+				updates: [{ fieldKey: 'monthly_rate', value: '45.00 EUR', sourceText: null }]
 			})
 		);
 	});
@@ -167,7 +198,7 @@ describe('applyExtractionRun (invariant: AI is never authoritative without an ex
 			expect(p.runs.applyRun).toHaveBeenCalledTimes(1);
 			expect(p.runs.applyRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					updates: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+					updates: [{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }],
 					actions: [expect.objectContaining({ suggestionId: 'act-1', dueDate: '2031-03-05' })]
 				})
 			);
@@ -217,7 +248,7 @@ describe('applyExtractionRun: comparison and conflict safety', () => {
 			runId: 'run-1',
 			acceptedFieldKeys: ['contract_end', 'note']
 		});
-		expect(lastApply(p).updates).toEqual([{ fieldKey: 'note', value: 'hello' }]);
+		expect(lastApply(p).updates).toEqual([{ fieldKey: 'note', value: 'hello', sourceText: null }]);
 		expect(lastApply(p).acceptedFieldKeys).toEqual(['note']);
 		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 1, createdActionCount: 0 });
 	});
@@ -230,7 +261,9 @@ describe('applyExtractionRun: comparison and conflict safety', () => {
 			acceptedFieldKeys: [],
 			replaceFieldKeys: ['contract_end']
 		});
-		expect(lastApply(p).updates).toEqual([{ fieldKey: 'contract_end', value: '2031-03-15' }]);
+		expect(lastApply(p).updates).toEqual([
+			{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null }
+		]);
 		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 0, createdActionCount: 0 });
 	});
 
@@ -301,7 +334,7 @@ describe('applyExtractionRun: comparison and conflict safety', () => {
 			replaceFieldKeys: ['contract_end'],
 			acceptAllNew: true
 		});
-		expect(lastApply(p).updates).toEqual([{ fieldKey: 'other', value: 'new' }]);
+		expect(lastApply(p).updates).toEqual([{ fieldKey: 'other', value: 'new', sourceText: null }]);
 		expect(result).toEqual({ changedCount: 1, keptCurrentCount: 1, createdActionCount: 0 });
 	});
 });

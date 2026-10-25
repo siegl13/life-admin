@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { deriveSchedule } from '$lib/domain/action/schedule';
+import { normalizeSourceText } from '$lib/domain/field/field';
 import { listActions } from './actionRepository';
 import { listEvents } from './eventRepository';
 import { listFields } from './fieldRepository';
@@ -11,6 +12,9 @@ import { UnknownFieldError } from '$lib/application/items/updateItemFields';
 export interface FieldValueUpdate {
 	fieldKey: string;
 	value: string | null;
+	/** Exact excerpt that accompanied an extracted value. Ignored when the
+	 *  stored value does not change. */
+	sourceText?: string | null;
 }
 
 /**
@@ -28,8 +32,19 @@ export function applyFieldUpdatesAndRecalculate(
 		assertCycleIsWritable(db, cycleId);
 
 		for (const update of updates) {
-			db.prepare('UPDATE cycle_fields SET value = ? WHERE cycle_id = ? AND field_key = ?').run(
+			const current = db
+				.prepare('SELECT value FROM cycle_fields WHERE cycle_id = ? AND field_key = ?')
+				.get(cycleId, update.fieldKey) as { value: string | null } | undefined;
+			// An unchanged value keeps its confirmation and source excerpt. A
+			// different value resets only this field's confirmation and takes
+			// the excerpt that came with it (none for a manual edit).
+			if (current && (current.value ?? '') === (update.value ?? '')) continue;
+			db.prepare(
+				`UPDATE cycle_fields SET value = ?, confirmed = 0, source_text = ?
+				 WHERE cycle_id = ? AND field_key = ?`
+			).run(
 				update.value,
+				update.value === null ? null : normalizeSourceText(update.sourceText),
 				cycleId,
 				update.fieldKey
 			);

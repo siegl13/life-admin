@@ -105,7 +105,9 @@ function realPorts(
 			addCustomField: (cycleId: string, input: Parameters<typeof fieldRepo.addCustomField>[2]) =>
 				fieldRepo.addCustomField(db, cycleId, input),
 			removeCustomField: (cycleId: string, key: string) =>
-				fieldRepo.removeCustomField(db, cycleId, key)
+				fieldRepo.removeCustomField(db, cycleId, key),
+			setFieldConfirmed: (cycleId: string, key: string, confirmed: boolean) =>
+				fieldRepo.setFieldConfirmed(db, cycleId, key, confirmed)
 		},
 		attachments: {
 			getById: (id: string) => attachmentRepo.getById(db, id),

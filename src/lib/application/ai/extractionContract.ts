@@ -21,7 +21,9 @@ export function buildExtractionContract(
 
 	return [
 		'Du liest ein einzelnes Dokument und schlägst Werte für bestimmte Angaben eines Life-Admin-Elements vor.',
-		'Gib ausschließlich JSON zurück, das exakt dem vorgegebenen Schema entspricht: nur { "suggestions": [ { "field_key": ..., "value": ... } ], "additional_suggestions": [ { "suggested_label": ..., "suggested_type": ..., "value": ..., "evidence": ... } ] }. Kein Fließtext, keine Erklärung, keine zusätzlichen Schlüssel.',
+		'Gib ausschließlich JSON zurück, das exakt dem vorgegebenen Schema entspricht: nur { "suggestions": [ { "field_key": ..., "value": ..., "source_text": ... } ], "additional_suggestions": [ { "suggested_label": ..., "suggested_type": ..., "value": ..., "evidence": ... } ] }. Kein Fließtext, keine Erklärung, keine zusätzlichen Schlüssel.',
+		'Für jedes bekannte Feld gib "source_text" als kurzen, wörtlich aus dem Dokument kopierten Ausschnitt an (höchstens 300 Zeichen), der den Wert belegt. Wenn kein sicherer Ausschnitt vorliegt, setze "source_text" auf null. Erfinde oder paraphrasiere keinen Beleg.',
+		'Uhrzeiten werden als Ortszeit im Format HH:MM ohne Zeitzone ausgegeben und niemals umgerechnet.',
 		`Erlaubt sind für "suggestions" ausschließlich die folgenden field_key-Werte. Jeder andere Schlüssel ist ungültig:\n${fieldLines}`,
 		'Erfinde keine Werte. Wenn das Dokument einen Wert nicht klar nennt, lass das Feld weg. Unbekannt bedeutet: weglassen, niemals raten, niemals interpolieren, niemals berechnen.',
 		[

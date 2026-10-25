@@ -1,5 +1,5 @@
 import { isIsoDate } from '../../domain/date/isoDate';
-import { isValidCurrencyStorageValue } from '../../domain/field/field';
+import { isValidCurrencyStorageValue, normalizeSourceText } from '../../domain/field/field';
 import type { ExtractionFieldDefinition, ExtractionSuggestion } from './extraction';
 
 export type DiscardReason =
@@ -83,7 +83,7 @@ export function filterSuggestions(
 			continue;
 		}
 
-		kept.push({ fieldKey, value });
+		kept.push({ fieldKey, value, sourceText: normalizeSourceText(suggestion.sourceText) });
 	}
 
 	return { kept, discarded };

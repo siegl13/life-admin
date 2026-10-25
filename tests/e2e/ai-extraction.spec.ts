@@ -232,9 +232,11 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	await expect(additional.getByText('Weiterer Termin')).toBeVisible();
 	await expect(additional.getByText('Monatliche Rate')).toBeVisible();
 	await expect(additional.getByText('351,00 €')).toBeVisible();
-	await expect(additional.getByText('Quelle:')).toBeVisible();
+	await expect(additional.getByText('Quelle:', { exact: true }).first()).toBeVisible();
 	await expect(
-		additional.getByText('Zusätzliche Information: Randnotiz aus dem Dokument', { exact: true })
+		additional.locator('.additional-suggestion__evidence q', {
+			hasText: 'Zusätzliche Information: Randnotiz aus dem Dokument'
+		})
 	).toBeVisible();
 	const visualEvidence = path.resolve('.agent/supervisor/group-assignment-final/visual');
 	fs.mkdirSync(visualEvidence, { recursive: true });

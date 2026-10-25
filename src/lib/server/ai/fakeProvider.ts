@@ -3,7 +3,8 @@ import type {
 	ExtractionActionSuggestion,
 	ExtractionAdditionalSuggestion,
 	ExtractionRequest,
-	ExtractionResult
+	ExtractionResult,
+	ExtractionSuggestion
 } from '$lib/application/ai/extraction';
 import type {
 	DocumentRoutingProviderPort,
@@ -27,16 +28,19 @@ export const fakeProvider: DocumentExtractionProviderPort & DocumentRoutingProvi
 	providerId: 'fake',
 	modelId: 'fake-v1',
 	async extract(request: ExtractionRequest): Promise<ExtractionResult> {
-		const suggestions: { fieldKey: string; value: string }[] = [];
+		const suggestions: ExtractionSuggestion[] = [];
 
 		const dateFields = request.fields.filter((field) => field.type === 'date');
 
-		for (const field of request.fields) {
+		// Every second field carries an excerpt, so both "with source" and
+		// "no source" appear deterministically.
+		request.fields.forEach((field, index) => {
 			suggestions.push({
 				fieldKey: field.fieldKey,
-				value: field.type === 'date' ? FAKE_DATE_VALUE : `Beispielwert ${field.label}`
+				value: field.type === 'date' ? FAKE_DATE_VALUE : `Beispielwert ${field.label}`,
+				sourceText: index % 2 === 0 ? `Fiktive Belegstelle ${index + 1}` : null
 			});
-		}
+		});
 
 		suggestions.push({ fieldKey: 'unknown_field_from_model', value: 'Beispielwert' });
 		const firstField = request.fields[0];
@@ -59,7 +63,12 @@ export const fakeProvider: DocumentExtractionProviderPort & DocumentRoutingProvi
 				value: 'Randnotiz aus dem Dokument',
 				evidence: 'Zusätzliche Information: Randnotiz aus dem Dokument'
 			},
-			{ suggestedLabel: 'Weiterer Termin', suggestedType: 'date', value: '2032-06-01' },
+			{
+				suggestedLabel: 'Weiterer Termin',
+				suggestedType: 'date',
+				value: '2032-06-01',
+				evidence: 'Fiktive Belegstelle Termin'
+			},
 			{ suggestedLabel: 'Monatliche Rate', suggestedType: 'currency', value: '351.00 EUR' }
 		];
 		if (firstField) {

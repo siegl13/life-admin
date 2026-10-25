@@ -106,7 +106,9 @@ export const cyclesPort: CycleRepositoryPort = {
 export const fieldsPort: FieldRepositoryPort = {
 	listFields: (cycleId) => fieldRepo.listFields(getDb(), cycleId),
 	addCustomField: (cycleId, input) => fieldRepo.addCustomField(getDb(), cycleId, input),
-	removeCustomField: (cycleId, fieldKey) => fieldRepo.removeCustomField(getDb(), cycleId, fieldKey)
+	removeCustomField: (cycleId, fieldKey) => fieldRepo.removeCustomField(getDb(), cycleId, fieldKey),
+	setFieldConfirmed: (cycleId, fieldKey, confirmed) =>
+		fieldRepo.setFieldConfirmed(getDb(), cycleId, fieldKey, confirmed)
 };
 
 export const fieldGroupsPort: FieldGroupRepositoryPort = {
