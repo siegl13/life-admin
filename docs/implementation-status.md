@@ -9,6 +9,130 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Staging UX - Unit A: Document semantics and Action Suggestions (`unit-a-document-semantics-actions`)
+
+**Status: IMPLEMENTED. Focused tests, supervisor verification, and independent
+review passed.**
+
+- Root cause: the provider had to pick a known `field_key` for every value and
+  the contract gave no rule for related fields. A return ticket value could be
+  forced into the outbound field (same for hotel vs operator), and the review
+  then showed a false conflict. Comparison, review and apply were already
+  correct (new / identical / conflicting, explicit replace only, accept all
+  never resolves conflicts). The contract also did not limit Actions to
+  explicit source text or say how to treat sub-day relations such as "10
+  minutes before departure". A raw `MINUTES` unit would fail the whole run on
+  the strict schema.
+- Change: `extractionContract.ts` defines semantic matching and explicit
+  Action rules. Additional Field Suggestions now carry optional, at-most-300
+  character literal evidence through `extractionOutputSchema.ts`, provider
+  mapping, the extraction use case, nullable `extraction_additional_suggestions.evidence`
+  migration, repository reads, and the review page. Blank/unavailable or
+  overlong excerpts become null; legacy rows remain readable. The prompt asks
+  for a verbatim contiguous excerpt and null when it cannot be cited safely.
+  Evidence is shown as a quiet localized source line. Existing field matching
+  and conflict handling are unchanged. New rules: match a value only to a
+  field with the same meaning, send doubtful or differently-roled values to
+  `additional_suggestions` with a role-specific label, Actions only from
+  explicit instructions or offers, no generic tips, no invented date, deadline
+  or precision, sub-day relations go into title/context with `kind: NONE`,
+  availability is `AVAILABLE_FROM` and `DUE_BY` needs an explicit deadline.
+  Existing Items are untouched.
+- Tests added: `src/lib/application/ai/documentScenarios.test.ts` (synthetic
+  documents: outbound/return, hotel/operator, identical values, genuine
+  conflict with both values, accept all vs explicit replace, arrive-before
+  instruction, check-in availability, payment deadline, cancellation with and
+  without anchor, ambiguous anchor, no Action without selection, repeated
+  analysis, in-run duplicates, contract wording).
+- Focused checks run: evidence schema/provider/contract/filter/use-case/review
+  tests and repository persistence tests are included in the final integrated
+  verification. E2E verifies a displayed excerpt in German. The prompt cannot
+  independently prove a model-generated excerpt is verbatim; no local OCR/text
+  source is available for independent quote matching.
+- Supervisor gate: `npm run verify` and `npm run test:e2e` passed in the
+  integrated Unit B verification run. Unit A's independent review passed.
+- Next safe work: Unit B and integrated final review.
+
+## Staging UX - Unit B: Group management and Field editing UX (`unit-b-group-and-field-ux`)
+
+**Status: READY. Acceptance flows pass, full verification passes, and the fresh
+independent review found no open findings.**
+
+- Change: Group manager now shows compact rows (name, star toggle, overflow
+  menu). The menu holds rename and only the valid move up/down actions. Add
+  group is a progressive disclosure. The star toggle is a plain POST form
+  (`GroupStarToggle.svelte`, `aria-pressed`, per-group `aria-label`, 44px
+  target) and is also shown in each Group heading of the item information
+  (stays on the item page after the toggle). The separate move-Field form is
+  removed. The Field edit form has a Group select per Field (Playbook, custom,
+  document-derived, only when the Item has more than one Group). Field values,
+  Group assignments, schedule recalculation, and Field-change History now use
+  `updateItemFieldsAndGroups` and one SQLite transaction in
+  `scheduleRepository.applyFieldUpdatesAndGroups`. The repository validates
+  active Item/cycle ownership, Field ownership, and Group ownership inside the
+  transaction. Invalid targets or database errors roll back all writes.
+  Unassigned Fields keep the General fallback.
+- Tests added or changed: `src/routes/items/[id]/page.server.test.ts` (facts
+  return target, reassignment of changed Fields only, invalid Group 400,
+  unknown Field ignored); `tests/e2e/field-groups.spec.ts` (create, direct
+  star toggle, persisted featured-first order after reload, rename in menu,
+  no move form, Playbook and custom Field reassignment, bilingual create/rename/
+  feature/menu/reassignment interaction, keyboard focus/state and native select
+  checks, 375/390/430 wrapping and 44px target checks). `tests/e2e/ai-extraction.spec.ts`
+  exercises the real document-derived Field accept, reassignment, reload, stable
+  field key/value and retained source-document history path.
+- Focused checks run: `npx vitest run "src/routes/items/[id]/page.server.test.ts" src/lib/i18n`
+  (35 passed), `npx eslint` on changed UI, route, i18n and e2e files (clean),
+  `npx svelte-check --threshold error` (0 errors), `npx vite build` (ok),
+  `npx playwright test tests/e2e/field-groups.spec.ts` (7 passed after
+  review round 1: constant star accessible name with `aria-pressed` carrying
+  state, and a new test that menus hide invalid moves with a featured Group and
+  persist one move after reload), `npx vitest run src/lib/i18n` (6 passed).
+- Earlier Unit B verification: `npm run verify` and `npm run test:e2e` both
+  exited 0 before the integrated acceptance additions. Evidence:
+  `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-01.log`
+  and
+  `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-02.log`.
+- Responsive visual review: inspected synthetic Item screenshots at 375px,
+  390px, 430px and 1280px. Group rows, stars, overflow controls, Group select,
+  and mobile navigation stayed within the viewport without visible overlap or
+  horizontal overflow. Evidence and limitations:
+  `.agent/supervisor/life-admin-staging-ux/operational-evidence/responsive-review.md`.
+- Accessibility evidence: browser tests assert star and overflow accessible
+  names, `aria-pressed`, keyboard activation, visible focus, native Group select
+  labels/values, keyboard selection and pointer-assisted selection. The
+  overflow UI is a native disclosure, not a modal dialog. No Axe dependency is
+  installed. This environment has no VoiceOver/screen-reader session or real
+  mobile OS Select surface, so those manual checks were not performed.
+- Atomicity regression tests in `scheduleRepository.test.ts` verify successful
+  grouped edits, invalid target rejection, trigger-induced Group write failure
+  rollback of Field values/assignments/History, plain Field edits, unchanged
+  value History suppression, and Item/cycle guards.
+- Inbox E2E root cause: the E2E database is shared across sequential tests.
+  The new extraction fixture's title, `Document-derived Group assignment`,
+  matched the fake routing provider's `document` item hint. The existing Item
+  suggestion therefore correctly selected the existing-item radio, contrary
+  to this test's playbook-only setup. Renaming the fixture to
+  `Extracted Field Group assignment` removes the accidental hint match. The
+  targeted combined sequence and the full suite now pass.
+- Final integrated verification: `npm run verify` passed (134 test files,
+  1,272 unit tests, Svelte check clean, build passed). `npm run test:e2e`
+  passed all 232 tests. Focused transaction/route tests passed (56 tests).
+  `git diff --check` passed. Fresh independent review found no actionable
+  findings and confirmed transaction/rollback, History, guards, E2E root cause,
+  extraction, and Group behavior.
+- Acceptance gaps addressed: optional concise source excerpt; real
+  document-derived Field Group reassignment; DE/EN interaction and persistence;
+  browser keyboard/focus/accessibility and native select checks. Remaining
+  limitations: no actual screen-reader/native-mobile Select test, and no
+  independent verification that model-provided excerpt text exactly matches
+  image/PDF content.
+- Remaining limitations: VoiceOver/screen-reader and native mobile OS Select
+  interactions were not manually tested. Model-provided source excerpts are
+  not independently matched against the original document text.
+- Open gates: none.
+- Next planned unit: none defined in the brief.
+
 ## PR 59 - Deployment-independent production origin (`pr-59-origin`)
 
 **Status: IMPLEMENTED. Full automated verification passed on the final

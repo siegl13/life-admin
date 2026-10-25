@@ -13,9 +13,35 @@ describe('filterAdditionalSuggestions', () => {
 			EXISTING_FIELDS
 		);
 		expect(kept).toEqual([
-			{ suggestedLabel: 'Fahrzeugmodell', suggestedType: 'text', value: 'CUPRA Born' }
+			{
+				suggestedLabel: 'Fahrzeugmodell',
+				suggestedType: 'text',
+				value: 'CUPRA Born',
+				evidence: null
+			}
 		]);
 		expect(discarded).toEqual([]);
+	});
+
+	it('keeps a short source excerpt and omits blank or overlong evidence', () => {
+		const { kept } = filterAdditionalSuggestions(
+			[
+				{
+					suggestedLabel: 'Rückflugnummer',
+					suggestedType: 'text',
+					value: 'DE1669',
+					evidence: '  Rückflug DE1669, Heraklion nach Frankfurt  '
+				},
+				{ suggestedLabel: 'Notiz', suggestedType: 'text', value: 'x', evidence: '  ' },
+				{ suggestedLabel: 'Lang', suggestedType: 'text', value: 'x', evidence: 'x'.repeat(301) }
+			],
+			EXISTING_FIELDS
+		);
+		expect(kept.map((s) => s.evidence)).toEqual([
+			'Rückflug DE1669, Heraklion nach Frankfurt',
+			null,
+			null
+		]);
 	});
 
 	it('keeps a valid date suggestion', () => {
@@ -111,7 +137,12 @@ describe('filterAdditionalSuggestions', () => {
 			EXISTING_FIELDS
 		);
 		expect(kept).toEqual([
-			{ suggestedLabel: 'Händler', suggestedType: 'text', value: 'Autohaus A' }
+			{
+				suggestedLabel: 'Händler',
+				suggestedType: 'text',
+				value: 'Autohaus A',
+				evidence: null
+			}
 		]);
 		expect(discarded).toEqual([{ suggestedLabel: 'Händler', reason: 'DUPLICATE' }]);
 	});

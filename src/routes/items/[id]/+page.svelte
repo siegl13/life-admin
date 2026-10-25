@@ -236,7 +236,12 @@
 												{view.group.label ?? t('items.detail.groupGeneral')}
 											</legend>
 											{#each view.fields as field (field.id)}
-												<FieldInput {field} removable={field.origin === 'CUSTOM'} />
+												<FieldInput
+													{field}
+													removable={field.origin === 'CUSTOM'}
+													groups={data.fieldGroups}
+													groupId={view.group.id}
+												/>
 											{/each}
 										</fieldset>
 									{/each}

@@ -45,7 +45,10 @@ const {
 		reorder: vi.fn(),
 		moveField: vi.fn()
 	},
-	schedule: { applyFieldUpdatesAndRecalculate: vi.fn() },
+	schedule: {
+		applyFieldUpdatesAndRecalculate: vi.fn(),
+		applyFieldUpdatesAndGroups: vi.fn()
+	},
 	items: { getItemById: vi.fn() },
 	snoozes: { get: vi.fn(), set: vi.fn(), clearIfVersion: vi.fn(), list: vi.fn() },
 	whatsNext: { loadItems: vi.fn() }
@@ -73,6 +76,7 @@ vi.mock('$lib/server/appPorts', () => ({
 }));
 
 import { actions } from './+page.server';
+import { FieldGroupTargetNotFoundError as RepoFieldGroupTargetNotFoundError } from '$lib/server/db/repositories/fieldGroupRepository';
 import { resolveHistoryLimit } from '$lib/application/history/historyPagination';
 
 const A = '10000000-0000-4000-8000-000000000001';
@@ -273,10 +277,7 @@ describe('updateFields action (history recording)', () => {
 	});
 
 	it('records exactly one FIELD_CHANGED event when the value actually changes', async () => {
-		fields.listFields
-			.mockReturnValueOnce([textField('old value')]) // pre-write snapshot
-			.mockReturnValueOnce([textField('old value')]) // normalizeFieldUpdates' type lookup
-			.mockReturnValueOnce([textField('new value')]); // post-write snapshot
+		fields.listFields.mockReturnValue([textField('old value')]);
 
 		let caught: unknown;
 		try {
@@ -286,12 +287,20 @@ describe('updateFields action (history recording)', () => {
 		}
 
 		expect(isRedirect(caught)).toBe(true);
-		expect(history.insert).toHaveBeenCalledTimes(1);
-		expect(history.insert).toHaveBeenCalledWith(
-			expect.objectContaining({
-				eventType: 'FIELD_CHANGED',
-				payload: JSON.stringify({ fieldKey: 'notes' })
-			})
+		expect(schedule.applyFieldUpdatesAndGroups).toHaveBeenCalledWith(
+			A,
+			'cycle-1',
+			expect.any(Array),
+			[],
+			[
+				expect.objectContaining({
+					fieldKey: 'notes',
+					event: expect.objectContaining({
+						eventType: 'FIELD_CHANGED',
+						payload: JSON.stringify({ fieldKey: 'notes' })
+					})
+				})
+			]
 		);
 	});
 });
@@ -307,6 +316,8 @@ describe('snooze actions', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		items.getItemById.mockReturnValue({ status: 'ACTIVE' });
+		cycles.getActiveCycle.mockReturnValue({ id: 'cycle-1' });
+		fields.listFields.mockReturnValue([textField('x'), { ...textField('y'), fieldKey: 'other' }]);
 	});
 
 	it('rejects an invalid snooze date before persistence', async () => {
@@ -472,6 +483,8 @@ describe('field group actions', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		items.getItemById.mockReturnValue({ status: 'ACTIVE' });
+		cycles.getActiveCycle.mockReturnValue({ id: 'cycle-1' });
+		fields.listFields.mockReturnValue([textField('x'), { ...textField('y'), fieldKey: 'other' }]);
 		fieldGroups.createGroup.mockReturnValue(GROUP);
 		fieldGroups.renameGroup.mockReturnValue(GROUP);
 		fieldGroups.setFeatured.mockReturnValue(GROUP);
@@ -515,6 +528,73 @@ describe('field group actions', () => {
 		await run('moveFieldGroup', { groupId: 'b', direction: 'up' });
 
 		expect(fieldGroups.reorder).toHaveBeenCalledWith(A, ['b', 'a']);
+	});
+
+	it('keeps a feature toggle from the item information on the item page', async () => {
+		const result = await run('setFieldGroupFeatured', {
+			groupId: 'g1',
+			featured: 'true',
+			returnTo: 'facts'
+		});
+
+		expect(result).toMatchObject({ status: 303, location: `/items/${A}#fields-label` });
+		expect(fieldGroups.setFeatured).toHaveBeenCalledWith(A, 'g1', true);
+	});
+
+	describe('group reassignment while editing fields', () => {
+		const DEFAULT = { ...GROUP, id: 'gd', label: null, isDefault: true };
+
+		beforeEach(() => {
+			cycles.getActiveCycle.mockReturnValue({ id: 'cycle-1' });
+			fields.listFields.mockReturnValue([
+				{ ...textField('x'), fieldKey: 'notes' },
+				{ ...textField('y'), id: 'field-2', fieldKey: 'other' }
+			]);
+			fieldGroups.listGroups.mockReturnValue([DEFAULT, GROUP]);
+			fieldGroups.listAssignments.mockReturnValue([{ fieldKey: 'other', groupId: 'g1' }]);
+		});
+
+		it('moves only fields whose selected group changed, without touching values', async () => {
+			const result = await run('updateFields', {
+				'field:notes': 'x',
+				'fieldGroup:notes': 'g1',
+				'field:other': 'y',
+				'fieldGroup:other': 'g1'
+			});
+
+			expect(isRedirect(result)).toBe(true);
+			expect(result).toMatchObject({ location: `/items/${A}` });
+			expect(schedule.applyFieldUpdatesAndGroups).toHaveBeenCalledWith(
+				A,
+				'cycle-1',
+				expect.any(Array),
+				[
+					{ fieldKey: 'notes', groupId: 'g1' },
+					{ fieldKey: 'other', groupId: 'g1' }
+				],
+				expect.any(Array)
+			);
+		});
+
+		it('fails with a 400 for a group that is not part of the item', async () => {
+			schedule.applyFieldUpdatesAndGroups.mockImplementation(() => {
+				throw new RepoFieldGroupTargetNotFoundError();
+			});
+
+			const result = await run('updateFields', {
+				'field:notes': 'x',
+				'fieldGroup:notes': 'unknown'
+			});
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(schedule.applyFieldUpdatesAndGroups).toHaveBeenCalledTimes(1);
+		});
+
+		it('ignores a group select for a field the item does not have', async () => {
+			await run('updateFields', { 'field:notes': 'x', 'fieldGroup:ghost': 'g1' });
+
+			expect(schedule.applyFieldUpdatesAndGroups).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	it('rejects an invalid label without touching the repository', async () => {

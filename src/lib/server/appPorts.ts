@@ -129,7 +129,9 @@ export const eventsPort: EventRepositoryPort = {
 
 export const scheduleRepositoryPort: ScheduleRepositoryPort = {
 	applyFieldUpdatesAndRecalculate: (cycleId, updates) =>
-		scheduleRepo.applyFieldUpdatesAndRecalculate(getDb(), cycleId, updates)
+		scheduleRepo.applyFieldUpdatesAndRecalculate(getDb(), cycleId, updates),
+	applyFieldUpdatesAndGroups: (itemId, cycleId, updates, assignments, history) =>
+		scheduleRepo.applyFieldUpdatesAndGroups(getDb(), itemId, cycleId, updates, assignments, history)
 };
 
 export const actionsPort: ActionRepositoryPort = {

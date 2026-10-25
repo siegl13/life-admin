@@ -203,6 +203,7 @@ export async function extractFromDocument(
 			discardedCount: discarded.length,
 			additionalSuggestions: keptAdditional.map((suggestion, position) => ({
 				...suggestion,
+				evidence: suggestion.evidence ?? null,
 				position
 			})),
 			discardedAdditionalCount: discardedAdditional.length

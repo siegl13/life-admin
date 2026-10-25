@@ -15,6 +15,12 @@ import { expect, test, type Page } from '@playwright/test';
  */
 const MINIMAL_PDF = Buffer.from('%PDF-1.4\n%%EOF');
 
+test.afterEach(async ({ page }) => {
+	await page.goto('/settings');
+	const disable = page.getByRole('button', { name: 'Ausschalten', exact: true });
+	if (await disable.count()) await disable.click();
+});
+
 async function createTuvItemWithAttachment(
 	page: Page,
 	title: string,
@@ -217,10 +223,16 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 	await expect(page).toHaveURL(/\/suggestions\//);
 
 	const additional = page.locator('#additional-suggestions');
-	await expect(additional.getByText('Zusätzliche Information')).toBeVisible();
+	await expect(
+		additional.locator('.additional-suggestion').filter({ hasText: 'Zusätzliche Information' })
+	).toBeVisible();
 	await expect(additional.getByText('Weiterer Termin')).toBeVisible();
 	await expect(additional.getByText('Monatliche Rate')).toBeVisible();
 	await expect(additional.getByText('351,00 €')).toBeVisible();
+	await expect(additional.getByText('Quelle:')).toBeVisible();
+	await expect(
+		additional.getByText('Zusätzliche Information: Randnotiz aus dem Dokument', { exact: true })
+	).toBeVisible();
 	// The 4th fixed suggestion duplicates the known field's own label —
 	// server-side dedup (filterAdditionalSuggestions) must have discarded
 	// it before it ever reached this page.
@@ -332,6 +344,80 @@ test('AI Extraction 1.1: additional suggestions are searchable and become normal
 			JSON.stringify({ overflow, layout })
 		).toEqual([]);
 	}
+
+	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Ausschalten' }).click();
+});
+
+test('a document-derived Field can be reassigned without changing its value or extraction history', async ({
+	page
+}) => {
+	const filename = 'gruppenbeleg.pdf';
+	const itemUrl = await createTuvItemWithAttachment(
+		page,
+		'Extracted Field Group assignment',
+		filename
+	);
+	await page.goto('/settings');
+	await page.getByLabel('Ich habe verstanden, dass ausgewählte Dokumente an OpenAI').check();
+	await page.getByRole('button', { name: 'Einschalten' }).click();
+
+	await page.goto(itemUrl);
+	await openExtractionReview(page, filename);
+	const additional = page.locator('#additional-suggestions');
+	const selectedSuggestion = additional.locator('.additional-suggestion', {
+		hasText: 'Zusätzliche Information'
+	});
+	await selectedSuggestion.getByRole('checkbox').check();
+	for (const checkbox of await page.locator('#known-suggestions input[type="checkbox"]').all()) {
+		if (await checkbox.isChecked()) await checkbox.uncheck();
+	}
+	await additional.getByRole('button', { name: 'Ausgewählte hinzufügen' }).click();
+	await expect(page).toHaveURL(itemUrl);
+
+	const openGroups = async () => {
+		const manager = page.locator('details#field-groups');
+		if (!(await manager.evaluate((element) => (element as HTMLDetailsElement).open))) {
+			const panel = page
+				.locator('details.fields-panel')
+				.filter({ has: page.locator('#fields-label') });
+			if (!(await panel.evaluate((element) => (element as HTMLDetailsElement).open))) {
+				await panel.locator(':scope > summary').click();
+			}
+			await manager.locator(':scope > summary').click();
+		}
+		return manager;
+	};
+	const manager = await openGroups();
+	await manager.locator('details.group-add > summary').click();
+	await manager.getByLabel('Neue Gruppe').fill('Belege');
+	await manager.getByRole('button', { name: 'Gruppe anlegen' }).click();
+	const fieldInput = page.getByLabel('Zusätzliche Information', { exact: true });
+	const fieldKey = await fieldInput.getAttribute('id');
+	expect(fieldKey).toMatch(/^c_/);
+	const groupSelect = page.locator(`#group-${fieldKey}`);
+	const originalValue = await fieldInput.inputValue();
+	expect(originalValue).toBe('Randnotiz aus dem Dokument');
+	await groupSelect.selectOption({ label: 'Belege' });
+	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+	const targetGroup = page.locator('.facts-group').filter({
+		has: page.locator('.facts-group__label', { hasText: 'Belege' })
+	});
+	await expect(targetGroup.locator('.data-row__key')).toHaveText('Zusätzliche Information');
+	await expect(targetGroup.locator('.data-row__value')).toHaveText(originalValue);
+	const extractionHistory = page.locator('.history-event__text').filter({
+		hasText: `1 Vorschlag aus „${filename}“ übernommen`
+	});
+	await expect(extractionHistory).toBeVisible();
+
+	await page.reload();
+	await expect(targetGroup.locator('.data-row__value')).toHaveText(originalValue);
+	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
+	await expect(page.locator(`#${fieldKey}`)).toHaveValue(originalValue);
+	await expect(page.locator(`#group-${fieldKey} option:checked`)).toHaveText('Belege');
+	await expect(page.locator(`#${fieldKey}`)).toHaveAttribute('id', fieldKey!);
+	await expect(page.locator('.history-event__text').filter({ hasText: filename })).toBeVisible();
 
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Ausschalten' }).click();

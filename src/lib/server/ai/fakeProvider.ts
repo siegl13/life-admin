@@ -56,7 +56,8 @@ export const fakeProvider: DocumentExtractionProviderPort & DocumentRoutingProvi
 			{
 				suggestedLabel: 'Zusätzliche Information',
 				suggestedType: 'text',
-				value: 'Randnotiz aus dem Dokument'
+				value: 'Randnotiz aus dem Dokument',
+				evidence: 'Zusätzliche Information: Randnotiz aus dem Dokument'
 			},
 			{ suggestedLabel: 'Weiterer Termin', suggestedType: 'date', value: '2032-06-01' },
 			{ suggestedLabel: 'Monatliche Rate', suggestedType: 'currency', value: '351.00 EUR' }

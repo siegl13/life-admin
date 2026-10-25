@@ -48,6 +48,7 @@ export interface ExtractionAdditionalSuggestionRecord {
 	suggestedLabel: string;
 	suggestedType: SuggestedFieldType;
 	value: string;
+	evidence: string | null;
 	position: number;
 	accepted: boolean;
 }
@@ -112,6 +113,7 @@ export interface MarkExtractionRunSucceededInput {
 		suggestedLabel: string;
 		suggestedType: SuggestedFieldType;
 		value: string;
+		evidence?: string | null;
 		position: number;
 	}[];
 	discardedAdditionalCount: number;

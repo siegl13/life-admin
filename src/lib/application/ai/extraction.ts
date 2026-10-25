@@ -76,6 +76,8 @@ export interface ExtractionAdditionalSuggestion {
 	suggestedLabel: string;
 	suggestedType: SuggestedFieldType;
 	value: string;
+	/** Optional short literal excerpt from the source document. */
+	evidence?: string | null;
 }
 
 /**

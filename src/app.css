@@ -1870,24 +1870,93 @@ a.items-archive-toggle {
 	letter-spacing: 0;
 }
 
+.facts-group__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.group-star {
+	flex: none;
+	margin: 0;
+}
+
+.group-star__button {
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 1.25rem;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.group-star__button[aria-pressed='true'] {
+	color: var(--color-text);
+}
+
+.facts-group__head .group-star__button {
+	margin-top: -0.75rem;
+}
+
 .field-groups__list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-4);
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.field-groups__item {
+.field-groups__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+	min-height: 44px;
+}
+
+.field-groups__name {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.group-menu {
+	flex: none;
+}
+
+.group-menu > summary {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 44px;
+	min-height: 44px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.group-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.group-menu__panel {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-2);
+	flex-basis: 100%;
 	min-width: 0;
 }
 
-.field-groups__rename,
-.field-groups__controls {
+.group-menu[open] {
+	flex-basis: 100%;
+}
+
+.field-groups__rename {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-2);
@@ -1898,9 +1967,33 @@ a.items-archive-toggle {
 	min-width: 0;
 }
 
-.field-groups__heading {
-	margin: 0;
-	font-size: var(--text-body);
+.group-add > summary {
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+
+.field-row__group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.additional-suggestion__evidence {
+	margin: calc(-1 * var(--space-2)) 0 var(--space-3) var(--space-7);
+	color: var(--text-muted);
+	font-size: var(--text-sm);
+}
+
+.additional-suggestion__evidence span {
+	margin-right: var(--space-1);
+	font-weight: 600;
+}
+
+.additional-suggestion__evidence q {
+	quotes: '„' '“';
 }
 
 .fields-update-form__group {

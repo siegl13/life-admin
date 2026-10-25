@@ -29,6 +29,7 @@ export interface FilterAdditionalSuggestionsResult {
 
 const MAX_LABEL_LENGTH = 200;
 const MAX_VALUE_LENGTH = 500;
+const MAX_EVIDENCE_LENGTH = 300;
 /** Conservative cap on additional suggestions kept per run (AI Extraction
  *  1.1, section 11) — the schema already caps the raw provider array to
  *  30 (extractionOutputSchema.ts); this is the same number enforced again
@@ -118,7 +119,13 @@ export function filterAdditionalSuggestions(
 			continue;
 		}
 
-		kept.push({ suggestedLabel: label, suggestedType: suggestion.suggestedType, value });
+		const evidence = suggestion.evidence?.trim() ?? '';
+		kept.push({
+			suggestedLabel: label,
+			suggestedType: suggestion.suggestedType,
+			value,
+			evidence: evidence.length > 0 && evidence.length <= MAX_EVIDENCE_LENGTH ? evidence : null
+		});
 	}
 
 	return { kept, discarded };

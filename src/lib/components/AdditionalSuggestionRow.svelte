@@ -32,6 +32,12 @@
 			<span class="meta">{displaySuggestedValue()}</span>
 		</span>
 	</label>
+	{#if suggestion.evidence}
+		<p class="additional-suggestion__evidence">
+			<span>{t('ai.additional.source')}</span>
+			<q>{suggestion.evidence}</q>
+		</p>
+	{/if}
 
 	<div class="field-row">
 		<label for="additional-label-{suggestion.id}">{t('items.detail.customFieldLabel')}</label>

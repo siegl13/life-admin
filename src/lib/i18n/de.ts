@@ -240,16 +240,14 @@ export const de = {
 	'items.detail.groupAdd': 'Gruppe anlegen',
 	'items.detail.groupRename': 'Umbenennen',
 	'items.detail.groupRenameFor': 'Gruppe umbenennen: {group}',
-	'items.detail.groupFeature': 'Hervorheben',
-	'items.detail.groupUnfeature': 'Nicht mehr hervorheben',
+	'items.detail.groupFeatureFor': 'Gruppe hervorheben: {group}',
+	'items.detail.groupMoreFor': 'Weitere Aktionen für Gruppe: {group}',
+	'items.detail.groupAddOpen': 'Gruppe hinzufügen',
+	'items.detail.fieldGroup': 'Gruppe',
 	'items.detail.groupMoveUp': 'Nach oben',
 	'items.detail.groupMoveDown': 'Nach unten',
 	'items.detail.groupMoveUpFor': 'Gruppe nach oben: {group}',
 	'items.detail.groupMoveDownFor': 'Gruppe nach unten: {group}',
-	'items.detail.groupMoveFieldHeading': 'Angabe verschieben',
-	'items.detail.groupMoveFieldSelect': 'Angabe',
-	'items.detail.groupMoveTarget': 'Zielgruppe',
-	'items.detail.groupMoveField': 'Verschieben',
 	'items.detail.groupLabelInvalid':
 		'Der Gruppenname ist erforderlich und darf höchstens 80 Zeichen lang sein.',
 	'items.detail.groupTargetMissing': 'Gruppe oder Angabe nicht gefunden.',
@@ -548,6 +546,7 @@ export const de = {
 	'ai.additional.searchNoResults': 'Keine Treffer für diese Suche.',
 	'ai.additional.submit': 'Ausgewählte hinzufügen',
 	'ai.additional.noneSelected': 'Bitte wähle mindestens eine Angabe aus.',
+	'ai.additional.source': 'Quelle:',
 	'ai.error.rateLimited':
 		'Das tägliche Limit für die automatische Erkennung ist erreicht. Bitte versuche es morgen erneut.',
 	'ai.error.providerRateLimited':

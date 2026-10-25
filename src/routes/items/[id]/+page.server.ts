@@ -74,7 +74,7 @@ import {
 	InvalidDateValueError,
 	ItemHasNoActiveCycleError,
 	UnknownFieldError,
-	updateItemFields
+	updateItemFieldsAndGroups
 } from '$lib/application/items/updateItemFields';
 import { CannotRemovePlaybookFieldError } from '$lib/server/db/repositories/fieldRepository';
 import { FieldGroupTargetNotFoundError as RepoFieldGroupTargetNotFoundError } from '$lib/server/db/repositories/fieldGroupRepository';
@@ -122,6 +122,8 @@ const FIELD_PREFIX = 'field:';
  *  under this prefix (the amount stays under FIELD_PREFIX) — two plain
  *  inputs, no client-side JS combining them before submit. */
 const FIELD_CURRENCY_PREFIX = 'fieldCurrency:';
+/** Per-field group select of the edit form; only a changed group is written. */
+const FIELD_GROUP_PREFIX = 'fieldGroup:';
 
 /** True when the item's frozen playbook snapshot cannot drive a new cycle:
  *  either the stored JSON itself is corrupt, or it parses but fails the
@@ -489,22 +491,27 @@ export const actions: Actions = {
 					currencyCode: formData.get(`${FIELD_CURRENCY_PREFIX}${fieldKey}`)?.toString()
 				};
 			});
-
-		// Snapshotted before the write so a `FIELD_CHANGED` event can be
-		// recorded only for a field whose stored value actually differs —
-		// re-submitting the form unchanged (every populated field re-posts
-		// its current value) must not log one event per field.
-		const activeCycleBefore = cyclesPort.getActiveCycle(params.id);
-		const valuesBefore = new Map(
-			activeCycleBefore
-				? fieldsPort.listFields(activeCycleBefore.id).map((f) => [f.fieldKey, f.value])
-				: []
-		);
-
+		const assignments = [...formData.entries()]
+			.filter(([key]) => key.startsWith(FIELD_GROUP_PREFIX))
+			.map(([key, value]) => ({
+				fieldKey: key.slice(FIELD_GROUP_PREFIX.length),
+				groupId: value.toString()
+			}));
+		const history = updates.map(({ fieldKey }) => ({
+			fieldKey,
+			event: {
+				id: idsPort.newId(),
+				itemId: params.id,
+				actorKind: 'OWNER' as const,
+				eventType: 'FIELD_CHANGED' as const,
+				payload: JSON.stringify({ fieldKey }),
+				createdAt: clock.nowIso()
+			}
+		}));
 		try {
-			updateItemFields(
+			updateItemFieldsAndGroups(
 				{ cycles: cyclesPort, fields: fieldsPort, schedule: scheduleRepositoryPort },
-				{ itemId: params.id, updates }
+				{ itemId: params.id, updates, assignments, history }
 			);
 		} catch (err) {
 			if (err instanceof ItemNotWritableError) {
@@ -512,6 +519,8 @@ export const actions: Actions = {
 			}
 			if (
 				err instanceof UnknownFieldError ||
+				err instanceof FieldGroupTargetNotFoundError ||
+				err instanceof RepoFieldGroupTargetNotFoundError ||
 				err instanceof InvalidDateValueError ||
 				err instanceof InvalidCurrencyValueError ||
 				err instanceof ItemHasNoActiveCycleError
@@ -519,22 +528,6 @@ export const actions: Actions = {
 				return fail(400, { error: err.message });
 			}
 			throw err;
-		}
-
-		const updatedFieldKeys = new Set(updates.map((u) => u.fieldKey));
-		const fieldsAfter = fieldsPort.listFields(cyclesPort.getActiveCycle(params.id)?.id ?? '');
-		for (const field of fieldsAfter) {
-			if (!updatedFieldKeys.has(field.fieldKey)) continue;
-			if ((valuesBefore.get(field.fieldKey) ?? null) === field.value) continue;
-			recordHistoryEvent(
-				{ history: itemHistoryPort, ids: idsPort, clock },
-				{
-					itemId: params.id,
-					actorKind: 'OWNER',
-					eventType: 'FIELD_CHANGED',
-					payload: { fieldKey: field.fieldKey }
-				}
-			);
 		}
 
 		// Redirect back to the clean item URL: without this, the browser's
@@ -660,15 +653,23 @@ export const actions: Actions = {
 
 	setFieldGroupFeatured: async ({ request, params }) => {
 		const formData = await request.formData();
-		return mutateFieldGroups(params.id, () =>
-			setFieldGroupFeatured(
-				{ fieldGroups: fieldGroupsPort },
-				{
-					itemId: params.id,
-					groupId: formData.get('groupId')?.toString() ?? '',
-					featured: formData.get('featured')?.toString() === 'true'
-				}
-			)
+		// Featuring from the item information stays there instead of opening the manager.
+		const redirectTo =
+			formData.get('returnTo')?.toString() === 'facts'
+				? `/items/${params.id}#fields-label`
+				: undefined;
+		return mutateFieldGroups(
+			params.id,
+			() =>
+				setFieldGroupFeatured(
+					{ fieldGroups: fieldGroupsPort },
+					{
+						itemId: params.id,
+						groupId: formData.get('groupId')?.toString() ?? '',
+						featured: formData.get('featured')?.toString() === 'true'
+					}
+				),
+			redirectTo
 		);
 	},
 
@@ -874,7 +875,11 @@ export const actions: Actions = {
 };
 
 /** Runs one field group mutation with the archive guard and shared error mapping, then returns to the page. */
-function mutateFieldGroups(itemId: string, mutation: () => unknown) {
+function mutateFieldGroups(
+	itemId: string,
+	mutation: () => unknown,
+	redirectTo = `/items/${itemId}?manage=groups#field-groups`
+) {
 	if (isItemArchived(itemId)) return fail(400, { error: t('items.detail.archivedReadOnly') });
 	try {
 		mutation();
@@ -893,7 +898,7 @@ function mutateFieldGroups(itemId: string, mutation: () => unknown) {
 		}
 		throw err;
 	}
-	redirect(303, `/items/${itemId}?manage=groups#field-groups`);
+	redirect(303, redirectTo);
 }
 
 function relationRedirect(itemId: string, query: string): string {

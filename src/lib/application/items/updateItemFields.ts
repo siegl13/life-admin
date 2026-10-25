@@ -146,3 +146,28 @@ export function updateItemFields(
 
 	ports.schedule.applyFieldUpdatesAndRecalculate(cycle.id, normalized);
 }
+
+/** Updates Field values, Group assignments, derived schedule data, and change
+ * History in one repository transaction. */
+export function updateItemFieldsAndGroups(
+	ports: {
+		cycles: CycleRepositoryPort;
+		fields: FieldRepositoryPort;
+		schedule: ScheduleRepositoryPort;
+	},
+	input: UpdateItemFieldsInput & {
+		assignments: readonly { fieldKey: string; groupId: string }[];
+		history: readonly { fieldKey: string; event: import('../ports').ItemHistoryEvent }[];
+	}
+): void {
+	const cycle = ports.cycles.getActiveCycle(input.itemId);
+	if (!cycle) throw new ItemHasNoActiveCycleError(input.itemId);
+	const normalized = normalizeFieldUpdates(ports.fields.listFields(cycle.id), input.updates);
+	ports.schedule.applyFieldUpdatesAndGroups(
+		input.itemId,
+		cycle.id,
+		normalized,
+		input.assignments,
+		input.history
+	);
+}
