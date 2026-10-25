@@ -11,7 +11,8 @@ import { createItem, setItemStatus } from './itemRepository';
 import { listFields } from './fieldRepository';
 import { listEvents } from './eventRepository';
 import { listActions, setActionDueOverride } from './actionRepository';
-import { applyFieldUpdatesAndRecalculate } from './scheduleRepository';
+import { applyFieldUpdatesAndGroups, applyFieldUpdatesAndRecalculate } from './scheduleRepository';
+import { createFieldGroup, listFieldGroupAssignments } from './fieldGroupRepository';
 import { ItemNotWritableError } from './writeGuards';
 
 let tmpDir: string;
@@ -66,6 +67,163 @@ beforeEach(() => {
 afterEach(() => {
 	db.close();
 	fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+function fieldChangeHistory(fieldKey: string) {
+	return {
+		fieldKey,
+		event: {
+			id: `history-${fieldKey}`,
+			itemId,
+			actorKind: 'OWNER' as const,
+			eventType: 'FIELD_CHANGED' as const,
+			payload: JSON.stringify({ fieldKey }),
+			createdAt: '2026-10-25T00:00:00.000Z'
+		}
+	};
+}
+
+describe('applyFieldUpdatesAndGroups', () => {
+	it('commits Field values, Group assignments, derived data, and History together', () => {
+		const group = createFieldGroup(db, itemId, 'Documents');
+		applyFieldUpdatesAndGroups(
+			db,
+			itemId,
+			cycleId,
+			[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+			[{ fieldKey: 'valid_until', groupId: group.id }],
+			[fieldChangeHistory('valid_until')]
+		);
+
+		expect(listFields(db, cycleId).find((field) => field.fieldKey === 'valid_until')?.value).toBe(
+			'2028-08-31'
+		);
+		expect(listFieldGroupAssignments(db, itemId)).toContainEqual({
+			fieldKey: 'valid_until',
+			groupId: group.id
+		});
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM item_history_events WHERE item_id = ?').get(itemId)
+		).toMatchObject({ count: 1 });
+	});
+
+	it('rejects an invalid group before any Field value or History write', () => {
+		expect(() =>
+			applyFieldUpdatesAndGroups(
+				db,
+				itemId,
+				cycleId,
+				[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+				[{ fieldKey: 'valid_until', groupId: 'not-this-items-group' }],
+				[fieldChangeHistory('valid_until')]
+			)
+		).toThrow();
+
+		expect(
+			listFields(db, cycleId).find((field) => field.fieldKey === 'valid_until')?.value
+		).toBeNull();
+		expect(listFieldGroupAssignments(db, itemId)).toEqual([]);
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM item_history_events WHERE item_id = ?').get(itemId)
+		).toMatchObject({ count: 0 });
+	});
+
+	it('rolls back earlier Field writes and History when a Group write fails', () => {
+		const group = createFieldGroup(db, itemId, 'Documents');
+		db.exec(`CREATE TRIGGER fail_group_assignment BEFORE INSERT ON item_field_group_assignments
+			BEGIN SELECT RAISE(ABORT, 'forced assignment failure'); END`);
+
+		expect(() =>
+			applyFieldUpdatesAndGroups(
+				db,
+				itemId,
+				cycleId,
+				[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+				[{ fieldKey: 'valid_until', groupId: group.id }],
+				[fieldChangeHistory('valid_until')]
+			)
+		).toThrow(/forced assignment failure/);
+
+		expect(
+			listFields(db, cycleId).find((field) => field.fieldKey === 'valid_until')?.value
+		).toBeNull();
+		expect(listFieldGroupAssignments(db, itemId)).toEqual([]);
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM item_history_events WHERE item_id = ?').get(itemId)
+		).toMatchObject({ count: 0 });
+	});
+
+	it('supports ordinary Field editing with no Group assignment changes', () => {
+		applyFieldUpdatesAndGroups(
+			db,
+			itemId,
+			cycleId,
+			[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+			[],
+			[fieldChangeHistory('valid_until')]
+		);
+
+		expect(listFields(db, cycleId).find((field) => field.fieldKey === 'valid_until')?.value).toBe(
+			'2028-08-31'
+		);
+		expect(listFieldGroupAssignments(db, itemId)).toEqual([]);
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM item_history_events WHERE item_id = ?').get(itemId)
+		).toMatchObject({ count: 1 });
+	});
+
+	it('does not record Field-change History for an unchanged value', () => {
+		applyFieldUpdatesAndGroups(
+			db,
+			itemId,
+			cycleId,
+			[{ fieldKey: 'valid_until', value: null }],
+			[],
+			[fieldChangeHistory('valid_until')]
+		);
+
+		expect(
+			db.prepare('SELECT COUNT(*) AS count FROM item_history_events WHERE item_id = ?').get(itemId)
+		).toMatchObject({ count: 0 });
+	});
+
+	it('keeps Item and cycle ownership guards inside the transaction', () => {
+		const otherItem = createItem(db, {
+			title: 'Other item',
+			note: null,
+			playbook: {
+				id: 'de.finance.nv-certificate',
+				version: '1.0.0',
+				name: 'NV certificate',
+				snapshot: nvPlaybook()
+			},
+			materialization: materializePlaybook(nvPlaybook())
+		});
+		expect(() =>
+			applyFieldUpdatesAndGroups(
+				db,
+				otherItem.id,
+				cycleId,
+				[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+				[],
+				[fieldChangeHistory('valid_until')]
+			)
+		).toThrow();
+		setItemStatus(db, itemId, 'ARCHIVED');
+		expect(() =>
+			applyFieldUpdatesAndGroups(
+				db,
+				itemId,
+				cycleId,
+				[{ fieldKey: 'valid_until', value: '2028-08-31' }],
+				[],
+				[fieldChangeHistory('valid_until')]
+			)
+		).toThrow(ItemNotWritableError);
+		expect(
+			listFields(db, cycleId).find((field) => field.fieldKey === 'valid_until')?.value
+		).toBeNull();
+	});
 });
 
 describe('applyFieldUpdatesAndRecalculate', () => {

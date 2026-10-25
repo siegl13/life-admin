@@ -49,7 +49,8 @@ function ports(fields: Field[], cycle: typeof CYCLE | null = CYCLE) {
 	const schedule: ScheduleRepositoryPort = {
 		applyFieldUpdatesAndRecalculate: vi.fn((_cycleId, updates) => {
 			applied.push(...updates);
-		})
+		}),
+		applyFieldUpdatesAndGroups: vi.fn()
 	};
 	return { cycles, fields: fieldsPort, schedule, applied };
 }

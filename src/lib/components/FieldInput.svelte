@@ -1,12 +1,27 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
+	import type { FieldGroupView } from '$lib/domain/field/fieldGroup';
 	import {
 		parseCurrencyStorageValue,
 		SUPPORTED_CURRENCY_CODES,
 		type Field
 	} from '$lib/domain/field/field';
 
-	let { field, removable = false }: { field: Field; removable?: boolean } = $props();
+	let {
+		field,
+		removable = false,
+		groups = [],
+		groupId = null
+	}: {
+		field: Field;
+		removable?: boolean;
+		groups?: readonly FieldGroupView[];
+		groupId?: string | null;
+	} = $props();
+
+	function groupLabel(view: FieldGroupView): string {
+		return view.group.label ?? t('items.detail.groupGeneral');
+	}
 
 	let currencyValue = $derived(
 		field.type === 'currency' && field.value ? parseCurrencyStorageValue(field.value) : null
@@ -71,6 +86,19 @@
 
 	{#if field.recommended && !field.value}
 		<span class="hint">{t('items.detail.recommendedHint')}</span>
+	{/if}
+
+	{#if groups.length > 1 && groupId}
+		<div class="field-row__group">
+			<label for="group-{field.fieldKey}">{t('items.detail.fieldGroup')}</label>
+			<select id="group-{field.fieldKey}" name="fieldGroup:{field.fieldKey}">
+				{#each groups as view (view.group.id)}
+					<option value={view.group.id} selected={view.group.id === groupId}>
+						{groupLabel(view)}
+					</option>
+				{/each}
+			</select>
+		</div>
 	{/if}
 
 	<!--

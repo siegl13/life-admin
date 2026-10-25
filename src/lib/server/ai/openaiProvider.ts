@@ -73,9 +73,10 @@ const RESPONSE_JSON_SCHEMA = {
 				properties: {
 					suggested_label: { type: 'string' },
 					suggested_type: { type: 'string', enum: ['text', 'date', 'currency'] },
-					value: { type: 'string' }
+					value: { type: 'string' },
+					evidence: { type: ['string', 'null'] }
 				},
-				required: ['suggested_label', 'suggested_type', 'value'],
+				required: ['suggested_label', 'suggested_type', 'value', 'evidence'],
 				additionalProperties: false
 			}
 		},
@@ -345,7 +346,8 @@ export function createOpenAiProvider(
 				additionalSuggestions: (parsed.data.additional_suggestions ?? []).map((s) => ({
 					suggestedLabel: s.suggested_label,
 					suggestedType: s.suggested_type,
-					value: s.value
+					value: s.value,
+					evidence: s.evidence ?? null
 				})),
 				actionSuggestions: (parsed.data.action_suggestions ?? []).map((s) => ({
 					title: s.title,

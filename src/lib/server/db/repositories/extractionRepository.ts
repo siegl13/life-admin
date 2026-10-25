@@ -128,14 +128,15 @@ export function markSucceeded(
 		for (const suggestion of input.additionalSuggestions) {
 			db.prepare(
 				`INSERT INTO extraction_additional_suggestions
-				 (id, run_id, suggested_label, suggested_type, value, position, accepted)
-				 VALUES (?, ?, ?, ?, ?, ?, 0)`
+				 (id, run_id, suggested_label, suggested_type, value, evidence, position, accepted)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, 0)`
 			).run(
 				crypto.randomUUID(),
 				runId,
 				suggestion.suggestedLabel,
 				suggestion.suggestedType,
 				suggestion.value,
+				suggestion.evidence ?? null,
 				suggestion.position
 			);
 		}
@@ -357,12 +358,13 @@ export function listAdditionalSuggestions(
 	runId: string
 ): ExtractionAdditionalSuggestionRecord[] {
 	const query =
-		'SELECT id, suggested_label, suggested_type, value, position, accepted FROM extraction_additional_suggestions WHERE run_id = ? ORDER BY position';
+		'SELECT id, suggested_label, suggested_type, value, evidence, position, accepted FROM extraction_additional_suggestions WHERE run_id = ? ORDER BY position';
 	const rows = db.prepare(query).all(runId) as {
 		id: string;
 		suggested_label: string;
 		suggested_type: string;
 		value: string;
+		evidence: string | null;
 		position: number;
 		accepted: number;
 	}[];
@@ -371,6 +373,7 @@ export function listAdditionalSuggestions(
 		suggestedLabel: row.suggested_label,
 		suggestedType: row.suggested_type as SuggestedFieldType,
 		value: row.value,
+		evidence: row.evidence,
 		position: row.position,
 		accepted: row.accepted === 1
 	}));

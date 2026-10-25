@@ -136,6 +136,40 @@ describe('createOpenAiProvider', () => {
 		expect(result.providerId).toBe('openai');
 	});
 
+	it('parses source excerpts for additional suggestions', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse(
+				responsesApiEnvelope(
+					JSON.stringify({
+						suggestions: [],
+						additional_suggestions: [
+							{
+								suggested_label: 'Rückflugnummer',
+								suggested_type: 'text',
+								value: 'DE1669',
+								evidence: 'Rückflug DE1669, Heraklion nach Frankfurt'
+							}
+						]
+					})
+				)
+			)
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
+		const result = await provider.extract(baseRequest());
+		expect(result.additionalSuggestions).toEqual([
+			{
+				suggestedLabel: 'Rückflugnummer',
+				suggestedType: 'text',
+				value: 'DE1669',
+				evidence: 'Rückflug DE1669, Heraklion nach Frankfurt'
+			}
+		]);
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const body = JSON.parse(init.body as string);
+		const outputSchema = body.text.format.schema;
+		expect(outputSchema.properties.additional_suggestions.items.required).toContain('evidence');
+	});
+
 	it('maps action suggestions with a relative date into the application shape', async () => {
 		fetchMock.mockResolvedValue(
 			jsonResponse(

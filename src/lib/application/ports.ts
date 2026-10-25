@@ -113,6 +113,13 @@ export interface ScheduleRepositoryPort {
 		cycleId: string,
 		updates: readonly { fieldKey: string; value: string | null }[]
 	): void;
+	applyFieldUpdatesAndGroups(
+		itemId: string,
+		cycleId: string,
+		updates: readonly { fieldKey: string; value: string | null }[],
+		assignments: readonly { fieldKey: string; groupId: string }[],
+		history: readonly { fieldKey: string; event: ItemHistoryEvent }[]
+	): void;
 }
 
 export interface EventRepositoryPort {

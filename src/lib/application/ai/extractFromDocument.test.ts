@@ -355,4 +355,41 @@ describe('extractFromDocument', () => {
 			})
 		);
 	});
+
+	it('persists source excerpts for additional Field suggestions', async () => {
+		const p = fakePorts({
+			provider: {
+				providerId: 'fake',
+				modelId: 'fake-v1',
+				extract: vi.fn(async () => ({
+					providerId: 'fake',
+					modelId: 'fake-v1',
+					suggestions: [],
+					additionalSuggestions: [
+						{
+							suggestedLabel: 'Rückflugnummer',
+							suggestedType: 'text' as const,
+							value: 'DE1669',
+							evidence: 'Rückflug DE1669, Heraklion nach Frankfurt'
+						}
+					]
+				}))
+			}
+		});
+		await extractFromDocument(p as never, { itemId: 'item-1', attachmentId: 'att-1' }, BOUNDS);
+		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
+			'run-1',
+			expect.objectContaining({
+				additionalSuggestions: [
+					{
+						suggestedLabel: 'Rückflugnummer',
+						suggestedType: 'text',
+						value: 'DE1669',
+						evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+						position: 0
+					}
+				]
+			})
+		);
+	});
 });

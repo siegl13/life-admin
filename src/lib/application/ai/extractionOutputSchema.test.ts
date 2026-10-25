@@ -2,6 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { extractionOutputSchema } from './extractionOutputSchema';
 
 describe('extractionOutputSchema', () => {
+	it('accepts a concise excerpt or null when unavailable for additional suggestions', () => {
+		const common = { suggested_label: 'Rückflugnummer', suggested_type: 'text', value: 'DE1669' };
+		expect(
+			extractionOutputSchema.safeParse({
+				suggestions: [],
+				additional_suggestions: [
+					{ ...common, evidence: 'Rückflug DE1669, Heraklion nach Frankfurt' },
+					{ ...common, evidence: null }
+				]
+			}).success
+		).toBe(true);
+		expect(
+			extractionOutputSchema.safeParse({
+				suggestions: [],
+				additional_suggestions: [{ ...common, evidence: 'x'.repeat(301) }]
+			}).success
+		).toBe(false);
+	});
+
 	it('accepts a well-formed suggestions array', () => {
 		const result = extractionOutputSchema.safeParse({
 			suggestions: [{ field_key: 'contract_end', value: '2027-12-31' }]

@@ -425,7 +425,15 @@ describe('markSucceeded / markFailed', () => {
 		markSucceeded(db, 'run-1', {
 			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
 			discardedCount: 2,
-			additionalSuggestions: [],
+			additionalSuggestions: [
+				{
+					suggestedLabel: 'Rückflugnummer',
+					suggestedType: 'text',
+					value: 'DE1669',
+					evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+					position: 0
+				}
+			],
 			discardedAdditionalCount: 0
 		});
 		const run = getById(db, 'run-1')!;
@@ -434,6 +442,14 @@ describe('markSucceeded / markFailed', () => {
 		expect(run.discardedCount).toBe(2);
 		expect(listSuggestions(db, 'run-1')).toEqual([
 			{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false }
+		]);
+		expect(listAdditionalSuggestions(db, 'run-1')).toMatchObject([
+			{
+				suggestedLabel: 'Rückflugnummer',
+				value: 'DE1669',
+				evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+				accepted: false
+			}
 		]);
 	});
 
@@ -744,9 +760,9 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 			 VALUES ('run-1', ?, ?, ?, 'fake', 'fake-v1', 'NEW', ?, NULL)`
 		).run(itemId, cycleId, attachmentId, new Date().toISOString());
 		db.prepare(
-			`INSERT INTO extraction_additional_suggestions (id, run_id, suggested_label, suggested_type, value, position, accepted)
-			 VALUES ('sug-1', 'run-1', 'Fahrzeugmodell', 'text', 'CUPRA Born', 0, 0),
-			        ('sug-2', 'run-1', 'Monatliche Rate', 'currency', '351.00 EUR', 1, 0)`
+			`INSERT INTO extraction_additional_suggestions (id, run_id, suggested_label, suggested_type, value, evidence, position, accepted)
+			 VALUES ('sug-1', 'run-1', 'Fahrzeugmodell', 'text', 'CUPRA Born', 'Fahrzeugmodell: CUPRA Born', 0, 0),
+			        ('sug-2', 'run-1', 'Monatliche Rate', 'currency', '351.00 EUR', NULL, 1, 0)`
 		).run();
 	}
 
@@ -761,6 +777,7 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				suggestedLabel: 'Fahrzeugmodell',
 				suggestedType: 'text',
 				value: 'CUPRA Born',
+				evidence: 'Fahrzeugmodell: CUPRA Born',
 				position: 0,
 				accepted: false
 			},
@@ -769,6 +786,7 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				suggestedLabel: 'Monatliche Rate',
 				suggestedType: 'currency',
 				value: '351.00 EUR',
+				evidence: null,
 				position: 1,
 				accepted: false
 			}

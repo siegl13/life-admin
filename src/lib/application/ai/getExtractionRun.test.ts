@@ -121,6 +121,7 @@ describe('getExtractionRun', () => {
 						suggestedLabel: 'Monatliche Rate',
 						suggestedType: 'currency',
 						value: '351.00 EUR',
+						evidence: 'Monatliche Rate: 351,00 EUR',
 						position: 0,
 						accepted: false
 					},
@@ -141,7 +142,8 @@ describe('getExtractionRun', () => {
 				id: 'sug-1',
 				suggestedLabel: 'Monatliche Rate',
 				suggestedType: 'currency',
-				value: '351.00 EUR'
+				value: '351.00 EUR',
+				evidence: 'Monatliche Rate: 351,00 EUR'
 			}
 		]);
 	});

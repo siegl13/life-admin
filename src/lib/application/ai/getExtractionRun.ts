@@ -33,6 +33,7 @@ export interface AdditionalSuggestionForReview {
 	suggestedLabel: string;
 	suggestedType: FieldType;
 	value: string;
+	evidence: string | null;
 }
 
 export interface ActionSuggestionForReview {
@@ -151,7 +152,8 @@ export function getExtractionRun(
 			id: s.id,
 			suggestedLabel: s.suggestedLabel,
 			suggestedType: s.suggestedType,
-			value: s.value
+			value: s.value,
+			evidence: s.evidence
 		}));
 
 	const existingActionTitles = ports.actions.listActions(run.cycleId).map((a) => a.label);

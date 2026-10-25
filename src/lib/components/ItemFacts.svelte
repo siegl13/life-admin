@@ -4,6 +4,7 @@
 	import { formatEmptyFieldCount } from '$lib/ui/itemDetail';
 	import type { Field } from '$lib/domain/field/field';
 	import type { FieldGroupView } from '$lib/domain/field/fieldGroup';
+	import GroupStarToggle from './GroupStarToggle.svelte';
 
 	let { groups, readOnly = false }: { groups: readonly FieldGroupView[]; readOnly?: boolean } =
 		$props();
@@ -39,14 +40,19 @@
 					class:facts-group--featured={view.group.featured}
 					aria-labelledby="facts-{view.group.id}"
 				>
-					<h3 class="facts-group__label" id="facts-{view.group.id}">
-						{groupLabel(view)}
-						{#if view.group.featured}
-							<span class="pill pill--neutral facts-group__featured">
-								{t('items.detail.groupFeatured')}
-							</span>
+					<div class="facts-group__head">
+						<h3 class="facts-group__label" id="facts-{view.group.id}">
+							{groupLabel(view)}
+							{#if view.group.featured}
+								<span class="pill pill--neutral facts-group__featured">
+									{t('items.detail.groupFeatured')}
+								</span>
+							{/if}
+						</h3>
+						{#if !readOnly}
+							<GroupStarToggle group={view.group} label={groupLabel(view)} returnTo="facts" />
 						{/if}
-					</h3>
+					</div>
 					<div class="data-list">
 						{#each view.filledFields as field (field.id)}
 							<div class="data-row">

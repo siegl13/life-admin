@@ -32,7 +32,8 @@ export const extractionOutputSchema = z
 					.object({
 						suggested_label: z.string().min(1).max(200),
 						suggested_type: z.enum(['text', 'date', 'currency']),
-						value: z.string().max(2000)
+						value: z.string().max(2000),
+						evidence: z.string().max(300).nullable()
 					})
 					.strict()
 			)
