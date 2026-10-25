@@ -27,10 +27,12 @@
 	// The floating create button would sit on top of the submit button on the
 	// create-item form itself, so it is hidden there. It also collides with
 	// the item-detail page's own controls (it floats over its forms), so it
-	// stays hidden there too — but only on the detail route itself, not
-	// nested routes like suggestions review.
+	// stays hidden there too. It also overlaps editable controls on document
+	// suggestion-review routes.
 	let hideFab = $derived(
-		page.url.pathname === resolve('/items/new') || page.route.id === '/items/[id]'
+		page.url.pathname === resolve('/items/new') ||
+			page.route.id === '/items/[id]' ||
+			/^\/items\/[^/]+\/suggestions\/[^/]+\/?$/.test(page.url.pathname)
 	);
 </script>
 

@@ -148,6 +148,64 @@ describe('getExtractionRun', () => {
 		]);
 	});
 
+	it('loads existing item groups for the review page', () => {
+		const groups = [
+			{
+				id: 'g-general',
+				itemId: 'item-1',
+				label: null,
+				isDefault: true,
+				featured: false,
+				position: 0
+			}
+		];
+		const result = getExtractionRun(
+			fakePorts({ fieldGroups: { listGroups: vi.fn(() => groups) } }) as never,
+			{ itemId: 'item-1', runId: 'run-1' }
+		);
+		expect(result?.fieldGroups).toEqual(groups);
+	});
+
+	it('defaults to no selectable groups for callers that do not supply group access', () => {
+		expect(
+			getExtractionRun(p_default(), { itemId: 'item-1', runId: 'run-1' })?.fieldGroups
+		).toEqual([]);
+	});
+
+	it('returns exactly the item-owned groups for UI selector visibility', () => {
+		const listGroups = vi.fn(() => [
+			{ id: 'one', itemId: 'item-1', label: null, isDefault: true, featured: false, position: 0 }
+		]);
+		const result = getExtractionRun(fakePorts({ fieldGroups: { listGroups } }) as never, {
+			itemId: 'item-1',
+			runId: 'run-1'
+		});
+		expect(listGroups).toHaveBeenCalledWith('item-1');
+		expect(result?.fieldGroups).toHaveLength(1);
+	});
+
+	it('does not expose groups from another item to the review page', () => {
+		const listGroups = vi.fn((itemId: string) =>
+			itemId === 'item-1'
+				? [{ id: 'owned', itemId, label: null, isDefault: true, featured: false, position: 0 }]
+				: [
+						{
+							id: 'foreign',
+							itemId: 'item-2',
+							label: 'Foreign',
+							isDefault: false,
+							featured: false,
+							position: 0
+						}
+					]
+		);
+		const result = getExtractionRun(fakePorts({ fieldGroups: { listGroups } }) as never, {
+			itemId: 'item-1',
+			runId: 'run-1'
+		});
+		expect(result?.fieldGroups.map(({ id }) => id)).toEqual(['owned']);
+	});
+
 	describe('action suggestions', () => {
 		function withActions(
 			suggestions: unknown[],

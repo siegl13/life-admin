@@ -87,6 +87,28 @@ describe('applied AI suggestions history recording', () => {
 		);
 	});
 
+	it('passes each selected additional field group independently and omits unselected suggestions', async () => {
+		await expect(
+			apply({
+				'add:sug-1': 'on',
+				'label:sug-1': 'Field one',
+				'type:sug-1': 'text',
+				'value:sug-1': 'first',
+				'group:sug-1': 'group-one'
+			})
+		).rejects.toMatchObject({ status: 303 });
+		expect(runs.addAdditionalFields).toHaveBeenCalledWith(
+			expect.objectContaining({
+				selections: [expect.objectContaining({ suggestionId: 'sug-1', groupId: 'group-one' })]
+			})
+		);
+	});
+
+	it('does not call addAdditionalFields when no additional suggestion is selected', async () => {
+		await expect(apply({})).rejects.toMatchObject({ status: 303 });
+		expect(runs.addAdditionalFields).not.toHaveBeenCalled();
+	});
+
 	it('records the source document id, never its name, when the run still has its attachment', async () => {
 		runs.getById.mockReturnValue({
 			id: RUN,
@@ -137,6 +159,7 @@ describe('applied AI suggestions history recording', () => {
 			'label:sug-1': 'Custom Field',
 			'type:sug-1': 'text',
 			'value:sug-1': 'x',
+			'group:sug-1': 'general',
 			'accept:contract_end': 'on'
 		});
 

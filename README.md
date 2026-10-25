@@ -194,6 +194,9 @@ suggested tasks. Nothing writes to the Item until you submit. New values
 are pre-selected, a value that differs from the current one keeps the
 current value unless you explicitly choose the document value, and no
 task is created unless you select it.
+New additional details can be assigned to an existing Item group before
+acceptance. Items with one group use General automatically. Label, type and
+value edits are available under “Edit details”.
 
 ```
 LIFEADMIN_OPENAI_API_KEY=sk-...

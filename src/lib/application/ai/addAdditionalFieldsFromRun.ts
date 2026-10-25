@@ -24,6 +24,7 @@ export interface AddAdditionalFieldSelectionInput {
 	type: AddAdditionalFieldSelection['type'];
 	value: string | null;
 	currencyCode?: string | null;
+	groupId: string;
 }
 
 export interface AddAdditionalFieldsFromRunInput {
@@ -64,7 +65,13 @@ export function addAdditionalFieldsFromRun(
 			selection.value,
 			selection.currencyCode
 		);
-		return { suggestionId: selection.suggestionId, label, type: selection.type, value };
+		return {
+			suggestionId: selection.suggestionId,
+			label,
+			type: selection.type,
+			value,
+			groupId: selection.groupId
+		};
 	});
 
 	ports.runs.addAdditionalFields({

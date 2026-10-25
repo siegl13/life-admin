@@ -9,6 +9,58 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Group assignment - Additional document fields (`group-assignment`)
+
+**Status: READY TO COMMIT. Full verification, responsive review, and independent
+review passed.**
+
+- Scope note: this worktree contains broad pre-existing changes relative to
+  `main` (149 files at the comparison point), including the extraction and group
+  foundations. This unit changed only its additional-suggestion path, tests,
+  README and this status entry; inherited changes were preserved.
+- Additional suggestions now load only the Item's groups. On multi-group Items,
+  each suggestion has an optional selector defaulting to General; single-group
+  Items omit it. Selected group IDs travel through the existing use case and are
+  validated and assigned inside the existing atomic repository transaction.
+  Label/type/value editing is under a localized “Edit details” disclosure.
+- The floating create button is hidden on document suggestion-review routes
+  because it overlaps editable additional-Field controls on mobile. The shared
+  E2E review helper asserts that it is absent there; other route behavior is
+  unchanged.
+- Responsive screenshots of the suggestion review and additional-Field controls
+  at 375px, 390px and 430px are saved under
+  `.agent/supervisor/group-assignment-final/visual/`. No horizontal overflow or
+  control overlap was visible. The FAB remains covered by the existing shell
+  navigation tests on other routes.
+- Coverage: repository assignment/default/unknown and foreign group rollback,
+  application and route transport, and synthetic E2E selection, acceptance,
+  group placement, reload persistence, disclosure and 375/390/430px overflow.
+- Final checks: `npm run verify` passed with 134 test files and 1,279 unit
+  tests, Svelte check clean, playbook validation clean, and build passed.
+  `npm run test:e2e` passed all 232 tests. Focused extraction E2E passed (5
+  tests including setup); Group UX E2E passed (7 tests plus setup).
+  `git diff --check` passed.
+- Quota isolation: extraction and Inbox AI share a daily cap of 20. A proposed
+  standalone Group extraction E2E would have consumed the final available run
+  before subsequent Inbox analysis. Group selection and persistence coverage
+  stays in the existing extraction test, keeping the full serial suite below
+  the shared limit. Quota behavior and the test-runner architecture are
+  unchanged.
+- Browser and visual overflow checks cover 375/390/430px. The review used the
+  local fake provider and synthetic PDF fixture.
+  VoiceOver/screen-reader and native mobile Select were not manually tested.
+  AI excerpts were not independently checked against source files. Docker was
+  not run.
+- Fresh independent review of the integrated working-tree diff passed with no
+  actionable findings.
+- Open gates: none. No later unit is defined in the approved brief. Manual
+  follow-up not performed: on a synthetic multi-Group
+  Item, use VoiceOver or another screen reader to navigate the suggestion
+  checkbox, labeled Group selector, disclosure, editor, and Apply control;
+  confirm announced names/state/focus order and accepted Group after reload.
+  On a real mobile device, choose another Group in the native picker, close and
+  reopen the disclosure, apply, and reload to confirm persistence.
+
 ## Staging UX - Unit A: Document semantics and Action Suggestions (`unit-a-document-semantics-actions`)
 
 **Status: IMPLEMENTED. Focused tests, supervisor verification, and independent
