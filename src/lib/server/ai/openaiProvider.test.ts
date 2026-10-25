@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOpenAiProvider } from './openaiProvider';
+import { log } from '../log';
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
@@ -56,9 +57,91 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 describe('createOpenAiProvider', () => {
+	it('returns only count and token diagnostics alongside validated output', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope(
+					JSON.stringify({
+						suggestions: [],
+						action_suggestions: [
+							{
+								title: 'Identitätsprüfung durchführen',
+								context: null,
+								evidence: 'synthetic-source',
+								status: 'OPEN',
+								date: { kind: 'NONE', value: null, relative: null }
+							}
+						]
+					})
+				),
+				usage: { input_tokens: 12000, output_tokens: 350, unexpected: 'private' }
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'test-model' });
+		const result = await provider.extract(baseRequest());
+		expect(result.diagnostics).toEqual({
+			completionStatus: 'completed',
+			providerActionCount: 1,
+			schemaValidActionCount: 1,
+			inputTokens: 12000,
+			outputTokens: 350
+		});
+		expect(result.actionSuggestions).toHaveLength(1);
+	});
+
+	it('does not coerce missing or untrusted token usage into diagnostic values', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope('{"suggestions":[],"action_suggestions":[]}'),
+				usage: { input_tokens: 'secret', output_tokens: -1 }
+			})
+		);
+		const result = await createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'test-model' }).extract(
+			baseRequest()
+		);
+		expect(result.diagnostics).toMatchObject({ inputTokens: null, outputTokens: null });
+	});
+
+	it('logs raw action count on schema failure, without output contents or request data', async () => {
+		const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope(
+					JSON.stringify({ suggestions: [], action_suggestions: [{ title: 'private-source' }] })
+				),
+				usage: { input_tokens: 100, output_tokens: 20 }
+			})
+		);
+		await expect(
+			createOpenAiProvider({ openaiApiKey: 'private-key', aiModel: 'test-model' }).extract(
+				baseRequest()
+			)
+		).rejects.toThrow(ExtractionMalformedOutputError);
+		expect(warn).toHaveBeenCalledWith('ai extraction failed', {
+			providerId: 'openai',
+			modelId: 'test-model',
+			status: undefined,
+			reason: 'schema_mismatch',
+			completionStatus: 'completed',
+			inputTokens: 100,
+			outputTokens: 20,
+			providerActionCount: 1,
+			maxOutputTokens: 2000
+		});
+		for (const privateValue of [
+			'private-source',
+			'private-key',
+			'CONTRACT TEXT',
+			'INSTRUCTION TEXT'
+		]) {
+			expect(JSON.stringify(warn.mock.calls)).not.toContain(privateValue);
+		}
+	});
+
 	it('throws ExtractionUnavailableError with no API key configured, and never calls fetch', async () => {
 		const provider = createOpenAiProvider({ openaiApiKey: null, aiModel: 'gpt-5-mini' });
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionUnavailableError);
@@ -319,10 +402,12 @@ describe('createOpenAiProvider', () => {
 	});
 
 	it('maps a top-level incomplete response status to ExtractionFailedError, never accepting a partial output_text', async () => {
+		const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
 		fetchMock.mockResolvedValue(
 			jsonResponse({
 				status: 'incomplete',
 				incomplete_details: { reason: 'max_output_tokens' },
+				usage: { input_tokens: 18000, output_tokens: 2000 },
 				output: [
 					{
 						type: 'message',
@@ -334,6 +419,16 @@ describe('createOpenAiProvider', () => {
 		);
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+		expect(warn).toHaveBeenCalledWith(
+			'ai extraction failed',
+			expect.objectContaining({
+				reason: 'incomplete_response',
+				completionStatus: 'incomplete',
+				inputTokens: 18000,
+				outputTokens: 2000,
+				providerActionCount: null
+			})
+		);
 	});
 
 	it('maps an incomplete message status (top-level completed) to ExtractionFailedError', async () => {

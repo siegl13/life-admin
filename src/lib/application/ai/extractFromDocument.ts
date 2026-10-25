@@ -19,7 +19,12 @@ import {
 	ExtractionUnavailableError,
 	type DocumentExtractionProviderPort
 } from './extraction';
-import type { AppSettingsPort, AttachmentReadPort, ExtractionRunRepositoryPort } from './ports';
+import type {
+	AppSettingsPort,
+	AttachmentReadPort,
+	ExtractionRunRepositoryPort,
+	MarkExtractionRunSucceededInput
+} from './ports';
 import { DailyExtractionLimitReachedError } from './ports';
 import { getAiSettings } from './aiSettings';
 import { buildExtractionContract } from './extractionContract';
@@ -190,7 +195,19 @@ export async function extractFromDocument(
 			fields,
 			existingActionTitles
 		);
+		const discardedActionsByReason: NonNullable<
+			MarkExtractionRunSucceededInput['diagnostics']
+		>['discardedActionsByReason'] = {};
+		for (const { reason } of discardedActions) {
+			discardedActionsByReason[reason] = (discardedActionsByReason[reason] ?? 0) + 1;
+		}
 		ports.runs.markSucceeded(runId, {
+			diagnostics: {
+				provider: result.diagnostics,
+				maxOutputTokens: bounds.maxOutputTokens,
+				mappedActionCount: result.actionSuggestions?.length ?? 0,
+				discardedActionsByReason
+			},
 			actionSuggestions: keptActions.map((suggestion, position) => ({
 				title: suggestion.title,
 				context: suggestion.context,
