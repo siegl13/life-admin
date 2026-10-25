@@ -8,6 +8,37 @@ const FIELDS: ExtractionFieldDefinition[] = [
 ];
 
 describe('buildExtractionContract', () => {
+	it('introduces all three collections as equally important and includes each in the output example', () => {
+		const contract = buildExtractionContract(FIELDS);
+		const [introduction, coverage, example] = contract.split('\n\n');
+		for (const collection of ['suggestions', 'additional_suggestions', 'action_suggestions']) {
+			expect(introduction).toContain(`"${collection}"`);
+			expect(example).toContain(`"${collection}": [`);
+		}
+		expect(introduction).toContain('gleich wichtige, voneinander unabhängige');
+		expect(coverage).toContain('gesamte Dokument von Anfang bis Ende');
+		expect(coverage).toContain('erst spät im Dokument');
+		expect(contract).not.toContain('Zusätzlich: nenne als "action_suggestions"');
+	});
+
+	it('preserves undated and conditional obligations without turning optional rights into duties', () => {
+		const contract = buildExtractionContract(FIELDS);
+		expect(contract).toContain('Pflichten und Anweisungen');
+		expect(contract).toContain('undatiert');
+		expect(contract).toContain('Bedingung erst später eintreten');
+		expect(contract).toContain(
+			'Nenne die Bedingung und jede nicht auflösbare relative Frist in "context"'
+		);
+		expect(contract).toContain('kein Datum');
+		expect(contract).toContain(
+			'Ein optionales Recht, das der Nutzer ausüben kann, ist keine Pflicht'
+		);
+		expect(contract).toContain('Erfinde keine allgemeinen Empfehlungen');
+		expect(contract).toContain('Vertragliche Pflichten des Nutzers zählen auch ohne direkte Bitte');
+		expect(contract).toContain('Pflichten anderer Parteien');
+		expect(contract).toContain('wiederkehrende Zahlungen ohne einzelne erforderliche Handlung');
+	});
+
 	it('lists exactly the request’s field keys and no others', () => {
 		const contract = buildExtractionContract(FIELDS);
 		expect(contract).toContain('contract_end (date): Vertragsende');
