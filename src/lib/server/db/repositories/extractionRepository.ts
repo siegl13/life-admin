@@ -30,6 +30,7 @@ import { insertCustomFieldRow } from './fieldRepository';
 import { applyFieldUpdatesAndRecalculate } from './scheduleRepository';
 import { assertCycleIsWritable } from './writeGuards';
 import { FieldGroupTargetNotFoundError } from './fieldGroupRepository';
+import { log } from '../../log';
 
 interface RunRow {
 	id: string;
@@ -102,7 +103,7 @@ export function markSucceeded(
 	runId: string,
 	input: MarkExtractionRunSucceededInput
 ): void {
-	db.transaction(() => {
+	const persisted = db.transaction(() => {
 		const changed = db
 			.prepare(
 				`UPDATE extraction_runs
@@ -167,7 +168,26 @@ export function markSucceeded(
 				suggestion.position
 			);
 		}
+		return true;
 	})();
+	if (persisted && input.diagnostics) {
+		const diagnostics = input.diagnostics;
+		log.info('ai extraction persisted', {
+			runId,
+			completionStatus: diagnostics.provider?.completionStatus ?? null,
+			providerActionCount: diagnostics.provider?.providerActionCount ?? null,
+			schemaValidActionCount: diagnostics.provider?.schemaValidActionCount ?? null,
+			mappedActionCount: diagnostics.mappedActionCount,
+			discardedActionCount: input.discardedActionCount ?? 0,
+			discardedActionsByReason: diagnostics.discardedActionsByReason,
+			persistedActionCount: input.actionSuggestions?.length ?? 0,
+			persistedFieldCount: input.suggestions.length,
+			persistedAdditionalFieldCount: input.additionalSuggestions.length,
+			inputTokens: diagnostics.provider?.inputTokens ?? null,
+			outputTokens: diagnostics.provider?.outputTokens ?? null,
+			maxOutputTokens: diagnostics.maxOutputTokens
+		});
+	}
 }
 
 export function markFailed(db: Database.Database, runId: string): void {

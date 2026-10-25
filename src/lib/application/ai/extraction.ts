@@ -128,6 +128,15 @@ export interface ExtractionActionSuggestion {
 	date: ActionSuggestionDate;
 }
 
+/** Counts only. Never contains source text, prompts or provider responses. */
+export interface ExtractionProviderDiagnostics {
+	completionStatus: 'completed';
+	providerActionCount: number;
+	schemaValidActionCount: number;
+	inputTokens: number | null;
+	outputTokens: number | null;
+}
+
 export interface ExtractionResult {
 	suggestions: readonly ExtractionSuggestion[];
 	/** Optional for the same reason as `additionalSuggestions`. */
@@ -138,6 +147,7 @@ export interface ExtractionResult {
 	additionalSuggestions?: readonly ExtractionAdditionalSuggestion[];
 	providerId: string;
 	modelId: string;
+	diagnostics?: ExtractionProviderDiagnostics;
 }
 
 /**
