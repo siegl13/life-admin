@@ -89,6 +89,27 @@ export function formatTime(iso: string): string {
 	return formatter.format(new Date(iso));
 }
 
+/** Groups observed instants by local calendar day, not elapsed 24-hour periods. */
+export function historyDateGroupKey(observedIso: string, now: Date): string {
+	const date = new Date(observedIso);
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+	const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+	if (eventDate.getTime() === today.getTime()) return 'today';
+	if (eventDate.getTime() === yesterday.getTime()) return 'yesterday';
+	if (eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear())
+		return 'thisMonth';
+	const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+	if (
+		eventDate.getMonth() === lastMonth.getMonth() &&
+		eventDate.getFullYear() === lastMonth.getFullYear()
+	)
+		return 'lastMonth';
+	if (eventDate.getFullYear() === now.getFullYear()) return 'thisYear';
+	return `year:${eventDate.getFullYear()}`;
+}
+
 /**
  * The full, screen-reader-friendly due text for an action row. The state
  * word is always present, so urgency never depends on colour alone.
@@ -188,7 +209,10 @@ export function formatRelativeTime(observedIso: string, nowIso: string): string 
 			count: String(diffDays)
 		});
 	}
-	return formatDate(observedIso.slice(0, 10));
+	const date = new Date(observedIso);
+	return formatDate(
+		`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+	);
 }
 
 /** Numeric day distance for the Item detail hero. Unlike the short pill,

@@ -538,19 +538,9 @@ test('Document actions: explicit selection, dates, no duplicates, safe conflict 
 		page.locator('.history-event__text', { hasText: 'Aufgabe hinzugefügt' })
 	).toHaveCount(2);
 
-	// A second run: the selected actions are not offered again, and the
-	// field values are identical, so they are only listed quietly.
-	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
-	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
-	await expect(page).toHaveURL(/\/suggestions\//);
-	await expect(page.locator('#action-suggestions').getByRole('checkbox')).toHaveCount(1);
-	await expect(page.locator('#action-suggestions').getByText('Termin bestätigen')).toBeVisible();
-	await expect(page.locator('#known-suggestions')).toHaveCount(0);
-	await expect(page.locator('#already-present')).toBeVisible();
-	await page.getByRole('button', { name: 'Verwerfen' }).click();
-	await expect(page).toHaveURL(itemUrl);
-
-	// A conflict keeps the current value unless explicitly replaced.
+	// A second run: the selected actions are not offered again. Change the
+	// current field value first so this run also checks the default conflict
+	// behavior without spending a separate daily AI attempt.
 	await page.locator('summary', { hasText: 'Angaben bearbeiten' }).click();
 	await page.locator('#field-next_inspection input[type="date"]').fill('2030-01-01');
 	await page.getByRole('button', { name: 'Speichern' }).click();
@@ -558,6 +548,11 @@ test('Document actions: explicit selection, dates, no duplicates, safe conflict 
 
 	await page.getByRole('link', { name: 'pruefbericht.pdf' }).click();
 	await page.getByRole('button', { name: 'Informationen erkennen' }).click();
+	await expect(page).toHaveURL(/\/suggestions\//);
+	await expect(page.locator('#action-suggestions').getByRole('checkbox')).toHaveCount(1);
+	await expect(page.locator('#action-suggestions').getByText('Termin bestätigen')).toBeVisible();
+	await expect(page.locator('#suggestion-next_inspection')).toBeVisible();
+	await expect(page.locator('#already-present')).toBeVisible();
 	await page.getByRole('button', { name: 'Ausgewählte übernehmen' }).click();
 	await expect(page).toHaveURL(itemUrl);
 	await expect(page.locator('#field-next_inspection input[type="date"]')).toHaveValue('2030-01-01');

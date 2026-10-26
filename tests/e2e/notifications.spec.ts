@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { format } from 'date-fns';
 
 test('notification settings validate input, keep secrets hidden, and support test delivery', async ({
 	page
@@ -170,7 +171,7 @@ test('snoozed actions retain overdue context and can be replaced directly', asyn
 	maximumSnoozeDate.setDate(maximumSnoozeDate.getDate() + 365);
 	await step.getByRole('button', { name: 'Erinnerungsdatum ändern' }).click();
 	const customDate = step.getByLabel('Anderes Datum');
-	await customDate.fill(maximumSnoozeDate.toISOString().slice(0, 10));
+	await customDate.fill(format(maximumSnoozeDate, 'yyyy-MM-dd'));
 	await step.getByRole('button', { name: 'Setzen' }).click();
 	await expect(step.getByText('Erneut erinnern am')).toBeVisible();
 	await page.setViewportSize({ width: 375, height: 667 });

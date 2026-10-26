@@ -1,5 +1,10 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { createOwner } from '$lib/application/auth/createOwner';
+import {
+	createOwner,
+	InvalidPasswordError,
+	OwnerAlreadyExistsError,
+	PasswordMismatchError
+} from '$lib/application/auth/createOwner';
 import {
 	accountsPort,
 	clock,
@@ -35,8 +40,14 @@ export const actions: Actions = {
 				}
 			);
 			setSessionCookie(cookies, result.token);
-		} catch {
-			return fail(400, { error: 'auth.setup.failed' });
+		} catch (cause) {
+			if (
+				cause instanceof InvalidPasswordError ||
+				cause instanceof OwnerAlreadyExistsError ||
+				cause instanceof PasswordMismatchError
+			)
+				return fail(400, { error: 'auth.setup.failed' });
+			throw cause;
 		}
 		redirect(303, '/');
 	}

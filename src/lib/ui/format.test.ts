@@ -6,7 +6,8 @@ import {
 	formatRelativeDue,
 	formatRelativeTime,
 	formatShortDate,
-	formatTime
+	formatTime,
+	historyDateGroupKey
 } from './format';
 import { setLocaleProvider, t } from '$lib/i18n';
 
@@ -65,6 +66,30 @@ describe('formatTime', () => {
 		const english = formatTime(iso);
 		expect(german).toMatch(/^\d{2}:\d{2}$/);
 		expect(english).toBe(german);
+	});
+});
+
+describe('historyDateGroupKey', () => {
+	it('uses local calendar days across daylight saving changes and month boundaries', () => {
+		const previous = process.env.TZ;
+		try {
+			process.env.TZ = 'America/Los_Angeles';
+			expect(
+				historyDateGroupKey('2026-03-08T20:00:00.000Z', new Date('2026-03-09T19:00:00.000Z'))
+			).toBe('yesterday');
+			expect(
+				historyDateGroupKey('2026-11-01T20:00:00.000Z', new Date('2026-11-02T20:00:00.000Z'))
+			).toBe('yesterday');
+			expect(
+				historyDateGroupKey('2026-03-31T20:00:00.000Z', new Date('2026-04-01T20:00:00.000Z'))
+			).toBe('yesterday');
+			expect(
+				historyDateGroupKey('2026-04-01T06:30:00.000Z', new Date('2026-04-01T20:00:00.000Z'))
+			).toBe('yesterday');
+		} finally {
+			if (previous === undefined) delete process.env.TZ;
+			else process.env.TZ = previous;
+		}
 	});
 });
 
@@ -179,6 +204,23 @@ describe('formatRelativeTime', () => {
 		setLocaleProvider(() => 'en');
 		expect(formatRelativeTime(hoursBefore(6 * 24), now)).toBe('6 days ago');
 		expect(formatRelativeTime(hoursBefore(7 * 24), now)).toBe('8 June 2026');
+	});
+
+	it('uses the local date of an old instant, not its UTC date', () => {
+		const previous = process.env.TZ;
+		try {
+			process.env.TZ = 'America/Los_Angeles';
+			expect(formatRelativeTime('2026-06-08T00:30:00.000Z', '2026-06-16T12:00:00.000Z')).toBe(
+				'7. Juni 2026'
+			);
+			process.env.TZ = 'Pacific/Auckland';
+			expect(formatRelativeTime('2026-06-08T23:30:00.000Z', '2026-06-17T12:00:00.000Z')).toBe(
+				'9. Juni 2026'
+			);
+		} finally {
+			if (previous === undefined) delete process.env.TZ;
+			else process.env.TZ = previous;
+		}
 	});
 });
 

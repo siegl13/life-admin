@@ -45,6 +45,10 @@ a named volume. Open `http://localhost:3000` and create the Owner
 account: the first person to reach the service claims it, so don't leave
 it open on a public network before that.
 
+The sample Compose file publishes port 3000 on all host interfaces. Keep
+that port behind a firewall on a trusted LAN. For access from the internet,
+use HTTPS through a reverse proxy and block direct access to port 3000.
+
 Over plain HTTP, any hostname or port works without extra settings
 (`http://192.168.1.20:3000`, `http://nas.local:3000`). Behind a reverse
 proxy, see [Access and HTTPS](#access-and-https).
@@ -113,6 +117,8 @@ value shows it as **Source**. Manual and older values have no source line.
 
 Documents, related Items and history follow the fields. Document suggestions
 show their source in history when available. Older events keep generic text.
+History dates and older upload dates use local calendar days, including across
+daylight saving time changes.
 Add-task and archive controls are under **More options** at the bottom.
 
 ## Also useful beyond the household
@@ -138,6 +144,9 @@ actions as you go.
 
 Plain HTTP sends the password and session cookie unencrypted, so only
 use it on a trusted home network. For HTTPS, put a reverse proxy in front.
+If the proxy runs on the same host, change the Compose port mapping to
+`127.0.0.1:3000:3000` so clients cannot bypass the proxy. Set `ORIGIN` to
+the public HTTPS URL. Do not expose the default HTTP mapping to the internet.
 
 The image contains no origin, so the same image works at any hostname.
 Form submissions are checked against the origin of the request. The

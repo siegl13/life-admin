@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { AccountLockedError, login } from '$lib/application/auth/login';
+import { AccountLockedError, InvalidCredentialsError, login } from '$lib/application/auth/login';
 import {
 	accountsPort,
 	clock,
@@ -39,7 +39,8 @@ export const actions: Actions = {
 		} catch (cause) {
 			if (cause instanceof AccountLockedError)
 				return fail(400, { lockedMinutes: cause.minutes, redirectTo });
-			return fail(400, { failed: true, redirectTo });
+			if (cause instanceof InvalidCredentialsError) return fail(400, { failed: true, redirectTo });
+			throw cause;
 		}
 		redirect(303, redirectTo);
 	}
