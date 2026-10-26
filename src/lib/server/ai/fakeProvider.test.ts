@@ -61,9 +61,9 @@ describe('fakeProvider (deterministic suggestions)', () => {
 		});
 
 		expect(kept).toEqual([
-			{ fieldKey: 'contract_end', value: '2031-03-15' },
-			{ fieldKey: 'notice_date', value: '2031-03-15' },
-			{ fieldKey: 'note', value: 'Beispielwert Note' }
+			{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: 'Fiktive Belegstelle 1' },
+			{ fieldKey: 'notice_date', value: '2031-03-15', sourceText: null },
+			{ fieldKey: 'note', value: 'Beispielwert Note', sourceText: 'Fiktive Belegstelle 3' }
 		]);
 
 		expect(discarded.find((d) => d.fieldKey === 'unknown_field_from_model')?.reason).toBe(

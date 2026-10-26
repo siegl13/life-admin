@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createOpenAiProvider } from './openaiProvider';
+import { log } from '../log';
 import {
 	ExtractionFailedError,
 	ExtractionMalformedOutputError,
@@ -56,9 +57,93 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 describe('createOpenAiProvider', () => {
+	it('returns only count and token diagnostics alongside validated output', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope(
+					JSON.stringify({
+						suggestions: [],
+						action_suggestions: [
+							{
+								title: 'Identitätsprüfung durchführen',
+								context: null,
+								evidence: 'synthetic-source',
+								status: 'OPEN',
+								date: { kind: 'NONE', value: null, relative: null }
+							}
+						]
+					})
+				),
+				usage: { input_tokens: 12000, output_tokens: 350, unexpected: 'private' }
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'test-model' });
+		const result = await provider.extract(baseRequest());
+		expect(result.diagnostics).toEqual({
+			completionStatus: 'completed',
+			providerActionCount: 1,
+			schemaValidActionCount: 1,
+			inputTokens: 12000,
+			outputTokens: 350
+		});
+		expect(result.actionSuggestions).toHaveLength(1);
+	});
+
+	it('does not coerce missing or untrusted token usage into diagnostic values', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope('{"suggestions":[],"action_suggestions":[]}'),
+				usage: { input_tokens: 'secret', output_tokens: -1 }
+			})
+		);
+		const result = await createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'test-model' }).extract(
+			baseRequest()
+		);
+		expect(result.diagnostics).toMatchObject({ inputTokens: null, outputTokens: null });
+	});
+
+	it('logs raw action count on schema failure, without output contents or request data', async () => {
+		const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				...responsesApiEnvelope(
+					JSON.stringify({ suggestions: [], action_suggestions: [{ title: 'private-source' }] })
+				),
+				usage: { input_tokens: 100, output_tokens: 20 }
+			})
+		);
+		await expect(
+			createOpenAiProvider({ openaiApiKey: 'private-key', aiModel: 'test-model' }).extract(
+				baseRequest()
+			)
+		).rejects.toThrow(ExtractionMalformedOutputError);
+		expect(warn).toHaveBeenCalledWith('ai extraction failed', {
+			providerId: 'openai',
+			modelId: 'test-model',
+			status: undefined,
+			reason: 'schema_mismatch',
+			completionStatus: 'completed',
+			inputTokens: 100,
+			outputTokens: 20,
+			reasoningTokens: null,
+			providerIncompleteReason: null,
+			providerActionCount: 1,
+			maxOutputTokens: 2000
+		});
+		for (const privateValue of [
+			'private-source',
+			'private-key',
+			'CONTRACT TEXT',
+			'INSTRUCTION TEXT'
+		]) {
+			expect(JSON.stringify(warn.mock.calls)).not.toContain(privateValue);
+		}
+	});
+
 	it('throws ExtractionUnavailableError with no API key configured, and never calls fetch', async () => {
 		const provider = createOpenAiProvider({ openaiApiKey: null, aiModel: 'gpt-5-mini' });
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionUnavailableError);
@@ -94,6 +179,29 @@ describe('createOpenAiProvider', () => {
 		expect(JSON.stringify(body)).not.toContain('original-filename');
 	});
 
+	it('sends a synthetic 38-page PDF once and uses the configured output budget', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse(responsesApiEnvelope(JSON.stringify({ suggestions: [] })))
+		);
+		const pages = Array.from(
+			{ length: 38 },
+			(_, index) => `<< /Type /Page /Parent 2 0 R /Contents ${index + 3} 0 R >>`
+		).join('\n');
+		const pdf = Buffer.from(`%PDF-1.4\n${pages}\n%%EOF`);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await provider.extract(
+			baseRequest({ document: { mimeType: 'application/pdf', bytes: pdf }, maxOutputTokens: 8000 })
+		);
+
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const body = JSON.parse(init.body as string);
+		expect(body.max_output_tokens).toBe(8000);
+		expect(
+			body.input[0].content.filter((part: { type: string }) => part.type === 'input_file')
+		).toHaveLength(1);
+		expect(pages.match(/\/Type \/Page\b/g)).toHaveLength(38);
+	});
+
 	it('sends an input_image part (no filename) for an image MIME type', async () => {
 		fetchMock.mockResolvedValue(
 			jsonResponse(responsesApiEnvelope(JSON.stringify({ suggestions: [] })))
@@ -126,13 +234,27 @@ describe('createOpenAiProvider', () => {
 		fetchMock.mockResolvedValue(
 			jsonResponse(
 				responsesApiEnvelope(
-					JSON.stringify({ suggestions: [{ field_key: 'contract_end', value: '2027-12-31' }] })
+					JSON.stringify({
+						suggestions: [
+							{
+								field_key: 'contract_end',
+								value: '2027-12-31',
+								source_text: 'Laufzeit bis 31.12.2027'
+							}
+						]
+					})
 				)
 			)
 		);
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
 		const result = await provider.extract(baseRequest());
-		expect(result.suggestions).toEqual([{ fieldKey: 'contract_end', value: '2027-12-31' }]);
+		expect(result.suggestions).toEqual([
+			{
+				fieldKey: 'contract_end',
+				value: '2027-12-31',
+				sourceText: 'Laufzeit bis 31.12.2027'
+			}
+		]);
 		expect(result.providerId).toBe('openai');
 	});
 
@@ -319,10 +441,12 @@ describe('createOpenAiProvider', () => {
 	});
 
 	it('maps a top-level incomplete response status to ExtractionFailedError, never accepting a partial output_text', async () => {
+		const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
 		fetchMock.mockResolvedValue(
 			jsonResponse({
 				status: 'incomplete',
 				incomplete_details: { reason: 'max_output_tokens' },
+				usage: { input_tokens: 18000, output_tokens: 2000 },
 				output: [
 					{
 						type: 'message',
@@ -334,6 +458,58 @@ describe('createOpenAiProvider', () => {
 		);
 		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5-mini' });
 		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+		expect(warn).toHaveBeenCalledWith(
+			'ai extraction failed',
+			expect.objectContaining({
+				reason: 'incomplete_response',
+				completionStatus: 'incomplete',
+				inputTokens: 18000,
+				outputTokens: 2000,
+				providerIncompleteReason: 'max_output_tokens',
+				providerActionCount: null
+			})
+		);
+	});
+
+	it('records only sanitized incomplete reason and token usage when output reaches its limit', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				status: 'incomplete',
+				incomplete_details: { reason: 'max_output_tokens' },
+				usage: {
+					input_tokens: 154046,
+					output_tokens: 8000,
+					output_tokens_details: { reasoning_tokens: 1200 }
+				},
+				output: []
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await expect(provider.extract(baseRequest({ maxOutputTokens: 8000 }))).rejects.toThrow(
+			ExtractionFailedError
+		);
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('max_output_tokens');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('8000');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('1200');
+		expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('CONTRACT TEXT');
+		warnSpy.mockRestore();
+	});
+
+	it('does not log arbitrary provider incomplete-reason text', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				status: 'incomplete',
+				incomplete_details: { reason: 'sensitive payload' },
+				output: []
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+		expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('sensitive payload');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('other');
+		warnSpy.mockRestore();
 	});
 
 	it('maps an incomplete message status (top-level completed) to ExtractionFailedError', async () => {

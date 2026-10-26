@@ -1,6 +1,7 @@
-import { Unzip, UnzipInflate, zipSync } from 'fflate';
+import { Unzip, UnzipInflate, Zip, ZipDeflate, zipSync } from 'fflate';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import {
 	isSafeEntryPath,
 	parseManifest,
@@ -31,6 +32,71 @@ export function writeArchive(entries: readonly { name: string; body: Uint8Array 
 	return zipSync(Object.fromEntries(entries.map((entry) => [entry.name, entry.body])), {
 		level: 6
 	});
+}
+
+/** Writes one entry at a time, with a bounded buffer and no partial published archive. */
+export function writeArchiveFromFiles(
+	archivePath: string,
+	manifest: Uint8Array,
+	entries: readonly { name: string; filePath: string; bytes: number; sha256: string }[],
+	maxArchiveBytes: number
+): void {
+	const partPath = `${archivePath}.part`;
+	const output = fs.openSync(partPath, 'wx');
+	let complete = false;
+	let zip: Zip | undefined;
+	try {
+		let written = 0;
+		zip = new Zip((error, chunk) => {
+			if (error) throw error;
+			if (written + chunk.byteLength > maxArchiveBytes)
+				throw new Error('COMPRESSED_ARCHIVE_TOO_LARGE');
+			let offset = 0;
+			while (offset < chunk.byteLength) offset += fs.writeSync(output, chunk, offset);
+			written += chunk.byteLength;
+		});
+		const manifestFile = new ZipDeflate('manifest.json', { level: 6 });
+		zip.add(manifestFile);
+		manifestFile.push(manifest, true);
+		const buffer = Buffer.allocUnsafe(64 * 1024);
+		for (const entry of entries) {
+			const source = fs.openSync(entry.filePath, 'r');
+			try {
+				const hash = createHash('sha256');
+				let size = 0;
+				const file = new ZipDeflate(entry.name, { level: 6 });
+				zip.add(file);
+				let count: number;
+				while ((count = fs.readSync(source, buffer, 0, buffer.byteLength, null)) > 0) {
+					const chunk = buffer.subarray(0, count);
+					size += count;
+					if (size > entry.bytes) throw new Error('FILE_CHANGED_DURING_BACKUP');
+					hash.update(chunk);
+					file.push(chunk);
+				}
+				if (size !== entry.bytes || hash.digest('hex') !== entry.sha256)
+					throw new Error('FILE_CHANGED_DURING_BACKUP');
+				file.push(new Uint8Array(), true);
+			} finally {
+				fs.closeSync(source);
+			}
+		}
+		zip.end();
+		fs.fsyncSync(output);
+		fs.closeSync(output);
+		fs.renameSync(partPath, archivePath);
+		complete = true;
+	} finally {
+		if (!complete) {
+			zip?.terminate();
+			try {
+				fs.closeSync(output);
+			} catch {
+				// Already closed before a failed rename.
+			}
+			fs.rmSync(partPath, { force: true });
+		}
+	}
 }
 
 /**

@@ -244,10 +244,21 @@ test('analysis shows a pending state in the Inbox and on the document page', asy
 		expect(analyzePending.text).toContain('Bitte warten');
 		expect(analyzePending.disabled).toContain(true);
 		await expect(page.locator('.inbox-detail button[formaction="?/analyze"]')).toBeEnabled();
-		// Leave the shared Inbox clean.
-		await page.locator('.inbox-detail button[formaction="?/delete"]').click();
 	} finally {
-		await page.goto('/settings');
-		await page.getByRole('button', { name: 'Ausschalten' }).click();
+		try {
+			await page.goto('/inbox');
+			const row = page.getByRole('listitem').filter({
+				has: page.getByRole('heading', { name: 'inbox-analyse-pending.pdf', level: 3 })
+			});
+			if (await row.count()) {
+				await row.locator('a[href*="/inbox?doc="]').click();
+				await expect(page.locator('.inbox-detail')).toContainText('inbox-analyse-pending.pdf');
+				await page.locator('.inbox-detail button[formaction="?/delete"]').click();
+				await expect(row).toHaveCount(0);
+			}
+		} finally {
+			await page.goto('/settings');
+			await page.getByRole('button', { name: 'Ausschalten' }).click();
+		}
 	}
 });

@@ -138,6 +138,12 @@ export const en: Record<TranslationKey, string> = {
 	'items.detail.recommended': 'recommended',
 	'items.detail.recommendedHint': 'Helps compute dates. You can add it later.',
 	'items.detail.addValue': 'Add',
+	'items.detail.fieldSource': 'Source',
+	'items.detail.fieldConfirmed': 'Confirmed',
+	'items.detail.fieldUnconfirmed': 'Not confirmed',
+	'items.detail.confirmField': 'Confirm',
+	'items.detail.unconfirmField': 'Withdraw confirmation',
+	'items.detail.fieldNotConfirmable': 'A field without a value cannot be confirmed.',
 	'items.detail.manageFields': 'Edit details',
 	'items.detail.manageFieldsActive': 'Editing',
 	'items.detail.manageFieldsDone': 'Done',
@@ -517,6 +523,8 @@ export const en: Record<TranslationKey, string> = {
 	'ai.review.createdAt': 'Recognized on {date}',
 	'ai.error.failed': 'Recognition did not work. You can try again or enter the details yourself.',
 	'ai.error.failedHint': 'You can try again or enter the details yourself.',
+	'ai.error.saveFailed':
+		'The selected suggestions could not all be saved. Check the item before trying again.',
 	'ai.error.tooLarge': 'This document is too large for automatic recognition.',
 	'ai.error.unsupportedType': 'This file type is not supported for automatic recognition.',
 	'ai.error.disabled': 'Automatic recognition is switched off.',
@@ -528,6 +536,8 @@ export const en: Record<TranslationKey, string> = {
 	'ai.additional.submit': 'Add selected',
 	'ai.additional.noneSelected': 'Select at least one detail.',
 	'ai.additional.source': 'Source:',
+	'ai.additional.group': 'Group',
+	'ai.additional.editDetails': 'Edit details',
 	'ai.error.rateLimited':
 		'The daily limit for automatic recognition has been reached. Please try again tomorrow.',
 	'ai.error.providerRateLimited':

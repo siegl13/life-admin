@@ -75,7 +75,15 @@ export function applyExtractionRun(
 	);
 
 	// Validate every selected write before anything is persisted.
-	const normalized = normalizeFieldUpdates(fields, writes);
+	const sourceByKey = new Map(
+		ports.runs
+			.listSuggestions(run.id)
+			.map((suggestion) => [suggestion.fieldKey, suggestion.sourceText])
+	);
+	const normalized = normalizeFieldUpdates(fields, writes).map((update) => ({
+		...update,
+		sourceText: sourceByKey.get(update.fieldKey) ?? null
+	}));
 	const plannedActions = input.actions
 		? planActionSelections(ports, run, input.actions, input).selections
 		: [];

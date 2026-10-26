@@ -55,9 +55,10 @@ const RESPONSE_JSON_SCHEMA = {
 				type: 'object',
 				properties: {
 					field_key: { type: 'string' },
-					value: { type: 'string' }
+					value: { type: 'string' },
+					source_text: { type: ['string', 'null'] }
 				},
-				required: ['field_key', 'value'],
+				required: ['field_key', 'value', 'source_text'],
 				additionalProperties: false
 			}
 		},
@@ -160,6 +161,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
 }
 
+function tokenCount(value: unknown): number | null {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/** Only allow-listed provider metadata crosses the logging boundary. */
+function responseDiagnostics(body: unknown) {
+	const status = isRecord(body) ? body.status : null;
+	const usage = isRecord(body) && isRecord(body.usage) ? body.usage : {};
+	const outputDetails = isRecord(usage.output_tokens_details) ? usage.output_tokens_details : {};
+	const incompleteDetails =
+		isRecord(body) && isRecord(body.incomplete_details) ? body.incomplete_details : {};
+	const rawReason = incompleteDetails.reason;
+	return {
+		completionStatus:
+			status === 'completed' || status === 'incomplete' || status === 'failed' ? status : null,
+		inputTokens: tokenCount(usage.input_tokens),
+		outputTokens: tokenCount(usage.output_tokens),
+		reasoningTokens: tokenCount(outputDetails.reasoning_tokens),
+		providerIncompleteReason:
+			rawReason === 'max_output_tokens' || rawReason === 'content_filter'
+				? rawReason
+				: rawReason === undefined
+					? null
+					: 'other'
+	};
+}
+
 function findByType(items: unknown[], type: string): Record<string, unknown> | undefined {
 	return items.find(
 		(item): item is Record<string, unknown> => isRecord(item) && item.type === type
@@ -228,12 +256,17 @@ export function createOpenAiProvider(
 			// checked key presence before ever reaching this adapter.
 			if (!apiKey) throw new ExtractionUnavailableError('no OpenAI API key configured');
 
+			let diagnostics = responseDiagnostics(null);
+			let providerActionCount: number | null = null;
 			const warn = (reason: string, status?: number) =>
 				log.warn('ai extraction failed', {
 					providerId: 'openai',
 					modelId: config.aiModel,
 					status,
-					reason
+					reason,
+					...diagnostics,
+					providerActionCount,
+					maxOutputTokens: request.maxOutputTokens
 				});
 
 			const requestBody = {
@@ -306,6 +339,7 @@ export function createOpenAiProvider(
 				throw new ExtractionUnavailableError('network error reading OpenAI response');
 			}
 
+			diagnostics = responseDiagnostics(body);
 			let outputText: string;
 			try {
 				outputText = extractOutputText(body);
@@ -330,6 +364,10 @@ export function createOpenAiProvider(
 				throw new ExtractionMalformedOutputError('model output is not JSON');
 			}
 
+			providerActionCount =
+				isRecord(parsedOutput) && Array.isArray(parsedOutput.action_suggestions)
+					? parsedOutput.action_suggestions.length
+					: null;
 			const parsed = extractionOutputSchema.safeParse(parsedOutput);
 			if (!parsed.success) {
 				warn('schema_mismatch');
@@ -339,9 +377,17 @@ export function createOpenAiProvider(
 			return {
 				providerId: 'openai',
 				modelId: config.aiModel,
+				diagnostics: {
+					completionStatus: 'completed',
+					providerActionCount: providerActionCount ?? 0,
+					schemaValidActionCount: parsed.data.action_suggestions?.length ?? 0,
+					inputTokens: diagnostics.inputTokens,
+					outputTokens: diagnostics.outputTokens
+				},
 				suggestions: parsed.data.suggestions.map((s) => ({
 					fieldKey: s.field_key,
-					value: s.value
+					value: s.value,
+					sourceText: s.source_text ?? null
 				})),
 				additionalSuggestions: (parsed.data.additional_suggestions ?? []).map((s) => ({
 					suggestedLabel: s.suggested_label,

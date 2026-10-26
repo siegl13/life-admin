@@ -299,7 +299,9 @@ describe('extractFromDocument', () => {
 		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
 			'run-1',
 			expect.objectContaining({
-				suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+				suggestions: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null, position: 0 }
+				],
 				discardedCount: 1
 			})
 		);
@@ -311,6 +313,55 @@ describe('extractFromDocument', () => {
 		const request = p.provider.extract.mock.calls[0][0];
 		expect(request.existingActionTitles).toEqual(['Flug umbuchen']);
 		expect(JSON.stringify(request)).not.toContain('secret');
+	});
+
+	it('forwards aggregate provider diagnostics without changing Fields or the user instruction', async () => {
+		const diagnostics = {
+			completionStatus: 'completed' as const,
+			providerActionCount: 0,
+			schemaValidActionCount: 0,
+			inputTokens: 18000,
+			outputTokens: 1000
+		};
+		const p = fakePorts({
+			settings: {
+				get: vi.fn((key: string) => (key === 'ai.enabled' ? '1' : 'custom instruction'))
+			},
+			provider: {
+				providerId: 'fake',
+				modelId: 'fake-v1',
+				extract: vi.fn(async () => ({
+					providerId: 'fake',
+					modelId: 'fake-v1',
+					diagnostics,
+					suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15' }],
+					actionSuggestions: []
+				}))
+			}
+		});
+		await extractFromDocument(p as never, { itemId: 'item-1', attachmentId: 'att-1' }, BOUNDS);
+		expect(p.provider.extract).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({
+				userInstruction: 'custom instruction',
+				maxOutputTokens: 2000
+			})
+		);
+		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
+			'run-1',
+			expect.objectContaining({
+				suggestions: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', sourceText: null, position: 0 }
+				],
+				actionSuggestions: [],
+				discardedActionCount: 0,
+				diagnostics: {
+					provider: diagnostics,
+					maxOutputTokens: 2000,
+					mappedActionCount: 0,
+					discardedActionsByReason: {}
+				}
+			})
+		);
 	});
 
 	it('persists valid Action suggestions and discards done, duplicate and empty ones', async () => {
@@ -351,7 +402,53 @@ describe('extractFromDocument', () => {
 						position: 0
 					}
 				],
-				discardedActionCount: 3
+				discardedActionCount: 3,
+				diagnostics: {
+					maxOutputTokens: 2000,
+					mappedActionCount: 4,
+					discardedActionsByReason: {
+						DUPLICATE_OF_EXISTING_ACTION: 1,
+						ALREADY_DONE: 1,
+						EMPTY_TITLE: 1
+					}
+				}
+			})
+		);
+	});
+
+	it('persists source excerpts for additional Field suggestions', async () => {
+		const p = fakePorts({
+			provider: {
+				providerId: 'fake',
+				modelId: 'fake-v1',
+				extract: vi.fn(async () => ({
+					providerId: 'fake',
+					modelId: 'fake-v1',
+					suggestions: [],
+					additionalSuggestions: [
+						{
+							suggestedLabel: 'Rückflugnummer',
+							suggestedType: 'text' as const,
+							value: 'DE1669',
+							evidence: 'Rückflug DE1669, Heraklion nach Frankfurt'
+						}
+					]
+				}))
+			}
+		});
+		await extractFromDocument(p as never, { itemId: 'item-1', attachmentId: 'att-1' }, BOUNDS);
+		expect(p.runs.markSucceeded).toHaveBeenCalledWith(
+			'run-1',
+			expect.objectContaining({
+				additionalSuggestions: [
+					{
+						suggestedLabel: 'Rückflugnummer',
+						suggestedType: 'text',
+						value: 'DE1669',
+						evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+						position: 0
+					}
+				]
 			})
 		);
 	});

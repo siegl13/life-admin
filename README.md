@@ -45,6 +45,10 @@ a named volume. Open `http://localhost:3000` and create the Owner
 account: the first person to reach the service claims it, so don't leave
 it open on a public network before that.
 
+The sample Compose file publishes port 3000 on all host interfaces. Keep
+that port behind a firewall on a trusted LAN. For access from the internet,
+use HTTPS through a reverse proxy and block direct access to port 3000.
+
 Over plain HTTP, any hostname or port works without extra settings
 (`http://192.168.1.20:3000`, `http://nas.local:3000`). Behind a reverse
 proxy, see [Access and HTTPS](#access-and-https).
@@ -101,8 +105,20 @@ groups appear first. Group names, order and assignments stay with the Item
 when you start a new cycle; field values still follow the Playbook's reset rules.
 Empty fields remain available in the edit form. Archived Items are read-only.
 
+Each value shows whether you confirmed it. A value starts as **Not confirmed**,
+also when a document suggestion filled it. Use **Confirm** to mark it, and
+**Withdraw confirmation** to undo that. Every field has its own state, so a
+date and a time are confirmed separately. Changing a value resets only that
+field's confirmation. A value you save unchanged keeps it. A field without a
+value cannot be confirmed. A time such as `12:30` is stored as written. It is
+a local time and is never converted to another timezone. Dates follow the
+selected language. If a document suggestion came with a short excerpt, the
+value shows it as **Source**. Manual and older values have no source line.
+
 Documents, related Items and history follow the fields. Document suggestions
 show their source in history when available. Older events keep generic text.
+History dates and older upload dates use local calendar days, including across
+daylight saving time changes.
 Add-task and archive controls are under **More options** at the bottom.
 
 ## Also useful beyond the household
@@ -128,6 +144,9 @@ actions as you go.
 
 Plain HTTP sends the password and session cookie unencrypted, so only
 use it on a trusted home network. For HTTPS, put a reverse proxy in front.
+If the proxy runs on the same host, change the Compose port mapping to
+`127.0.0.1:3000:3000` so clients cannot bypass the proxy. Set `ORIGIN` to
+the public HTTPS URL. Do not expose the default HTTP mapping to the internet.
 
 The image contains no origin, so the same image works at any hostname.
 Form submissions are checked against the origin of the request. The
@@ -194,15 +213,23 @@ suggested tasks. Nothing writes to the Item until you submit. New values
 are pre-selected, a value that differs from the current one keeps the
 current value unless you explicitly choose the document value, and no
 task is created unless you select it.
+New additional details can be assigned to an existing Item group before
+acceptance. Items with one group use General automatically. Label, type and
+value edits are available under “Edit details”.
 
 ```
 LIFEADMIN_OPENAI_API_KEY=sk-...
 # LIFEADMIN_AI_MODEL=gpt-5.6-terra   # operator override only, see .env.example
+# LIFEADMIN_AI_MAX_OUTPUT_TOKENS=8000 # positive integer; default 8000
 ```
 
 Under Docker Compose, copy `.env.example` to `.env`, fill in the key,
 uncomment `env_file: .env` in `compose.yaml`, then `docker compose up -d`
 again (`compose.yaml` ignores `.env.example` itself).
+
+Each suggested value may come with a short excerpt of the document (at most
+300 characters). It is shown during review and stored with the value only when
+you accept the suggestion unchanged. Longer excerpts are dropped.
 
 Only the selected document's bytes, its MIME type, the current
 cycle's field labels, and the titles of the Item's existing tasks (to

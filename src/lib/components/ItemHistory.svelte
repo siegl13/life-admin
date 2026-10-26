@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n';
-	import { formatDate, formatTime } from '$lib/ui/format';
+	import { formatDate, formatTime, historyDateGroupKey } from '$lib/ui/format';
 	import type { HistoryEventView } from '$lib/application/history/itemHistory';
 	import type { CycleHistoryEntry } from '$lib/application/cycles/getCycleHistory';
 	import type { HistoryEventType, HistoryEventPayload } from '$lib/domain/history/historyEvent';
@@ -48,27 +48,6 @@
 		events: HistoryEventView[];
 	};
 
-	function getDateGroupKey(dateStr: string): string {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-		const yesterday = new Date(today.getTime() - 86400000);
-		const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-		if (eventDate.getTime() === today.getTime()) return 'today';
-		if (eventDate.getTime() === yesterday.getTime()) return 'yesterday';
-		if (eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear())
-			return 'thisMonth';
-		const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-		if (
-			eventDate.getMonth() === lastMonth.getMonth() &&
-			eventDate.getFullYear() === lastMonth.getFullYear()
-		)
-			return 'lastMonth';
-		if (eventDate.getFullYear() === now.getFullYear()) return 'thisYear';
-		return `year:${eventDate.getFullYear()}`;
-	}
-
 	function getDateGroupLabel(key: string): string {
 		if (key === 'today') return t('items.detail.historyToday');
 		if (key === 'yesterday') return t('items.detail.historyYesterday');
@@ -81,11 +60,12 @@
 
 	const groupedEvents = $derived.by(() => {
 		const visible = events.slice(0, visibleCount);
+		const now = new Date();
 		const groups: DateGroup[] = [];
 		let currentGroup: DateGroup | null = null;
 
 		for (const event of visible) {
-			const key = getDateGroupKey(event.createdAt);
+			const key = historyDateGroupKey(event.createdAt, now);
 			if (!currentGroup || currentGroup.label !== getDateGroupLabel(key)) {
 				currentGroup = { label: getDateGroupLabel(key), events: [] };
 				groups.push(currentGroup);

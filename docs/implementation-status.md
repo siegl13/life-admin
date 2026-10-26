@@ -9,6 +9,106 @@ Its direct dependency, Slice 10
 Notifications, is complete. Slice 19 - Playbook Community Catalog is not
 started; its direct dependency, Slice 11 Playbook Ecosystem, is complete.
 
+## Transfer date and time display (`transfer-date-time-display`)
+
+Pickup date and time are ordinary Item fields with independent confirmation.
+Confirmation starts false, survives unchanged saves and resets only when that
+field's value changes. Empty fields cannot be confirmed. A time such as
+`12:30` remains a local wall-clock value and is never timezone-converted.
+
+Field values may show a bounded source excerpt when extraction supplied one.
+Existing additional-suggestion evidence is reused for new fields created from
+those suggestions; no duplicate provenance column is added. Migration `0021`
+adds confirmation and source storage without backfilling existing values.
+
+Verification on the integration branch: `npm run verify` passes. All seven
+field-confirmation E2E tests pass. The full E2E run had 231 passing tests and
+four failures: one feature test was corrected and passes on its focused rerun;
+three existing Inbox-related tests fail only in the full-suite run and pass
+when run independently. A clean full-suite rerun remains open.
+
+## Group assignment - Additional document fields (`group-assignment`)
+
+**Status: READY TO COMMIT. Full verification, responsive review, and independent
+review passed.**
+
+- Scope note: this worktree contains broad pre-existing changes relative to
+  `main` (149 files at the comparison point), including the extraction and group
+  foundations. This unit changed only its additional-suggestion path, tests,
+  README and this status entry; inherited changes were preserved.
+- Additional suggestions now load only the Item's groups. On multi-group Items,
+  each suggestion has an optional selector defaulting to General; single-group
+  Items omit it. Selected group IDs travel through the existing use case and are
+  validated and assigned inside the existing atomic repository transaction.
+  Label/type/value editing is under a localized “Edit details” disclosure.
+- The floating create button is hidden on document suggestion-review routes
+  because it overlaps editable additional-Field controls on mobile. The shared
+  E2E review helper asserts that it is absent there; other route behavior is
+  unchanged.
+- Responsive screenshots of the suggestion review and additional-Field controls
+  at 375px, 390px and 430px are saved under
+  `.agent/supervisor/group-assignment-final/visual/`. No horizontal overflow or
+  control overlap was visible. The FAB remains covered by the existing shell
+  navigation tests on other routes.
+- Coverage: repository assignment/default/unknown and foreign group rollback,
+  application and route transport, and synthetic E2E selection, acceptance,
+  group placement, reload persistence, disclosure and 375/390/430px overflow.
+- Final checks: `npm run verify` passed with 134 test files and 1,279 unit
+  tests, Svelte check clean, playbook validation clean, and build passed.
+  `npm run test:e2e` passed all 232 tests. Focused extraction E2E passed (5
+  tests including setup); Group UX E2E passed (7 tests plus setup).
+  `git diff --check` passed.
+- Quota isolation: extraction and Inbox AI share a daily cap of 20. A proposed
+  standalone Group extraction E2E would have consumed the final available run
+  before subsequent Inbox analysis. Group selection and persistence coverage
+  stays in the existing extraction test, keeping the full serial suite below
+  the shared limit. Quota behavior and the test-runner architecture are
+  unchanged.
+- Browser and visual overflow checks cover 375/390/430px. The review used the
+  local fake provider and synthetic PDF fixture.
+  VoiceOver/screen-reader and native mobile Select were not manually tested.
+  AI excerpts were not independently checked against source files. Docker was
+  not run.
+- Fresh independent review of the integrated working-tree diff passed with no
+  actionable findings.
+- Open gates: none. No later unit is defined in the approved brief. Manual
+  follow-up not performed: on a synthetic multi-Group
+  Item, use VoiceOver or another screen reader to navigate the suggestion
+  checkbox, labeled Group selector, disclosure, editor, and Apply control;
+  confirm announced names/state/focus order and accepted Group after reload.
+  On a real mobile device, choose another Group in the native picker, close and
+  reopen the disclosure, apply, and reload to confirm persistence.
+
+## Large-document AI extraction failure
+
+**Status: CODE READY; staging correlation and real-PDF acceptance remain open.**
+
+- Evidence: two failed provider requests had 154,046 input tokens, 2,000 output
+  tokens and `incomplete_response`; a separate successful request had 29,989
+  input and 974 output tokens. The available evidence does not correlate those
+  request IDs to the reported 38-page leasing PDF, so that association remains
+  unconfirmed. The adapter sends one PDF file part and one prompt; it does not
+  separately submit extracted PDF text. Field definitions are included once and
+  existing Action titles are capped to 50 entries of 120 characters.
+- Fix: raise the default output limit from 2,000 to 8,000, configurable with
+  `LIFEADMIN_AI_MAX_OUTPUT_TOKENS` (positive integer; invalid values use the
+  8,000 default). Incomplete provider responses remain failures; sanitized logs
+  now include a whitelisted incomplete reason plus input, output, and reasoning
+  token counts when available. There are no automatic retries: one claimed run counts against the
+  existing daily quota and is marked FAILED. Failed results persist no partial
+  suggestions. Review/save errors now have distinct German and English copy.
+- Tests: provider output-limit and 38-page synthetic PDF request; incomplete
+  response logging and rejection; real-repository failed-run/no-partial-write;
+  config default/override validation; save failure route coverage. Existing
+  short-document structured-output, semantic filtering, and action-selection
+  coverage remains in place.
+- Final aligned verification: `npm run verify` passed (139 files, 1,337 tests);
+  `npm run test:e2e` passed (238 tests). Independent review of the merged
+  candidate passed with no actionable findings.
+- Open gates: correlate request IDs to the reported document using sanitized
+  staging metadata, manually retest the original PDF in staging without checking
+  it in, and finish independent review.
+
 ## Staging UX - Unit A: Document semantics and Action Suggestions (`unit-a-document-semantics-actions`)
 
 **Status: IMPLEMENTED. Focused tests, supervisor verification, and independent
@@ -72,6 +172,9 @@ independent review found no open findings.**
   active Item/cycle ownership, Field ownership, and Group ownership inside the
   transaction. Invalid targets or database errors roll back all writes.
   Unassigned Fields keep the General fallback.
+- The floating create button is hidden on document extraction review routes. A
+  final mobile visual pass found that it covered editable additional-Field
+  controls; the E2E suite now asserts the button is absent while reviewing.
 - Tests added or changed: `src/routes/items/[id]/page.server.test.ts` (facts
   return target, reassignment of changed Fields only, invalid Group 400,
   unknown Field ignored); `tests/e2e/field-groups.spec.ts` (create, direct
@@ -93,11 +196,12 @@ independent review found no open findings.**
   `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-01.log`
   and
   `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-02.log`.
-- Responsive visual review: inspected synthetic Item screenshots at 375px,
-  390px, 430px and 1280px. Group rows, stars, overflow controls, Group select,
-  and mobile navigation stayed within the viewport without visible overlap or
-  horizontal overflow. Evidence and limitations:
-  `.agent/supervisor/life-admin-staging-ux/operational-evidence/responsive-review.md`.
+- Final responsive visual review: inspected the Group manager, Field reassignment,
+  extraction review, Field conflicts, Action suggestions, evidence excerpts and
+  mobile navigation at 375px, 390px, 430px and 1280px in German and English.
+  Apply focus is visible and no horizontal overflow remains. Evidence:
+  `.agent/supervisor/staging-ux-pr-finalization/responsive-review.md` and
+  `.agent/supervisor/staging-ux-pr-finalization/visual/`.
 - Accessibility evidence: browser tests assert star and overflow accessible
   names, `aria-pressed`, keyboard activation, visible focus, native Group select
   labels/values, keyboard selection and pointer-assisted selection. The
@@ -108,19 +212,25 @@ independent review found no open findings.**
   grouped edits, invalid target rejection, trigger-induced Group write failure
   rollback of Field values/assignments/History, plain Field edits, unchanged
   value History suppression, and Item/cycle guards.
-- Inbox E2E root cause: the E2E database is shared across sequential tests.
+- E2E shared-state findings: the database is shared across sequential tests.
   The new extraction fixture's title, `Document-derived Group assignment`,
   matched the fake routing provider's `document` item hint. The existing Item
   suggestion therefore correctly selected the existing-item radio, contrary
   to this test's playbook-only setup. Renaming the fixture to
   `Extracted Field Group assignment` removes the accidental hint match. The
-  targeted combined sequence and the full suite now pass.
-- Final integrated verification: `npm run verify` passed (134 test files,
-  1,272 unit tests, Svelte check clean, build passed). `npm run test:e2e`
-  passed all 232 tests. Focused transaction/route tests passed (56 tests).
-  `git diff --check` passed. Fresh independent review found no actionable
-  findings and confirmed transaction/rollback, History, guards, E2E root cause,
-  extraction, and Group behavior.
+  targeted combined sequence and the full suite passed. Separately, extraction
+  and Inbox analyses share the 20-run daily cap. The current sequential suite
+  makes 10 extraction and 9 Inbox AI attempts (19 total). A standalone Group
+  extraction E2E would use run 20; the following Inbox analysis would request
+  run 21 and fail, leaving a pending document for later Inbox-count tests. Group
+  coverage remains in an existing extraction flow, so this extra AI run is not
+  made. The application quota is unchanged. Global setup clears `.data-e2e`,
+  Playwright uses one worker with `fullyParallel: false`, and the fixture title
+  no longer matches the fake router's `document` hint.
+- Final integrated verification after the FAB correction: `npm run verify`
+  passed (134 test files, 1,272 unit tests, Svelte check clean, build passed).
+  `npm run test:e2e` passed all 232 tests. Focused extraction E2E passed (5
+  tests). `git diff --check` passed.
 - Acceptance gaps addressed: optional concise source excerpt; real
   document-derived Field Group reassignment; DE/EN interaction and persistence;
   browser keyboard/focus/accessibility and native select checks. Remaining
@@ -130,6 +240,10 @@ independent review found no open findings.**
 - Remaining limitations: VoiceOver/screen-reader and native mobile OS Select
   interactions were not manually tested. Model-provided source excerpts are
   not independently matched against the original document text.
+- Fresh independent review of `origin/main...HEAD` plus working-tree edits
+  passed with no actionable findings. The reviewer confirmed extraction and
+  conflict semantics, Action selection, transaction rollback, quota accounting,
+  Group UX, the FAB correction and localization/accessibility coverage.
 - Open gates: none.
 - Next planned unit: none defined in the brief.
 
@@ -2192,7 +2306,8 @@ the model name is independently confirmed.**
   type), `fakeProvider.ts` (deterministic, no network, ignores the key
   entirely), `selectProvider.ts` (pure over `process.env`, unit-tested).
   `config.ts` gained `openaiApiKey`/`aiModel`/`aiTimeoutMs`/
-  `aiMaxDocumentBytes` (8 MB)/`aiMaxOutputTokens` (2000)/
+  `aiMaxDocumentBytes` (8 MB)/`aiMaxOutputTokens` (initial default 2000,
+  since raised to 8000; see Large-document AI extraction failure)/
   `aiDailyRunLimit` (20). `appPorts.ts` gained `appSettingsPort`,
   `attachmentReadPort`, `extractionRunsPort`, `extractionProvider`
   (selected once at module load). New

@@ -92,15 +92,17 @@ export function saveNotificationSettings(
 		removeWebhook: boolean;
 	}
 ): void {
-	settings.set(db, NOTIFY_KEYS.enabled, input.enabled ? '1' : '0');
-	settings.set(db, NOTIFY_KEYS.channel, input.channel);
-	settings.set(db, NOTIFY_KEYS.baseUrl, input.baseUrl);
-	settings.set(db, NOTIFY_KEYS.topic, input.topic);
-	settings.set(db, NOTIFY_KEYS.leadDays, String(input.leadDays));
-	settings.set(db, NOTIFY_KEYS.reminderTime, input.reminderTime);
-	settings.set(db, NOTIFY_KEYS.minimalContent, input.minimalContent ? '1' : '0');
-	if (input.removeToken) settings.remove(db, NOTIFY_KEYS.ntfyToken);
-	else if (input.token) settings.set(db, NOTIFY_KEYS.ntfyToken, input.token);
-	if (input.removeWebhook) settings.remove(db, NOTIFY_KEYS.slackWebhook);
-	else if (input.webhookUrl) settings.set(db, NOTIFY_KEYS.slackWebhook, input.webhookUrl);
+	db.transaction(() => {
+		settings.set(db, NOTIFY_KEYS.enabled, input.enabled ? '1' : '0');
+		settings.set(db, NOTIFY_KEYS.channel, input.channel);
+		settings.set(db, NOTIFY_KEYS.baseUrl, input.baseUrl);
+		settings.set(db, NOTIFY_KEYS.topic, input.topic);
+		settings.set(db, NOTIFY_KEYS.leadDays, String(input.leadDays));
+		settings.set(db, NOTIFY_KEYS.reminderTime, input.reminderTime);
+		settings.set(db, NOTIFY_KEYS.minimalContent, input.minimalContent ? '1' : '0');
+		if (input.removeToken) settings.remove(db, NOTIFY_KEYS.ntfyToken);
+		else if (input.token) settings.set(db, NOTIFY_KEYS.ntfyToken, input.token);
+		if (input.removeWebhook) settings.remove(db, NOTIFY_KEYS.slackWebhook);
+		else if (input.webhookUrl) settings.set(db, NOTIFY_KEYS.slackWebhook, input.webhookUrl);
+	})();
 }

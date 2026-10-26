@@ -9,6 +9,7 @@ import {
 	extractArchive,
 	resolveEntryDestination,
 	writeArchive,
+	writeArchiveFromFiles,
 	type ExtractLimits
 } from './archive';
 
@@ -58,6 +59,50 @@ const LOW_LIMITS: ExtractLimits = {
 	maxEntries: 3,
 	maxPlaybookBytes: 100
 };
+
+describe('streamed archive writer', () => {
+	it('writes large entries without changing the restore format', async () => {
+		const filePath = path.join(tmpDir, 'source.bin');
+		const bytes = Buffer.alloc(256 * 1024, 0x41);
+		fs.writeFileSync(filePath, bytes);
+		const manifest = manifestFor([
+			{
+				kind: 'sqlite',
+				path: 'db/lifeadmin.sqlite',
+				bytes: bytes.byteLength,
+				sha256: sha256(bytes)
+			}
+		]);
+		writeArchiveFromFiles(
+			archivePath,
+			new TextEncoder().encode(JSON.stringify(manifest)),
+			[{ name: 'db/lifeadmin.sqlite', filePath, bytes: bytes.byteLength, sha256: sha256(bytes) }],
+			10 * 1024 * 1024
+		);
+		await extractArchive(archivePath, stagingDir);
+		expect(fs.readFileSync(path.join(stagingDir, 'lifeadmin.sqlite'))).toEqual(bytes);
+	});
+
+	it('discards the partial archive if a file changes or the compressed limit is reached', () => {
+		const filePath = path.join(tmpDir, 'source.bin');
+		fs.writeFileSync(filePath, 'changed');
+		const entry = {
+			name: 'db/lifeadmin.sqlite',
+			filePath,
+			bytes: 7,
+			sha256: sha256(Buffer.from('initial'))
+		};
+		expect(() => writeArchiveFromFiles(archivePath, Buffer.from('{}'), [entry], 100_000)).toThrow(
+			'FILE_CHANGED_DURING_BACKUP'
+		);
+		expect(fs.existsSync(archivePath)).toBe(false);
+		expect(fs.existsSync(`${archivePath}.part`)).toBe(false);
+		expect(() => writeArchiveFromFiles(archivePath, Buffer.from('{}'), [], 1)).toThrow(
+			'COMPRESSED_ARCHIVE_TOO_LARGE'
+		);
+		expect(fs.existsSync(`${archivePath}.part`)).toBe(false);
+	});
+});
 
 describe('extractArchive (hostile ZIP policy)', () => {
 	it('round-trips a small database entry through writeArchive and extractArchive', async () => {

@@ -341,7 +341,9 @@ describe('bundled playbooks (golden path)', () => {
 			recommended: field.recommended,
 			position,
 			value:
-				field.type === 'currency' ? '10.00 EUR' : field.type === 'date' ? '2030-01-01' : 'value'
+				field.type === 'currency' ? '10.00 EUR' : field.type === 'date' ? '2030-01-01' : 'value',
+			sourceText: null,
+			confirmed: false
 		}));
 		const seeds = planNextCycleFields(plan, previousFields);
 

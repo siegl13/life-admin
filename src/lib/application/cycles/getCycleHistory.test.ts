@@ -27,7 +27,8 @@ describe('getCycleHistory', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		const actions: ActionRepositoryPort = {
 			listActions: vi.fn(() => []),
@@ -54,7 +55,8 @@ describe('getCycleHistory', () => {
 		const fields: FieldRepositoryPort = {
 			listFields: vi.fn(() => []),
 			addCustomField: vi.fn(),
-			removeCustomField: vi.fn()
+			removeCustomField: vi.fn(),
+			setFieldConfirmed: vi.fn()
 		};
 		const actions: ActionRepositoryPort = {
 			listActions: vi.fn(() => []),

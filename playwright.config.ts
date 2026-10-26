@@ -51,6 +51,7 @@ export default defineConfig({
 			// Deterministic fake provider: NODE_ENV is not 'production' here, so
 			// the gate in selectProvider.ts opens. No document ever leaves this
 			// machine and no real key is required — see selectProvider.test.ts.
+			// Fake runs get a separate, higher quota (see config.ts).
 			LIFEADMIN_AI_FAKE: '1',
 			LIFEADMIN_OPENAI_API_KEY: 'test-key-not-used',
 			LIFEADMIN_DISABLE_SCHEDULER: '1',

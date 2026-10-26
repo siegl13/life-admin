@@ -3,7 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { log } from '../../log';
 import { openDatabase } from '../database';
 import {
 	addActions,
@@ -29,6 +30,7 @@ import { createItem } from './itemRepository';
 import { listEvents } from './eventRepository';
 import { listActions } from './actionRepository';
 import { listFields } from './fieldRepository';
+import { insertInitialFieldGroups } from './fieldGroupRepository';
 import { applyExtractionRun } from '$lib/application/ai/applyExtractionRun';
 import { UnknownFieldError } from '$lib/application/items/updateItemFields';
 import { materializePlaybook } from '$lib/domain/playbook/materialize';
@@ -74,6 +76,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	vi.restoreAllMocks();
 	db.close();
 	fs.rmSync(tmpDir, { recursive: true, force: true });
 });
@@ -118,7 +121,15 @@ function fixture() {
 	const cycleId = insertCycle(itemId);
 	const attachmentId = insertAttachment(itemId);
 	insertField(cycleId, 'contract_end', 'date', null);
+	insertInitialFieldGroups(db, itemId, { groups: [], fields: [], events: [], actions: [] });
 	return { itemId, cycleId, attachmentId };
+}
+
+function getDefaultGroupId(itemId: string): string {
+	const row = db
+		.prepare('SELECT id FROM item_field_groups WHERE item_id = ? AND is_default = 1')
+		.get(itemId) as { id: string };
+	return row.id;
 }
 
 describe('claimRun', () => {
@@ -264,7 +275,14 @@ describe('claimRun', () => {
 		db.prepare('DELETE FROM attachments WHERE id = ?').run(attachmentId);
 
 		markSucceeded(db, 'run-1', {
-			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+			suggestions: [
+				{
+					fieldKey: 'contract_end',
+					value: '2031-03-15',
+					sourceText: 'Laufzeit bis 15.03.2031',
+					position: 0
+				}
+			],
 			discardedCount: 0,
 			additionalSuggestions: [],
 			discardedAdditionalCount: 0
@@ -419,11 +437,102 @@ describe('claimRun', () => {
 });
 
 describe('markSucceeded / markFailed', () => {
+	it('logs only aggregate diagnostics after commit, and not on a no-op retry', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		claimRunFor('run-1', itemId, cycleId, attachmentId);
+		const info = vi.spyOn(log, 'info').mockImplementation(() => {
+			expect(db.inTransaction).toBe(false);
+			expect(listActionSuggestions(db, 'run-1')).toHaveLength(1);
+		});
+		const input = {
+			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+			discardedCount: 0,
+			additionalSuggestions: [],
+			discardedAdditionalCount: 0,
+			actionSuggestions: [
+				{
+					title: 'private-title',
+					context: 'private-condition',
+					evidence: 'private-source',
+					date: { kind: 'NONE' as const, value: null, relative: null },
+					position: 0
+				}
+			],
+			discardedActionCount: 1,
+			diagnostics: {
+				provider: {
+					completionStatus: 'completed' as const,
+					providerActionCount: 2,
+					schemaValidActionCount: 2,
+					inputTokens: 100,
+					outputTokens: 50
+				},
+				maxOutputTokens: 2000,
+				mappedActionCount: 2,
+				discardedActionsByReason: { DUPLICATE: 1 }
+			}
+		};
+		markSucceeded(db, 'run-1', input);
+		expect(info).toHaveBeenCalledWith('ai extraction persisted', {
+			runId: 'run-1',
+			completionStatus: 'completed',
+			providerActionCount: 2,
+			schemaValidActionCount: 2,
+			mappedActionCount: 2,
+			discardedActionCount: 1,
+			discardedActionsByReason: { DUPLICATE: 1 },
+			persistedActionCount: 1,
+			persistedFieldCount: 1,
+			persistedAdditionalFieldCount: 0,
+			inputTokens: 100,
+			outputTokens: 50,
+			maxOutputTokens: 2000
+		});
+		for (const privateValue of [
+			'private-title',
+			'private-condition',
+			'private-source',
+			'2031-03-15'
+		]) {
+			expect(JSON.stringify(info.mock.calls)).not.toContain(privateValue);
+		}
+		markSucceeded(db, 'run-1', input);
+		expect(info).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not log success if persistence rolls back', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		claimRunFor('run-1', itemId, cycleId, attachmentId);
+		const info = vi.spyOn(log, 'info').mockImplementation(() => {});
+		expect(() =>
+			markSucceeded(db, 'run-1', {
+				suggestions: [
+					{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 },
+					{ fieldKey: 'contract_end', value: '2031-03-16', position: 1 }
+				],
+				discardedCount: 0,
+				additionalSuggestions: [],
+				discardedAdditionalCount: 0,
+				diagnostics: { maxOutputTokens: 2000, mappedActionCount: 0, discardedActionsByReason: {} }
+			})
+		).toThrow();
+		expect(info).not.toHaveBeenCalled();
+		expect(getById(db, 'run-1')!.status).toBe('RUNNING');
+		expect(listSuggestions(db, 'run-1')).toEqual([]);
+	});
+
 	it('moves RUNNING to NEW and persists kept suggestions', () => {
 		const { itemId, cycleId, attachmentId } = fixture();
 		claimRunFor('run-1', itemId, cycleId, attachmentId);
 		markSucceeded(db, 'run-1', {
-			suggestions: [{ fieldKey: 'contract_end', value: '2031-03-15', position: 0 }],
+			suggestions: [
+				{
+					fieldKey: 'contract_end',
+					value: '2031-03-15',
+					sourceText: 'Laufzeit bis 15.03.2031',
+					position: 0
+				}
+			],
 			discardedCount: 2,
 			additionalSuggestions: [
 				{
@@ -441,7 +550,21 @@ describe('markSucceeded / markFailed', () => {
 		expect(run.suggestedCount).toBe(1);
 		expect(run.discardedCount).toBe(2);
 		expect(listSuggestions(db, 'run-1')).toEqual([
-			{ fieldKey: 'contract_end', value: '2031-03-15', position: 0, accepted: false }
+			{
+				fieldKey: 'contract_end',
+				value: '2031-03-15',
+				sourceText: 'Laufzeit bis 15.03.2031',
+				position: 0,
+				accepted: false
+			}
+		]);
+		expect(listAdditionalSuggestions(db, 'run-1')).toMatchObject([
+			{
+				suggestedLabel: 'Rückflugnummer',
+				value: 'DE1669',
+				evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+				accepted: false
+			}
 		]);
 		expect(listAdditionalSuggestions(db, 'run-1')).toMatchObject([
 			{
@@ -802,7 +925,13 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 			itemId,
 			cycleId,
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Fahrzeugmodell',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: getDefaultGroupId(itemId)
+				}
 			]
 		});
 
@@ -815,6 +944,9 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 		expect(listAdditionalSuggestions(db, 'run-1').find((s) => s.id === 'sug-1')?.accepted).toBe(
 			true
 		);
+		expect(
+			db.prepare('SELECT group_id FROM item_field_group_assignments WHERE item_id = ?').get(itemId)
+		).toEqual({ group_id: getDefaultGroupId(itemId) });
 	});
 
 	it('adding several selections in one call is atomic: all succeed together', () => {
@@ -826,8 +958,20 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 			itemId,
 			cycleId,
 			selections: [
-				{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-				{ suggestionId: 'sug-2', label: 'Monatliche Rate', type: 'currency', value: '351.00 EUR' }
+				{
+					suggestionId: 'sug-1',
+					label: 'Fahrzeugmodell',
+					type: 'text',
+					value: 'CUPRA Born',
+					groupId: getDefaultGroupId(itemId)
+				},
+				{
+					suggestionId: 'sug-2',
+					label: 'Monatliche Rate',
+					type: 'currency',
+					value: '351.00 EUR',
+					groupId: getDefaultGroupId(itemId)
+				}
 			]
 		});
 
@@ -840,6 +984,48 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 		expect(count.n).toBe(3);
 	});
 
+	it('rejects unknown and foreign groups and rolls back earlier writes', () => {
+		const { itemId, cycleId, attachmentId } = fixture();
+		const foreignItem = insertItem();
+		insertCycle(foreignItem);
+		insertNewRunWithAdditionalSuggestions(itemId, cycleId, attachmentId);
+		insertInitialFieldGroups(db, foreignItem, { groups: [], fields: [], events: [], actions: [] });
+		const foreignGroupId = getDefaultGroupId(foreignItem);
+
+		for (const groupId of ['unknown-group', foreignGroupId]) {
+			expect(() =>
+				addAdditionalFields(db, {
+					runId: 'run-1',
+					itemId,
+					cycleId,
+					selections: [
+						{
+							suggestionId: 'sug-1',
+							label: 'First',
+							type: 'text',
+							value: 'written',
+							groupId: getDefaultGroupId(itemId)
+						},
+						{ suggestionId: 'sug-2', label: 'Second', type: 'text', value: 'bad target', groupId }
+					]
+				})
+			).toThrow();
+			expect(
+				(
+					db.prepare('SELECT COUNT(*) n FROM cycle_fields WHERE cycle_id = ?').get(cycleId) as {
+						n: number;
+					}
+				).n
+			).toBe(1);
+			expect(listAdditionalSuggestions(db, 'run-1').every((s) => !s.accepted)).toBe(true);
+			expect(
+				db
+					.prepare('SELECT COUNT(*) n FROM item_field_group_assignments WHERE item_id = ?')
+					.get(itemId)
+			).toEqual({ n: 0 });
+		}
+	});
+
 	it('a suggestion id that does not belong to this run creates nothing (atomic rollback)', () => {
 		const { itemId, cycleId, attachmentId } = fixture();
 		insertNewRunWithAdditionalSuggestions(itemId, cycleId, attachmentId);
@@ -850,8 +1036,20 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				itemId,
 				cycleId,
 				selections: [
-					{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'CUPRA Born' },
-					{ suggestionId: 'not-a-real-id', label: 'Ghost', type: 'text', value: 'x' }
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'CUPRA Born',
+						groupId: getDefaultGroupId(itemId)
+					},
+					{
+						suggestionId: 'not-a-real-id',
+						label: 'Ghost',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
 				]
 			})
 		).toThrow(AdditionalSuggestionNotFoundError);
@@ -875,7 +1073,15 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				runId: 'run-1',
 				itemId,
 				cycleId,
-				selections: [{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'x' }]
+				selections: [
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
+				]
 			})
 		).toThrow(ExtractionRunNotReviewableError);
 	});
@@ -890,7 +1096,15 @@ describe('AI Extraction 1.1: additional suggestions', () => {
 				runId: 'run-1',
 				itemId,
 				cycleId,
-				selections: [{ suggestionId: 'sug-1', label: 'Fahrzeugmodell', type: 'text', value: 'x' }]
+				selections: [
+					{
+						suggestionId: 'sug-1',
+						label: 'Fahrzeugmodell',
+						type: 'text',
+						value: 'x',
+						groupId: getDefaultGroupId(itemId)
+					}
+				]
 			})
 		).toThrow(ItemNotWritableError);
 	});

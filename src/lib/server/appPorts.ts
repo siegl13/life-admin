@@ -48,7 +48,7 @@ import {
 import { parsePlaybookText } from './playbooks/loader';
 import * as authRepo from './db/repositories/authRepository';
 import { passwordHasher } from './auth/passwordHasher';
-import { withHashGuard } from './auth/hashGuard';
+import { HashGuardExhaustedError, withHashGuard } from './auth/hashGuard';
 import { newSessionToken } from './auth/sessionToken';
 import { randomUUID } from 'node:crypto';
 import * as attachmentRepo from './db/repositories/attachmentRepository';
@@ -106,7 +106,9 @@ export const cyclesPort: CycleRepositoryPort = {
 export const fieldsPort: FieldRepositoryPort = {
 	listFields: (cycleId) => fieldRepo.listFields(getDb(), cycleId),
 	addCustomField: (cycleId, input) => fieldRepo.addCustomField(getDb(), cycleId, input),
-	removeCustomField: (cycleId, fieldKey) => fieldRepo.removeCustomField(getDb(), cycleId, fieldKey)
+	removeCustomField: (cycleId, fieldKey) => fieldRepo.removeCustomField(getDb(), cycleId, fieldKey),
+	setFieldConfirmed: (cycleId, fieldKey, confirmed) =>
+		fieldRepo.setFieldConfirmed(getDb(), cycleId, fieldKey, confirmed)
 };
 
 export const fieldGroupsPort: FieldGroupRepositoryPort = {
@@ -239,8 +241,9 @@ export const passwordHasherPort: PasswordHasherPort = {
 	async verify(plain, stored) {
 		try {
 			return await withHashGuard(() => passwordHasher.verify(plain, stored));
-		} catch {
-			return false;
+		} catch (cause) {
+			if (cause instanceof HashGuardExhaustedError) return false;
+			throw cause;
 		}
 	}
 };

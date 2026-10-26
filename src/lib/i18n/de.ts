@@ -141,6 +141,12 @@ export const de = {
 	'items.detail.recommended': 'empfohlen',
 	'items.detail.recommendedHint': 'Hilft bei der Terminberechnung. Kann später ergänzt werden.',
 	'items.detail.addValue': 'Ergänzen',
+	'items.detail.fieldSource': 'Quelle',
+	'items.detail.fieldConfirmed': 'Bestätigt',
+	'items.detail.fieldUnconfirmed': 'Nicht bestätigt',
+	'items.detail.confirmField': 'Bestätigen',
+	'items.detail.unconfirmField': 'Bestätigung zurücknehmen',
+	'items.detail.fieldNotConfirmable': 'Ein Feld ohne Wert kann nicht bestätigt werden.',
 	'items.detail.manageFields': 'Angaben bearbeiten',
 	'items.detail.manageFieldsActive': 'Bearbeiten',
 	'items.detail.manageFieldsDone': 'Fertig',
@@ -535,6 +541,8 @@ export const de = {
 	'ai.error.failed':
 		'Die Erkennung hat nicht funktioniert. Du kannst es erneut versuchen oder die Angaben selbst eintragen.',
 	'ai.error.failedHint': 'Du kannst es erneut versuchen oder die Angaben selbst eintragen.',
+	'ai.error.saveFailed':
+		'Nicht alle ausgewählten Vorschläge konnten gespeichert werden. Bitte prüfe das Element, bevor du es erneut versuchst.',
 	'ai.error.tooLarge': 'Dieses Dokument ist für die automatische Erkennung zu groß.',
 	'ai.error.unsupportedType':
 		'Dieser Dateityp wird für die automatische Erkennung nicht unterstützt.',
@@ -547,6 +555,8 @@ export const de = {
 	'ai.additional.submit': 'Ausgewählte hinzufügen',
 	'ai.additional.noneSelected': 'Bitte wähle mindestens eine Angabe aus.',
 	'ai.additional.source': 'Quelle:',
+	'ai.additional.group': 'Gruppe',
+	'ai.additional.editDetails': 'Angaben bearbeiten',
 	'ai.error.rateLimited':
 		'Das tägliche Limit für die automatische Erkennung ist erreicht. Bitte versuche es morgen erneut.',
 	'ai.error.providerRateLimited':

@@ -55,14 +55,47 @@
 					</div>
 					<div class="data-list">
 						{#each view.filledFields as field (field.id)}
-							<div class="data-row">
-								<span class="data-row__key">{field.label}</span>
+							<div class="data-row" id="field-fact-{field.fieldKey}">
+								<span class="data-row__key" id="fact-key-{field.id}">{field.label}</span>
 								<span
 									class="data-row__value facts-group__value"
 									class:facts-group__value--unbroken={isUnbrokenValue(displayValue(field))}
 									title={displayValue(field)}
 									aria-label={displayValue(field)}>{displayValue(field)}</span
 								>
+								{#if field.sourceText}
+									<p class="facts-group__source">
+										<span class="facts-group__source-label">{t('items.detail.fieldSource')}:</span>
+										<q>{field.sourceText}</q>
+									</p>
+								{/if}
+								<div class="facts-group__confirmation">
+									<span
+										class="pill"
+										class:pill--neutral={!field.confirmed}
+										data-confirmed={field.confirmed}
+									>
+										{field.confirmed
+											? t('items.detail.fieldConfirmed')
+											: t('items.detail.fieldUnconfirmed')}
+									</span>
+									{#if !readOnly}
+										<form method="POST" action="?/setFieldConfirmation">
+											<input type="hidden" name="fieldKey" value={field.fieldKey} />
+											<button
+												type="submit"
+												class="quiet"
+												name="confirmed"
+												value={field.confirmed ? 'no' : 'yes'}
+												aria-describedby="fact-key-{field.id}"
+											>
+												{field.confirmed
+													? t('items.detail.unconfirmField')
+													: t('items.detail.confirmField')}
+											</button>
+										</form>
+									{/if}
+								</div>
 							</div>
 						{/each}
 					</div>

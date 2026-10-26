@@ -57,7 +57,13 @@ export interface Config {
  *  `gpt-5-mini-2025-08-07` snapshot.) */
 const DEFAULT_AI_MODEL = 'gpt-5.6-terra';
 
-function readConfig(env: NodeJS.ProcessEnv): Config {
+function positiveInteger(value: string | undefined, fallback: number): number {
+	if (!value) return fallback;
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function readConfig(env: NodeJS.ProcessEnv): Config {
 	const openaiApiKey = env.LIFEADMIN_OPENAI_API_KEY?.trim() || null;
 	const origin = env.ORIGIN?.trim().replace(/\/$/, '') || null;
 	const dataDir = env.LIFEADMIN_DATA_DIR?.trim() || './.data';
@@ -93,8 +99,11 @@ function readConfig(env: NodeJS.ProcessEnv): Config {
 		aiModel: env.LIFEADMIN_AI_MODEL?.trim() || DEFAULT_AI_MODEL,
 		aiTimeoutMs: 60_000,
 		aiMaxDocumentBytes: 8 * 1024 * 1024,
-		aiMaxOutputTokens: 2000,
-		aiDailyRunLimit: 20
+		aiMaxOutputTokens: positiveInteger(env.LIFEADMIN_AI_MAX_OUTPUT_TOKENS, 8000),
+		// The deterministic fake makes no external request. Keep the shared E2E
+		// database from exhausting its quota as more independent flows are added.
+		// Match selectProvider's production gate so real requests always keep 20.
+		aiDailyRunLimit: env.LIFEADMIN_AI_FAKE === '1' && env.NODE_ENV !== 'production' ? 1000 : 20
 	};
 }
 

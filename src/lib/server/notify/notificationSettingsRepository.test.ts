@@ -41,6 +41,30 @@ const save = (reminderTime: string) =>
 	});
 
 describe('notification reminder time persistence', () => {
+	it('rolls back the entire change if a later setting cannot be saved', () => {
+		save('08:00');
+		db.exec(`CREATE TRIGGER fail_reminder_time BEFORE UPDATE ON app_settings
+			WHEN NEW.key = 'notify.reminderTime' BEGIN SELECT RAISE(ABORT, 'write failed'); END`);
+		expect(() =>
+			saveNotificationSettings(db, {
+				enabled: false,
+				channel: 'SLACK',
+				baseUrl: 'https://ntfy.example',
+				topic: 'private_topic',
+				leadDays: 2,
+				reminderTime: '17:45',
+				minimalContent: true,
+				token: '',
+				webhookUrl: '',
+				removeToken: false,
+				removeWebhook: false
+			})
+		).toThrow('write failed');
+		expect(getNotificationSettings(db)).toMatchObject({ reminderTime: '08:00', enabled: true });
+		expect(settings.get(db, NOTIFY_KEYS.channel)).toBe('NTFY');
+		expect(settings.get(db, NOTIFY_KEYS.leadDays)).toBe('7');
+	});
+
 	it('defaults an existing install without a stored value to the former 08:00', () => {
 		expect(getNotificationSettings(db).reminderTime).toBe('08:00');
 		settings.set(db, NOTIFY_KEYS.enabled, '1');

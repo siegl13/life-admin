@@ -15,7 +15,7 @@ import { assertEnoughFreeSpace, DISK_SPACE_SAFETY_FACTOR } from './diskSpace';
 import { resolveStoragePath } from '../files/attachmentStorage';
 import { resolveInboxStoragePath } from '../files/inboxStorage';
 import { scanPlaybookDirectory } from '../playbooks/loader';
-import { MAX_ARCHIVE_BYTES, MAX_ENTRIES, MAX_TOTAL_BYTES, writeArchive } from './archive';
+import { MAX_ARCHIVE_BYTES, MAX_ENTRIES, MAX_TOTAL_BYTES, writeArchiveFromFiles } from './archive';
 
 export class AttachmentBackupError extends Error {
 	constructor(
@@ -34,8 +34,22 @@ export class AttachmentBackupError extends Error {
  */
 export class BackupTooLargeError extends Error {}
 
-function sha256(body: Uint8Array): string {
-	return createHash('sha256').update(body).digest('hex');
+function fingerprint(filePath: string, maxBytes: number): { bytes: number; sha256: string } {
+	const fd = fs.openSync(filePath, 'r');
+	try {
+		const buffer = Buffer.allocUnsafe(64 * 1024);
+		const hash = createHash('sha256');
+		let bytes = 0;
+		let count: number;
+		while ((count = fs.readSync(fd, buffer, 0, buffer.byteLength, null)) > 0) {
+			bytes += count;
+			if (bytes > maxBytes) throw new BackupTooLargeError('PLANNED_SIZE_TOO_LARGE');
+			hash.update(buffer.subarray(0, count));
+		}
+		return { bytes, sha256: hash.digest('hex') };
+	} finally {
+		fs.closeSync(fd);
+	}
 }
 
 function utcStamp(date: Date): string {
@@ -133,17 +147,22 @@ export function createBackup(
 		const snapshotPath = path.join(staging, 'lifeadmin.sqlite');
 		getDb().prepare('VACUUM INTO ?').run(snapshotPath);
 		sanitizeSnapshot(snapshotPath);
-		const archiveEntries: { name: string; body: Uint8Array }[] = [];
+		const archiveEntries: { name: string; filePath: string; bytes: number; sha256: string }[] = [];
 		const contents: ManifestEntry[] = [];
+		let plannedTotalBytes = 0;
 		const add = (
 			kind: 'sqlite' | 'playbook' | 'attachment' | 'inbox',
 			name: string,
-			body: Uint8Array
-		) => {
-			contents.push({ kind, path: name, bytes: body.byteLength, sha256: sha256(body) });
-			archiveEntries.push({ name, body });
+			filePath: string
+		): ManifestEntry => {
+			const { bytes, sha256 } = fingerprint(filePath, limits.maxTotalBytes - plannedTotalBytes);
+			plannedTotalBytes += bytes;
+			const entry = { kind, path: name, bytes, sha256 };
+			contents.push(entry);
+			archiveEntries.push({ name, filePath, bytes, sha256 });
+			return entry;
 		};
-		add('sqlite', 'db/lifeadmin.sqlite', fs.readFileSync(snapshotPath));
+		add('sqlite', 'db/lifeadmin.sqlite', snapshotPath);
 
 		// Reuses the scan taken above (for the disk-space estimate) rather than
 		// scanning again: the same recursive scan the runtime playbook loader
@@ -157,7 +176,7 @@ export function createBackup(
 				.relative(config.customPlaybooksDir, file.filePath)
 				.split(path.sep)
 				.join('/');
-			add('playbook', `playbooks/${relative}`, fs.readFileSync(file.filePath));
+			add('playbook', `playbooks/${relative}`, file.filePath);
 		}
 
 		const snapshot = new Database(snapshotPath, { readonly: true });
@@ -179,15 +198,15 @@ export function createBackup(
 				} catch {
 					throw new AttachmentBackupError(row.id, 'invalid storage key');
 				}
-				let body: Buffer;
+				let entry: ManifestEntry;
 				try {
-					body = fs.readFileSync(source);
-				} catch {
+					entry = add('attachment', `attachments/${row.storage_key}`, source);
+				} catch (cause) {
+					if (cause instanceof BackupTooLargeError) throw cause;
 					throw new AttachmentBackupError(row.id, 'file missing');
 				}
-				if (body.byteLength !== row.byte_size || sha256(body) !== row.sha256)
+				if (entry.bytes !== row.byte_size || entry.sha256 !== row.sha256)
 					throw new AttachmentBackupError(row.id, 'file does not match its recorded checksum');
-				add('attachment', `attachments/${row.storage_key}`, body);
 			}
 			const inboxRows = snapshot
 				.prepare('SELECT id, storage_key, byte_size, sha256 FROM inbox_documents')
@@ -199,18 +218,18 @@ export function createBackup(
 				} catch {
 					throw new AttachmentBackupError(row.id, 'invalid inbox storage key');
 				}
-				let body: Buffer;
+				let entry: ManifestEntry;
 				try {
-					body = fs.readFileSync(source);
-				} catch {
+					entry = add('inbox', `inbox/${row.storage_key}`, source);
+				} catch (cause) {
+					if (cause instanceof BackupTooLargeError) throw cause;
 					throw new AttachmentBackupError(row.id, 'inbox file missing');
 				}
-				if (body.byteLength !== row.byte_size || sha256(body) !== row.sha256)
+				if (entry.bytes !== row.byte_size || entry.sha256 !== row.sha256)
 					throw new AttachmentBackupError(
 						row.id,
 						'inbox file does not match its recorded checksum'
 					);
-				add('inbox', `inbox/${row.storage_key}`, body);
 			}
 		} finally {
 			snapshot.close();
@@ -221,9 +240,6 @@ export function createBackup(
 		// planned contents (the manifest entry plus one per
 		// sqlite/playbook/attachment entry).
 		if (contents.length + 1 > limits.maxEntries) throw new BackupTooLargeError('TOO_MANY_ENTRIES');
-		const plannedTotalBytes = archiveEntries.reduce((sum, entry) => sum + entry.body.byteLength, 0);
-		if (plannedTotalBytes > limits.maxTotalBytes)
-			throw new BackupTooLargeError('PLANNED_SIZE_TOO_LARGE');
 
 		const manifest: BackupManifest = {
 			backupFormatVersion: BACKUP_FORMAT_VERSION,
@@ -232,16 +248,16 @@ export function createBackup(
 			schema: { migrationsApplied: listAppliedMigrations(getDb()) },
 			contents
 		};
-		const body = writeArchive([
-			{ name: 'manifest.json', body: new TextEncoder().encode(JSON.stringify(manifest, null, 2)) },
-			...archiveEntries
-		]);
-		// The archive is built entirely in memory (fflate's zipSync), so the
-		// compressed-size cap is checked before anything is ever written to
-		// disk: an oversized backup is refused, not written-then-deleted.
-		if (body.byteLength > limits.maxArchiveBytes)
-			throw new BackupTooLargeError('COMPRESSED_ARCHIVE_TOO_LARGE');
-		fs.writeFileSync(filePath, body);
+		const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
+		if (plannedTotalBytes + manifestBytes.byteLength > limits.maxTotalBytes)
+			throw new BackupTooLargeError('PLANNED_SIZE_TOO_LARGE');
+		try {
+			writeArchiveFromFiles(filePath, manifestBytes, archiveEntries, limits.maxArchiveBytes);
+		} catch (cause) {
+			if (cause instanceof Error && cause.message === 'COMPRESSED_ARCHIVE_TOO_LARGE')
+				throw new BackupTooLargeError('COMPRESSED_ARCHIVE_TOO_LARGE');
+			throw cause;
+		}
 		return { filePath, filename };
 	} finally {
 		fs.rmSync(staging, { recursive: true, force: true });

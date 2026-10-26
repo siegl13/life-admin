@@ -37,12 +37,42 @@ describe('filterSuggestions', () => {
 
 	it('keeps a valid ISO date for a date field', () => {
 		const { kept } = filterSuggestions([{ fieldKey: 'contract_end', value: '2027-12-31' }], FIELDS);
-		expect(kept).toEqual([{ fieldKey: 'contract_end', value: '2027-12-31' }]);
+		expect(kept).toEqual([{ fieldKey: 'contract_end', value: '2027-12-31', sourceText: null }]);
+	});
+
+	it('keeps a genuine source excerpt, with whitespace collapsed', () => {
+		const { kept } = filterSuggestions(
+			[{ fieldKey: 'note', value: 'hello', sourceText: '  Treffpunkt \n um   12:30 Uhr ' }],
+			FIELDS
+		);
+		expect(kept[0].sourceText).toBe('Treffpunkt um 12:30 Uhr');
+	});
+
+	it('drops an empty or over-long excerpt but keeps the value', () => {
+		const { kept } = filterSuggestions(
+			[
+				{ fieldKey: 'note', value: 'hello', sourceText: '   ' },
+				{ fieldKey: 'contract_end', value: '2027-12-31', sourceText: 'x'.repeat(301) }
+			],
+			FIELDS
+		);
+		expect(kept).toEqual([
+			{ fieldKey: 'note', value: 'hello', sourceText: null },
+			{ fieldKey: 'contract_end', value: '2027-12-31', sourceText: null }
+		]);
+	});
+
+	it('keeps an excerpt of exactly the maximum length', () => {
+		const { kept } = filterSuggestions(
+			[{ fieldKey: 'note', value: 'hello', sourceText: 'x'.repeat(300) }],
+			FIELDS
+		);
+		expect(kept[0].sourceText).toHaveLength(300);
 	});
 
 	it('keeps free text and trims it', () => {
 		const { kept } = filterSuggestions([{ fieldKey: 'note', value: '  hello  ' }], FIELDS);
-		expect(kept).toEqual([{ fieldKey: 'note', value: 'hello' }]);
+		expect(kept).toEqual([{ fieldKey: 'note', value: 'hello', sourceText: null }]);
 	});
 
 	it('discards a whitespace-only value as empty', () => {
@@ -59,7 +89,7 @@ describe('filterSuggestions', () => {
 			],
 			FIELDS
 		);
-		expect(kept).toEqual([{ fieldKey: 'note', value: 'first' }]);
+		expect(kept).toEqual([{ fieldKey: 'note', value: 'first', sourceText: null }]);
 		expect(discarded).toEqual([{ fieldKey: 'note', reason: 'DUPLICATE' }]);
 	});
 
@@ -82,7 +112,7 @@ describe('filterSuggestions', () => {
 		// the current one is kept here and hidden later by the review UI
 		// (getExtractionRun), not dropped by this filter.
 		const { kept } = filterSuggestions([{ fieldKey: 'note', value: 'same as current' }], FIELDS);
-		expect(kept).toEqual([{ fieldKey: 'note', value: 'same as current' }]);
+		expect(kept).toEqual([{ fieldKey: 'note', value: 'same as current', sourceText: null }]);
 	});
 
 	// A dedicated "more suggestions than fields -> OVER_LIMIT" case is

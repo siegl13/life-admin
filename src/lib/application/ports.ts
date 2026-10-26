@@ -94,6 +94,9 @@ export interface FieldRepositoryPort {
 	listFields(cycleId: string): Field[];
 	addCustomField(cycleId: string, input: { label: string; type: FieldType }): Field;
 	removeCustomField(cycleId: string, fieldKey: string): void;
+	/** Guarded. Throws when confirming a field without a value. Returns
+	 *  false when the field does not exist. */
+	setFieldConfirmed(cycleId: string, fieldKey: string, confirmed: boolean): boolean;
 }
 
 /** Item-owned field groups. Mutations are guarded: the item must be ACTIVE. */
@@ -111,7 +114,7 @@ export interface FieldGroupRepositoryPort {
 export interface ScheduleRepositoryPort {
 	applyFieldUpdatesAndRecalculate(
 		cycleId: string,
-		updates: readonly { fieldKey: string; value: string | null }[]
+		updates: readonly { fieldKey: string; value: string | null; sourceText?: string | null }[]
 	): void;
 	applyFieldUpdatesAndGroups(
 		itemId: string,

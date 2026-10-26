@@ -51,7 +51,8 @@ describe('loadItemOverview', () => {
 				fields: {
 					listFields: vi.fn(() => fields),
 					addCustomField: vi.fn(),
-					removeCustomField: vi.fn()
+					removeCustomField: vi.fn(),
+					setFieldConfirmed: vi.fn()
 				},
 				attachments: {
 					listByItem: vi.fn(),
@@ -104,7 +105,8 @@ describe('loadItemOverview', () => {
 				fields: {
 					listFields: vi.fn(() => []),
 					addCustomField: vi.fn(),
-					removeCustomField: vi.fn()
+					removeCustomField: vi.fn(),
+					setFieldConfirmed: vi.fn()
 				},
 				attachments: {
 					listByItem: vi.fn(),
@@ -148,6 +150,8 @@ function field(fieldKey: string, value: string | null, origin: 'PLAYBOOK' | 'CUS
 		origin,
 		recommended: false,
 		position: 0,
-		value
+		value,
+		sourceText: null,
+		confirmed: false
 	};
 }

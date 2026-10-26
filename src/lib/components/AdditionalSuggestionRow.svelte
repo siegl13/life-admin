@@ -4,7 +4,13 @@
 	import { parseCurrencyStorageValue, SUPPORTED_CURRENCY_CODES } from '$lib/domain/field/field';
 	import type { AdditionalSuggestionForReview } from '$lib/application/ai/getExtractionRun';
 
-	let { suggestion }: { suggestion: AdditionalSuggestionForReview } = $props();
+	let {
+		suggestion,
+		groups = []
+	}: {
+		suggestion: AdditionalSuggestionForReview;
+		groups?: { id: string; label: string | null; isDefault: boolean }[];
+	} = $props();
 
 	/* The type may be changed before adding (AI Extraction 1.1, section 6).
 	   The derived value may be locally overridden, so the
@@ -30,6 +36,9 @@
 		<span class="additional-suggestion__suggested">
 			{suggestion.suggestedLabel}
 			<span class="meta">{displaySuggestedValue()}</span>
+			{#if suggestion.evidence}
+				<span class="meta">{t('items.detail.fieldSource')}: <q>{suggestion.evidence}</q></span>
+			{/if}
 		</span>
 	</label>
 	{#if suggestion.evidence}
@@ -39,59 +48,83 @@
 		</p>
 	{/if}
 
-	<div class="field-row">
-		<label for="additional-label-{suggestion.id}">{t('items.detail.customFieldLabel')}</label>
-		<input
-			id="additional-label-{suggestion.id}"
-			name="label:{suggestion.id}"
-			type="text"
-			value={suggestion.suggestedLabel}
-		/>
-	</div>
+	{#if groups.length > 1}
+		<div class="field-row">
+			<label for="additional-group-{suggestion.id}">{t('ai.additional.group')}</label>
+			<select
+				id="additional-group-{suggestion.id}"
+				name="group:{suggestion.id}"
+				aria-label={t('ai.additional.group')}
+			>
+				{#each groups as group (group.id)}
+					<option value={group.id} selected={group.isDefault}>
+						{group.label ?? t('items.detail.groupGeneral')}
+					</option>
+				{/each}
+			</select>
+		</div>
+	{:else if groups.length === 1}
+		<input type="hidden" name="group:{suggestion.id}" value={groups[0].id} />
+	{/if}
 
-	<div class="field-row">
-		<label for="additional-type-{suggestion.id}">{t('items.detail.customFieldType')}</label>
-		<select id="additional-type-{suggestion.id}" name="type:{suggestion.id}" bind:value={type}>
-			<option value="text">{t('items.detail.fieldTypeText')}</option>
-			<option value="date">{t('items.detail.fieldTypeDate')}</option>
-			<option value="currency">{t('items.detail.fieldTypeCurrency')}</option>
-		</select>
-	</div>
-
-	<div class="field-row">
-		<label for="additional-value-{suggestion.id}">{t('items.detail.valueLabel')}</label>
-		{#if type === 'date'}
-			<input
-				id="additional-value-{suggestion.id}"
-				name="value:{suggestion.id}"
-				type="date"
-				value={suggestion.suggestedType === 'date' ? suggestion.value : ''}
-			/>
-		{:else if type === 'currency'}
-			<div class="field-row__currency">
+	<details class="disclosure disclosure--quiet">
+		<summary>{t('ai.additional.editDetails')}</summary>
+		<div class="form-stack">
+			<div class="field-row">
+				<label for="additional-label-{suggestion.id}">{t('items.detail.customFieldLabel')}</label>
 				<input
-					id="additional-value-{suggestion.id}"
-					name="value:{suggestion.id}"
+					id="additional-label-{suggestion.id}"
+					name="label:{suggestion.id}"
 					type="text"
-					inputmode="decimal"
-					placeholder="0,00"
-					value={suggestedCurrency?.amount ?? ''}
+					value={suggestion.suggestedLabel}
 				/>
-				<select name="currency:{suggestion.id}" aria-label={t('items.detail.currencyCode')}>
-					{#each SUPPORTED_CURRENCY_CODES as code (code)}
-						<option value={code} selected={code === (suggestedCurrency?.currencyCode ?? 'EUR')}>
-							{code}
-						</option>
-					{/each}
+			</div>
+
+			<div class="field-row">
+				<label for="additional-type-{suggestion.id}">{t('items.detail.customFieldType')}</label>
+				<select id="additional-type-{suggestion.id}" name="type:{suggestion.id}" bind:value={type}>
+					<option value="text">{t('items.detail.fieldTypeText')}</option>
+					<option value="date">{t('items.detail.fieldTypeDate')}</option>
+					<option value="currency">{t('items.detail.fieldTypeCurrency')}</option>
 				</select>
 			</div>
-		{:else}
-			<input
-				id="additional-value-{suggestion.id}"
-				name="value:{suggestion.id}"
-				type="text"
-				value={suggestion.suggestedType === 'text' ? suggestion.value : ''}
-			/>
-		{/if}
-	</div>
+
+			<div class="field-row">
+				<label for="additional-value-{suggestion.id}">{t('items.detail.valueLabel')}</label>
+				{#if type === 'date'}
+					<input
+						id="additional-value-{suggestion.id}"
+						name="value:{suggestion.id}"
+						type="date"
+						value={suggestion.suggestedType === 'date' ? suggestion.value : ''}
+					/>
+				{:else if type === 'currency'}
+					<div class="field-row__currency">
+						<input
+							id="additional-value-{suggestion.id}"
+							name="value:{suggestion.id}"
+							type="text"
+							inputmode="decimal"
+							placeholder="0,00"
+							value={suggestedCurrency?.amount ?? ''}
+						/>
+						<select name="currency:{suggestion.id}" aria-label={t('items.detail.currencyCode')}>
+							{#each SUPPORTED_CURRENCY_CODES as code (code)}
+								<option value={code} selected={code === (suggestedCurrency?.currencyCode ?? 'EUR')}>
+									{code}
+								</option>
+							{/each}
+						</select>
+					</div>
+				{:else}
+					<input
+						id="additional-value-{suggestion.id}"
+						name="value:{suggestion.id}"
+						type="text"
+						value={suggestion.suggestedType === 'text' ? suggestion.value : ''}
+					/>
+				{/if}
+			</div>
+		</div>
+	</details>
 </div>

@@ -20,6 +20,7 @@ import type {
 	MarkExtractionRunSucceededInput,
 	SuggestedFieldType
 } from '$lib/application/ai/ports';
+import { normalizeSourceText } from '$lib/domain/field/field';
 import {
 	AdditionalSuggestionNotFoundError,
 	DailyExtractionLimitReachedError,
@@ -29,6 +30,8 @@ import { addManualAction } from './actionRepository';
 import { insertCustomFieldRow } from './fieldRepository';
 import { applyFieldUpdatesAndRecalculate } from './scheduleRepository';
 import { assertCycleIsWritable } from './writeGuards';
+import { FieldGroupTargetNotFoundError } from './fieldGroupRepository';
+import { log } from '../../log';
 
 interface RunRow {
 	id: string;
@@ -101,7 +104,7 @@ export function markSucceeded(
 	runId: string,
 	input: MarkExtractionRunSucceededInput
 ): void {
-	db.transaction(() => {
+	const persisted = db.transaction(() => {
 		const changed = db
 			.prepare(
 				`UPDATE extraction_runs
@@ -120,9 +123,16 @@ export function markSucceeded(
 
 		for (const suggestion of input.suggestions) {
 			db.prepare(
-				`INSERT INTO extraction_suggestions (id, run_id, field_key, value, position, accepted)
-				 VALUES (?, ?, ?, ?, ?, 0)`
-			).run(crypto.randomUUID(), runId, suggestion.fieldKey, suggestion.value, suggestion.position);
+				`INSERT INTO extraction_suggestions (id, run_id, field_key, value, source_text, position, accepted)
+				 VALUES (?, ?, ?, ?, ?, ?, 0)`
+			).run(
+				crypto.randomUUID(),
+				runId,
+				suggestion.fieldKey,
+				suggestion.value,
+				normalizeSourceText(suggestion.sourceText),
+				suggestion.position
+			);
 		}
 
 		for (const suggestion of input.additionalSuggestions) {
@@ -166,7 +176,26 @@ export function markSucceeded(
 				suggestion.position
 			);
 		}
+		return true;
 	})();
+	if (persisted && input.diagnostics) {
+		const diagnostics = input.diagnostics;
+		log.info('ai extraction persisted', {
+			runId,
+			completionStatus: diagnostics.provider?.completionStatus ?? null,
+			providerActionCount: diagnostics.provider?.providerActionCount ?? null,
+			schemaValidActionCount: diagnostics.provider?.schemaValidActionCount ?? null,
+			mappedActionCount: diagnostics.mappedActionCount,
+			discardedActionCount: input.discardedActionCount ?? 0,
+			discardedActionsByReason: diagnostics.discardedActionsByReason,
+			persistedActionCount: input.actionSuggestions?.length ?? 0,
+			persistedFieldCount: input.suggestions.length,
+			persistedAdditionalFieldCount: input.additionalSuggestions.length,
+			inputTokens: diagnostics.provider?.inputTokens ?? null,
+			outputTokens: diagnostics.provider?.outputTokens ?? null,
+			maxOutputTokens: diagnostics.maxOutputTokens
+		});
+	}
 }
 
 export function markFailed(db: Database.Database, runId: string): void {
@@ -191,16 +220,18 @@ export function listSuggestions(
 	runId: string
 ): ExtractionSuggestionRecord[] {
 	const query =
-		'SELECT field_key, value, position, accepted FROM extraction_suggestions WHERE run_id = ? ORDER BY position';
+		'SELECT field_key, value, source_text, position, accepted FROM extraction_suggestions WHERE run_id = ? ORDER BY position';
 	const rows = db.prepare(query).all(runId) as {
 		field_key: string;
 		value: string;
+		source_text: string | null;
 		position: number;
 		accepted: number;
 	}[];
 	return rows.map((row) => ({
 		fieldKey: row.field_key,
 		value: row.value,
+		sourceText: row.source_text,
 		position: row.position,
 		accepted: row.accepted === 1
 	}));
@@ -404,10 +435,16 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 		for (const selection of input.selections) {
 			const suggestion = db
 				.prepare(
-					`SELECT id FROM extraction_additional_suggestions WHERE id = ? AND run_id = ? AND accepted = 0`
+					`SELECT id, evidence, suggested_type, value FROM extraction_additional_suggestions
+					 WHERE id = ? AND run_id = ? AND accepted = 0`
 				)
-				.get(selection.suggestionId, input.runId) as { id: string } | undefined;
+				.get(selection.suggestionId, input.runId) as
+				{ id: string; evidence: string | null; suggested_type: string; value: string } | undefined;
 			if (!suggestion) throw new AdditionalSuggestionNotFoundError();
+			const group = db
+				.prepare('SELECT 1 FROM item_field_groups WHERE id = ? AND item_id = ?')
+				.get(selection.groupId, input.itemId);
+			if (!group) throw new FieldGroupTargetNotFoundError();
 
 			const field = insertCustomFieldRow(db, input.cycleId, {
 				label: selection.label,
@@ -416,9 +453,21 @@ export function addAdditionalFields(db: Database.Database, input: AddAdditionalF
 
 			if (selection.value !== null) {
 				applyFieldUpdatesAndRecalculate(db, input.cycleId, [
-					{ fieldKey: field.fieldKey, value: selection.value }
+					{
+						fieldKey: field.fieldKey,
+						value: selection.value,
+						sourceText:
+							selection.value === suggestion.value && selection.type === suggestion.suggested_type
+								? suggestion.evidence
+								: null
+					}
 				]);
 			}
+			db.prepare(
+				`INSERT INTO item_field_group_assignments (item_id, field_key, group_id)
+				 VALUES (?, ?, ?)
+				 ON CONFLICT (item_id, field_key) DO UPDATE SET group_id = excluded.group_id`
+			).run(input.itemId, field.fieldKey, selection.groupId);
 
 			db.prepare(`UPDATE extraction_additional_suggestions SET accepted = 1 WHERE id = ?`).run(
 				selection.suggestionId

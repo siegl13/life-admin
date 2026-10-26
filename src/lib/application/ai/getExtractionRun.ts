@@ -1,5 +1,6 @@
 import type { FieldType } from '../../domain/field/field';
 import type { ActionRepositoryPort, FieldRepositoryPort } from '../ports';
+import type { FieldGroup } from '../../domain/field/fieldGroup';
 import {
 	compareFieldValue,
 	selectFieldWrites,
@@ -22,6 +23,7 @@ export interface SuggestionForReview {
 	/** Loaded locally, never sent to the provider (see extraction.ts). */
 	currentValue: string | null;
 	suggestedValue: string;
+	sourceText: string | null;
 	comparison: FieldComparison;
 }
 
@@ -65,6 +67,7 @@ export interface ExtractionRunForReview {
 	actionSuggestions: ActionSuggestionForReview[];
 	datePreviewFields: { fieldKey: string; type: string; value: string | null }[];
 	datePreviewSuggestions: { fieldKey: string; value: string }[];
+	fieldGroups: FieldGroup[];
 }
 
 export function previewActionDates(
@@ -117,6 +120,7 @@ export function getExtractionRun(
 		runs: ExtractionRunRepositoryPort;
 		fields: FieldRepositoryPort;
 		actions: ActionRepositoryPort;
+		fieldGroups?: { listGroups(itemId: string): FieldGroup[] };
 	},
 	input: { itemId: string; runId: string }
 ): ExtractionRunForReview | null {
@@ -137,6 +141,7 @@ export function getExtractionRun(
 				type: field.type,
 				currentValue: field.value,
 				suggestedValue: suggestion.value,
+				sourceText: suggestion.sourceText,
 				comparison: compareFieldValue(field.value, suggestion.value)
 			};
 		})
@@ -199,6 +204,7 @@ export function getExtractionRun(
 			.map(({ fieldKey, type, value }) => ({ fieldKey, type, value })),
 		datePreviewSuggestions: storedSuggestions
 			.filter((suggestion) => anchorKeys.has(suggestion.fieldKey))
-			.map(({ fieldKey, value }) => ({ fieldKey, value }))
+			.map(({ fieldKey, value }) => ({ fieldKey, value })),
+		fieldGroups: ports.fieldGroups?.listGroups(run.itemId) ?? []
 	};
 }

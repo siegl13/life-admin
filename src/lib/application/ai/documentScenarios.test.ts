@@ -247,6 +247,46 @@ describe('Action Suggestions from explicit instructions', () => {
 		});
 	});
 
+	it('keeps an explicit identity instruction without inventing a deadline', () => {
+		const { selections } = planned({ actions: [action('Identitätsprüfung durchführen')] });
+		expect(selections[0]).toMatchObject({
+			label: 'Identitätsprüfung durchführen',
+			dueDate: null
+		});
+	});
+
+	it('keeps a conditional collection obligation and its unknown deadline in context', () => {
+		const context = 'Innerhalb von 14 Tagen nach Zugang der Bereitstellungsanzeige abholen.';
+		const { p, selections } = planned({
+			actions: [{ ...action('Fahrzeug abholen'), context }]
+		});
+		expect(review(p).actionSuggestions[0]!.context).toBe(context);
+		expect(selections[0]).toMatchObject({ description: context, dueDate: null });
+	});
+
+	it('keeps a return-at-agreement-end obligation when the end date is unknown', () => {
+		const context = 'Das Fahrzeug ist bei Vertragsende zurückzugeben.';
+		const { selections } = planned({
+			actions: [{ ...action('Fahrzeug zurückgeben'), context }]
+		});
+		expect(selections[0]).toMatchObject({
+			label: 'Fahrzeug zurückgeben',
+			description: context,
+			dueDate: null
+		});
+	});
+
+	it('does not invent a cancellation Action when the provider omits an optional withdrawal right', () => {
+		// Conforming provider output, not a test of live-model recognition.
+		const { p, selections } = planned({
+			suggestions: [{ fieldKey: 'departure', value: '2027-05-01' }],
+			actions: []
+		});
+		expect(review(p).actionSuggestions).toEqual([]);
+		expect(selections).toEqual([]);
+		expect(review(p).alreadyPresent[0]!.fieldKey).toBe('departure');
+	});
+
 	it('treats an online check-in opportunity as availability, never as a deadline', () => {
 		const { selections } = planned({
 			actions: [

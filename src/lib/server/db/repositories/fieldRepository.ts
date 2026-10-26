@@ -13,6 +13,8 @@ interface FieldRow {
 	recommended: number;
 	position: number;
 	value: string | null;
+	source_text: string | null;
+	confirmed: number;
 }
 
 function mapField(row: FieldRow): Field {
@@ -25,7 +27,9 @@ function mapField(row: FieldRow): Field {
 		origin: row.origin as FieldOrigin,
 		recommended: row.recommended === 1,
 		position: row.position,
-		value: row.value
+		value: row.value,
+		sourceText: row.source_text,
+		confirmed: row.confirmed === 1
 	};
 }
 
@@ -48,6 +52,43 @@ export function setFieldValue(
 		cycleId,
 		fieldKey
 	);
+}
+
+export class FieldNotConfirmableError extends Error {
+	constructor(fieldKey: string) {
+		super(`Field "${fieldKey}" has no value to confirm`);
+		this.name = 'FieldNotConfirmableError';
+	}
+}
+
+/**
+ * Sets or clears the explicit confirmation of one field's current value.
+ * A field without a value can never be confirmed. Guarded by
+ * `assertCycleIsWritable` in the same transaction as the write. Returns
+ * false when the field does not exist.
+ */
+export function setFieldConfirmed(
+	db: Database.Database,
+	cycleId: string,
+	fieldKey: string,
+	confirmed: boolean
+): boolean {
+	return db.transaction((): boolean => {
+		assertCycleIsWritable(db, cycleId);
+		const row = db
+			.prepare('SELECT value FROM cycle_fields WHERE cycle_id = ? AND field_key = ?')
+			.get(cycleId, fieldKey) as { value: string | null } | undefined;
+		if (!row) return false;
+		if (confirmed && (row.value === null || row.value.trim() === '')) {
+			throw new FieldNotConfirmableError(fieldKey);
+		}
+		db.prepare('UPDATE cycle_fields SET confirmed = ? WHERE cycle_id = ? AND field_key = ?').run(
+			confirmed ? 1 : 0,
+			cycleId,
+			fieldKey
+		);
+		return true;
+	})();
 }
 
 function slugify(label: string): string {
@@ -130,7 +171,9 @@ export function insertCustomFieldRow(
 		origin: 'CUSTOM',
 		recommended: false,
 		position,
-		value: null
+		value: null,
+		sourceText: null,
+		confirmed: false
 	};
 }
 

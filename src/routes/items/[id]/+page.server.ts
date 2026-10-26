@@ -76,7 +76,11 @@ import {
 	UnknownFieldError,
 	updateItemFieldsAndGroups
 } from '$lib/application/items/updateItemFields';
-import { CannotRemovePlaybookFieldError } from '$lib/server/db/repositories/fieldRepository';
+import { setFieldConfirmation } from '$lib/application/items/setFieldConfirmation';
+import {
+	CannotRemovePlaybookFieldError,
+	FieldNotConfirmableError
+} from '$lib/server/db/repositories/fieldRepository';
 import { FieldGroupTargetNotFoundError as RepoFieldGroupTargetNotFoundError } from '$lib/server/db/repositories/fieldGroupRepository';
 import { ItemNotWritableError } from '$lib/server/db/repositories/writeGuards';
 import {
@@ -536,6 +540,33 @@ export const actions: Actions = {
 		// route deliberately has no client-side `use:enhance` (forms must
 		// keep working with JavaScript disabled).
 		redirect(303, `/items/${params.id}`);
+	},
+
+	setFieldConfirmation: async ({ request, params }) => {
+		if (isItemArchived(params.id)) return fail(400, { error: t('items.detail.archivedReadOnly') });
+		const formData = await request.formData();
+		const fieldKey = formData.get('fieldKey')?.toString() ?? '';
+		const confirmed = formData.get('confirmed')?.toString() === 'yes';
+
+		try {
+			setFieldConfirmation(
+				{ cycles: cyclesPort, fields: fieldsPort },
+				{ itemId: params.id, fieldKey, confirmed }
+			);
+		} catch (err) {
+			if (err instanceof ItemNotWritableError) {
+				return fail(400, { error: t('items.detail.archivedReadOnly') });
+			}
+			if (err instanceof FieldNotConfirmableError) {
+				return fail(400, { error: t('items.detail.fieldNotConfirmable') });
+			}
+			if (err instanceof UnknownFieldError || err instanceof ItemHasNoActiveCycleError) {
+				return fail(400, { error: err.message });
+			}
+			throw err;
+		}
+
+		redirect(303, `/items/${params.id}#field-fact-${fieldKey}`);
 	},
 
 	addField: async ({ request, params }) => {
