@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { addDays, format } from 'date-fns';
 
 /**
  * Phase 2 of the What's Next redesign: round done control, native "more"
@@ -69,9 +70,7 @@ async function chipCount(page: Page, name: RegExp): Promise<number> {
 }
 
 function dateInDays(days: number): string {
-	const date = new Date();
-	date.setUTCDate(date.getUTCDate() + days);
-	return date.toISOString().slice(0, 10);
+	return format(addDays(new Date(), days), 'yyyy-MM-dd');
 }
 
 test('round done control completes the action, offers undo, and both work with JavaScript disabled', async ({
@@ -213,7 +212,9 @@ test('filter chips reflect exact count deltas per bucket, reject unknown filters
 
 		// Completing from a filtered view must return to that SAME filter,
 		// not reset to "all" — the filter rides the form action's query.
-		const row = page.locator('.action-row', { hasText: 'Overdue task' });
+		const row = page.locator('.item-group', { hasText: title }).locator('.action-row', {
+			hasText: 'Overdue task'
+		});
 		await expect(row.locator('form[action="?/completeAction&filter=overdue"]')).toHaveCount(1);
 		await row.getByRole('button', { name: 'Erledigen: Overdue task' }).click();
 		await expect(page).toHaveURL(/\?filter=overdue$/);

@@ -94,7 +94,10 @@ function readConfig(env: NodeJS.ProcessEnv): Config {
 		aiTimeoutMs: 60_000,
 		aiMaxDocumentBytes: 8 * 1024 * 1024,
 		aiMaxOutputTokens: 2000,
-		aiDailyRunLimit: 20
+		// The deterministic fake makes no external request. Keep the shared E2E
+		// database from exhausting its quota as more independent flows are added.
+		// Match selectProvider's production gate so real requests always keep 20.
+		aiDailyRunLimit: env.LIFEADMIN_AI_FAKE === '1' && env.NODE_ENV !== 'production' ? 1000 : 20
 	};
 }
 

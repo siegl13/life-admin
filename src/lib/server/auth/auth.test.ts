@@ -10,6 +10,12 @@ describe('server authentication primitives', () => {
 		expect(await passwordHasher.verify('correct horse battery staple', hash)).toBe(true);
 		expect(await passwordHasher.verify('wrong', hash)).toBe(false);
 		expect(await passwordHasher.verify('anything', 'malformed')).toBe(false);
+		expect(
+			await passwordHasher.verify(
+				'anything',
+				'scrypt$N=999999999,r=8,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+			)
+		).toBe(false);
 	});
 
 	it('creates non-replayable session token pairs', () => {

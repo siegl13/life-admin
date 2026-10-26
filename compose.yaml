@@ -4,6 +4,8 @@ services:
     image: lifeadmin:local
     restart: unless-stopped
     ports:
+      # LAN access by default. For an internet-facing proxy on this host,
+      # bind to 127.0.0.1 instead and set ORIGIN to the public HTTPS URL.
       - '3000:3000'
     # Uncomment and create a `.env` file (copy `.env.example`) to set
     # LIFEADMIN_OPENAI_API_KEY (and, only if needed, LIFEADMIN_AI_MODEL)

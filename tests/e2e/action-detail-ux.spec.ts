@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { addDays, format } from 'date-fns';
 
 /**
  * Compact Action-detail UX: primary Mark done/Skip stay directly
@@ -17,10 +18,7 @@ const dateFormat = new Intl.DateTimeFormat('de-DE', {
 });
 
 function isoDaysFromToday(days: number): string {
-	const d = new Date();
-	d.setUTCHours(0, 0, 0, 0);
-	d.setUTCDate(d.getUTCDate() + days);
-	return d.toISOString().slice(0, 10);
+	return format(addDays(new Date(), days), 'yyyy-MM-dd');
 }
 
 function formattedDaysFromToday(days: number): string {

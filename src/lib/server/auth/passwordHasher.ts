@@ -26,24 +26,29 @@ export const passwordHasher: PasswordHasherPort = {
 		return `scrypt$N=${PARAMS.N},r=${PARAMS.r},p=${PARAMS.p}$${salt.toString('base64url')}$${hash.toString('base64url')}`;
 	},
 	async verify(plain, stored) {
-		try {
-			const [algorithm, paramsText, saltText, hashText] = stored.split('$');
-			if (algorithm !== 'scrypt' || !paramsText || !saltText || !hashText) return false;
-			const match = /^N=(\d+),r=(\d+),p=(\d+)$/.exec(paramsText);
-			if (!match) return false;
-			const expected = Buffer.from(hashText, 'base64url');
-			if (expected.length !== PARAMS.keylen) return false;
-			const actual = await derive(
-				plain,
-				Buffer.from(saltText, 'base64url'),
-				+match[1],
-				+match[2],
-				+match[3]
-			);
-			return timingSafeEqual(actual, expected);
-		} catch {
+		const [algorithm, paramsText, saltText, hashText] = stored.split('$');
+		if (algorithm !== 'scrypt' || !paramsText || !saltText || !hashText) return false;
+		const match = /^N=(\d+),r=(\d+),p=(\d+)$/.exec(paramsText);
+		if (!match) return false;
+		const [N, r, p] = match.slice(1).map(Number);
+		if (
+			!Number.isInteger(N) ||
+			N < 2 ||
+			N > PARAMS.N ||
+			(N & (N - 1)) !== 0 ||
+			!Number.isInteger(r) ||
+			r < 1 ||
+			r > PARAMS.r ||
+			!Number.isInteger(p) ||
+			p < 1 ||
+			p > PARAMS.p
+		)
 			return false;
-		}
+		const salt = Buffer.from(saltText, 'base64url');
+		const expected = Buffer.from(hashText, 'base64url');
+		if (salt.length !== 16 || expected.length !== PARAMS.keylen) return false;
+		const actual = await derive(plain, salt, N, r, p);
+		return timingSafeEqual(actual, expected);
 	},
 	needsRehash(stored) {
 		return !stored.startsWith(`scrypt$N=${PARAMS.N},r=${PARAMS.r},p=${PARAMS.p}$`);
