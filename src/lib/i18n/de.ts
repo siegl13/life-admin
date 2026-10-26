@@ -541,6 +541,8 @@ export const de = {
 	'ai.error.failed':
 		'Die Erkennung hat nicht funktioniert. Du kannst es erneut versuchen oder die Angaben selbst eintragen.',
 	'ai.error.failedHint': 'Du kannst es erneut versuchen oder die Angaben selbst eintragen.',
+	'ai.error.saveFailed':
+		'Nicht alle ausgewählten Vorschläge konnten gespeichert werden. Bitte prüfe das Element, bevor du es erneut versuchst.',
 	'ai.error.tooLarge': 'Dieses Dokument ist für die automatische Erkennung zu groß.',
 	'ai.error.unsupportedType':
 		'Dieser Dateityp wird für die automatische Erkennung nicht unterstützt.',

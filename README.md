@@ -220,6 +220,7 @@ value edits are available under “Edit details”.
 ```
 LIFEADMIN_OPENAI_API_KEY=sk-...
 # LIFEADMIN_AI_MODEL=gpt-5.6-terra   # operator override only, see .env.example
+# LIFEADMIN_AI_MAX_OUTPUT_TOKENS=8000 # positive integer; default 8000
 ```
 
 Under Docker Compose, copy `.env.example` to `.env`, fill in the key,

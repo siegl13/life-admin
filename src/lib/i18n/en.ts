@@ -523,6 +523,8 @@ export const en: Record<TranslationKey, string> = {
 	'ai.review.createdAt': 'Recognized on {date}',
 	'ai.error.failed': 'Recognition did not work. You can try again or enter the details yourself.',
 	'ai.error.failedHint': 'You can try again or enter the details yourself.',
+	'ai.error.saveFailed':
+		'The selected suggestions could not all be saved. Check the item before trying again.',
 	'ai.error.tooLarge': 'This document is too large for automatic recognition.',
 	'ai.error.unsupportedType': 'This file type is not supported for automatic recognition.',
 	'ai.error.disabled': 'Automatic recognition is switched off.',

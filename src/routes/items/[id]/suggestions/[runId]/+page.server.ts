@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail, isHttpError, redirect } from '@sveltejs/kit';
 import { t } from '$lib/i18n';
 import { getExtractionRun } from '$lib/application/ai/getExtractionRun';
 import {
@@ -168,6 +168,7 @@ export const actions: Actions = {
 		// changes its source link. Null attachmentId means the document was
 		// already deleted, so only the generic document source is recorded.
 		const sourceRun = extractionRunsPort.getById(params.runId);
+		if (sourceRun && sourceRun.itemId !== params.id) error(404, 'Suggestion run not found');
 		const sourceAttachmentId = sourceRun?.itemId === params.id ? sourceRun.attachmentId : null;
 
 		function recordAccepted(acceptedCount: number) {
@@ -202,7 +203,12 @@ export const actions: Actions = {
 					{ itemId: params.id, runId: params.runId, selections: additionalSelections }
 				).addedCount;
 			} catch (err) {
-				return handleApplyActionError(err);
+				try {
+					return handleApplyActionError(err);
+				} catch (mappedError) {
+					if (isHttpError(mappedError)) throw mappedError;
+					return fail(500, { error: t('ai.error.saveFailed') });
+				}
 			}
 			recordAccepted(addedCount);
 		}
@@ -237,7 +243,12 @@ export const actions: Actions = {
 				}
 			));
 		} catch (err) {
-			return handleApplyActionError(err);
+			try {
+				return handleApplyActionError(err);
+			} catch (mappedError) {
+				if (isHttpError(mappedError)) throw mappedError;
+				return fail(500, { error: t('ai.error.saveFailed') });
+			}
 		}
 		for (let i = 0; i < createdActionCount; i += 1) {
 			recordHistoryEvent(

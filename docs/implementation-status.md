@@ -79,6 +79,36 @@ review passed.**
   On a real mobile device, choose another Group in the native picker, close and
   reopen the disclosure, apply, and reload to confirm persistence.
 
+## Large-document AI extraction failure
+
+**Status: CODE READY; staging correlation and real-PDF acceptance remain open.**
+
+- Evidence: two failed provider requests had 154,046 input tokens, 2,000 output
+  tokens and `incomplete_response`; a separate successful request had 29,989
+  input and 974 output tokens. The available evidence does not correlate those
+  request IDs to the reported 38-page leasing PDF, so that association remains
+  unconfirmed. The adapter sends one PDF file part and one prompt; it does not
+  separately submit extracted PDF text. Field definitions are included once and
+  existing Action titles are capped to 50 entries of 120 characters.
+- Fix: raise the default output limit from 2,000 to 8,000, configurable with
+  `LIFEADMIN_AI_MAX_OUTPUT_TOKENS` (positive integer; invalid values use the
+  8,000 default). Incomplete provider responses remain failures; sanitized logs
+  now include a whitelisted incomplete reason plus input, output, and reasoning
+  token counts when available. There are no automatic retries: one claimed run counts against the
+  existing daily quota and is marked FAILED. Failed results persist no partial
+  suggestions. Review/save errors now have distinct German and English copy.
+- Tests: provider output-limit and 38-page synthetic PDF request; incomplete
+  response logging and rejection; real-repository failed-run/no-partial-write;
+  config default/override validation; save failure route coverage. Existing
+  short-document structured-output, semantic filtering, and action-selection
+  coverage remains in place.
+- Final aligned verification: `npm run verify` passed (139 files, 1,337 tests);
+  `npm run test:e2e` passed (238 tests). Independent review of the merged
+  candidate passed with no actionable findings.
+- Open gates: correlate request IDs to the reported document using sanitized
+  staging metadata, manually retest the original PDF in staging without checking
+  it in, and finish independent review.
+
 ## Staging UX - Unit A: Document semantics and Action Suggestions (`unit-a-document-semantics-actions`)
 
 **Status: IMPLEMENTED. Focused tests, supervisor verification, and independent
@@ -142,6 +172,9 @@ independent review found no open findings.**
   active Item/cycle ownership, Field ownership, and Group ownership inside the
   transaction. Invalid targets or database errors roll back all writes.
   Unassigned Fields keep the General fallback.
+- The floating create button is hidden on document extraction review routes. A
+  final mobile visual pass found that it covered editable additional-Field
+  controls; the E2E suite now asserts the button is absent while reviewing.
 - Tests added or changed: `src/routes/items/[id]/page.server.test.ts` (facts
   return target, reassignment of changed Fields only, invalid Group 400,
   unknown Field ignored); `tests/e2e/field-groups.spec.ts` (create, direct
@@ -163,11 +196,12 @@ independent review found no open findings.**
   `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-01.log`
   and
   `.agent/supervisor/life-admin-staging-ux/unit-b-group-and-field-ux/verification/attempt-02.log`.
-- Responsive visual review: inspected synthetic Item screenshots at 375px,
-  390px, 430px and 1280px. Group rows, stars, overflow controls, Group select,
-  and mobile navigation stayed within the viewport without visible overlap or
-  horizontal overflow. Evidence and limitations:
-  `.agent/supervisor/life-admin-staging-ux/operational-evidence/responsive-review.md`.
+- Final responsive visual review: inspected the Group manager, Field reassignment,
+  extraction review, Field conflicts, Action suggestions, evidence excerpts and
+  mobile navigation at 375px, 390px, 430px and 1280px in German and English.
+  Apply focus is visible and no horizontal overflow remains. Evidence:
+  `.agent/supervisor/staging-ux-pr-finalization/responsive-review.md` and
+  `.agent/supervisor/staging-ux-pr-finalization/visual/`.
 - Accessibility evidence: browser tests assert star and overflow accessible
   names, `aria-pressed`, keyboard activation, visible focus, native Group select
   labels/values, keyboard selection and pointer-assisted selection. The
@@ -178,19 +212,25 @@ independent review found no open findings.**
   grouped edits, invalid target rejection, trigger-induced Group write failure
   rollback of Field values/assignments/History, plain Field edits, unchanged
   value History suppression, and Item/cycle guards.
-- Inbox E2E root cause: the E2E database is shared across sequential tests.
+- E2E shared-state findings: the database is shared across sequential tests.
   The new extraction fixture's title, `Document-derived Group assignment`,
   matched the fake routing provider's `document` item hint. The existing Item
   suggestion therefore correctly selected the existing-item radio, contrary
   to this test's playbook-only setup. Renaming the fixture to
   `Extracted Field Group assignment` removes the accidental hint match. The
-  targeted combined sequence and the full suite now pass.
-- Final integrated verification: `npm run verify` passed (134 test files,
-  1,272 unit tests, Svelte check clean, build passed). `npm run test:e2e`
-  passed all 232 tests. Focused transaction/route tests passed (56 tests).
-  `git diff --check` passed. Fresh independent review found no actionable
-  findings and confirmed transaction/rollback, History, guards, E2E root cause,
-  extraction, and Group behavior.
+  targeted combined sequence and the full suite passed. Separately, extraction
+  and Inbox analyses share the 20-run daily cap. The current sequential suite
+  makes 10 extraction and 9 Inbox AI attempts (19 total). A standalone Group
+  extraction E2E would use run 20; the following Inbox analysis would request
+  run 21 and fail, leaving a pending document for later Inbox-count tests. Group
+  coverage remains in an existing extraction flow, so this extra AI run is not
+  made. The application quota is unchanged. Global setup clears `.data-e2e`,
+  Playwright uses one worker with `fullyParallel: false`, and the fixture title
+  no longer matches the fake router's `document` hint.
+- Final integrated verification after the FAB correction: `npm run verify`
+  passed (134 test files, 1,272 unit tests, Svelte check clean, build passed).
+  `npm run test:e2e` passed all 232 tests. Focused extraction E2E passed (5
+  tests). `git diff --check` passed.
 - Acceptance gaps addressed: optional concise source excerpt; real
   document-derived Field Group reassignment; DE/EN interaction and persistence;
   browser keyboard/focus/accessibility and native select checks. Remaining
@@ -200,6 +240,10 @@ independent review found no open findings.**
 - Remaining limitations: VoiceOver/screen-reader and native mobile OS Select
   interactions were not manually tested. Model-provided source excerpts are
   not independently matched against the original document text.
+- Fresh independent review of `origin/main...HEAD` plus working-tree edits
+  passed with no actionable findings. The reviewer confirmed extraction and
+  conflict semantics, Action selection, transaction rollback, quota accounting,
+  Group UX, the FAB correction and localization/accessibility coverage.
 - Open gates: none.
 - Next planned unit: none defined in the brief.
 
@@ -2262,7 +2306,8 @@ the model name is independently confirmed.**
   type), `fakeProvider.ts` (deterministic, no network, ignores the key
   entirely), `selectProvider.ts` (pure over `process.env`, unit-tested).
   `config.ts` gained `openaiApiKey`/`aiModel`/`aiTimeoutMs`/
-  `aiMaxDocumentBytes` (8 MB)/`aiMaxOutputTokens` (2000)/
+  `aiMaxDocumentBytes` (8 MB)/`aiMaxOutputTokens` (initial default 2000,
+  since raised to 8000; see Large-document AI extraction failure)/
   `aiDailyRunLimit` (20). `appPorts.ts` gained `appSettingsPort`,
   `attachmentReadPort`, `extractionRunsPort`, `extractionProvider`
   (selected once at module load). New

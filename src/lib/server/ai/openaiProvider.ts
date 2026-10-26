@@ -169,11 +169,22 @@ function tokenCount(value: unknown): number | null {
 function responseDiagnostics(body: unknown) {
 	const status = isRecord(body) ? body.status : null;
 	const usage = isRecord(body) && isRecord(body.usage) ? body.usage : {};
+	const outputDetails = isRecord(usage.output_tokens_details) ? usage.output_tokens_details : {};
+	const incompleteDetails =
+		isRecord(body) && isRecord(body.incomplete_details) ? body.incomplete_details : {};
+	const rawReason = incompleteDetails.reason;
 	return {
 		completionStatus:
 			status === 'completed' || status === 'incomplete' || status === 'failed' ? status : null,
 		inputTokens: tokenCount(usage.input_tokens),
-		outputTokens: tokenCount(usage.output_tokens)
+		outputTokens: tokenCount(usage.output_tokens),
+		reasoningTokens: tokenCount(outputDetails.reasoning_tokens),
+		providerIncompleteReason:
+			rawReason === 'max_output_tokens' || rawReason === 'content_filter'
+				? rawReason
+				: rawReason === undefined
+					? null
+					: 'other'
 	};
 }
 

@@ -566,6 +566,14 @@ describe('markSucceeded / markFailed', () => {
 				accepted: false
 			}
 		]);
+		expect(listAdditionalSuggestions(db, 'run-1')).toMatchObject([
+			{
+				suggestedLabel: 'Rückflugnummer',
+				value: 'DE1669',
+				evidence: 'Rückflug DE1669, Heraklion nach Frankfurt',
+				accepted: false
+			}
+		]);
 	});
 
 	it('moves RUNNING to FAILED and persists no suggestions', () => {

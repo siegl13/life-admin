@@ -35,6 +35,7 @@ vi.mock('$lib/server/appPorts', () => ({
 }));
 
 import { actions } from './+page.server';
+import { ExtractionRunNotFoundError } from '$lib/application/ai/applyExtractionRun';
 
 const A = '10000000-0000-4000-8000-000000000001';
 const RUN = '20000000-0000-4000-8000-000000000001';
@@ -55,6 +56,7 @@ async function apply(body: Record<string, string>) {
 describe('applied AI suggestions history recording', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		runs.applyRun.mockReset();
 		runs.getById.mockReturnValue({
 			id: RUN,
 			itemId: A,
@@ -146,6 +148,29 @@ describe('applied AI suggestions history recording', () => {
 		await expect(apply({ 'accept:contract_end': 'on' })).rejects.toMatchObject({ status: 404 });
 		expect(runs.applyRun).not.toHaveBeenCalled();
 		expect(history.insert).not.toHaveBeenCalled();
+	});
+
+	it('shows a localized save error when a confirmed suggestion write fails', async () => {
+		runs.applyRun.mockImplementationOnce(() => {
+			throw new Error('simulated database write failure');
+		});
+
+		const response = await apply({ 'accept:contract_end': 'on' });
+
+		expect(response).toMatchObject({
+			status: 500,
+			data: { error: expect.stringContaining('gespeichert') }
+		});
+		expect(history.insert).not.toHaveBeenCalled();
+	});
+
+	it('preserves 404 for a run deleted before a confirmed suggestion write', async () => {
+		runs.getById.mockReturnValue(null);
+		runs.applyRun.mockImplementationOnce(() => {
+			throw new ExtractionRunNotFoundError();
+		});
+
+		await expect(apply({ 'accept:contract_end': 'on' })).rejects.toMatchObject({ status: 404 });
 	});
 
 	it('keeps the already-recorded event for a sub-operation that committed, even when the next one fails', async () => {

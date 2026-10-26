@@ -16,7 +16,10 @@ import {
 	extractFromDocument,
 	ExtractionNotAllowedError
 } from '$lib/application/ai/extractFromDocument';
-import type { DocumentExtractionProviderPort } from '$lib/application/ai/extraction';
+import {
+	ExtractionFailedError,
+	type DocumentExtractionProviderPort
+} from '$lib/application/ai/extraction';
 
 /**
  * Lives under `src/lib/server/`, not `src/lib/application/ai/`, precisely
@@ -194,6 +197,48 @@ describe('extractFromDocument (no-key path, real repositories)', () => {
 });
 
 describe('extractFromDocument (post-claim failure, real repositories)', () => {
+	it('records provider-incomplete failure once and persists no partial suggestions', async () => {
+		const { itemId, attachmentId } = seedActiveItemWithAttachment();
+		appSettingsRepo.set(db, 'ai.enabled', '1');
+		const provider: DocumentExtractionProviderPort = {
+			providerId: 'fake',
+			modelId: 'fake-v1',
+			extract: vi.fn(async () => {
+				throw new ExtractionFailedError('incomplete response');
+			})
+		};
+		const bytes = { readBytes: vi.fn(() => new Uint8Array([1, 2, 3])) };
+
+		await expect(
+			extractFromDocument(
+				realPorts(provider, bytes),
+				{ itemId, attachmentId },
+				{ ...BOUNDS, hasApiKey: true, maxOutputTokens: 8000 }
+			)
+		).rejects.toThrow(ExtractionFailedError);
+
+		expect(provider.extract).toHaveBeenCalledTimes(1);
+		expect(provider.extract).toHaveBeenCalledWith(
+			expect.objectContaining({ maxOutputTokens: 8000 })
+		);
+		expect(
+			db.prepare('SELECT status FROM extraction_runs WHERE item_id = ?').get(itemId)
+		).toMatchObject({ status: 'FAILED' });
+		expect(
+			(db.prepare('SELECT COUNT(*) n FROM extraction_suggestions').get() as { n: number }).n
+		).toBe(0);
+		expect(
+			(
+				db.prepare('SELECT COUNT(*) n FROM extraction_additional_suggestions').get() as {
+					n: number;
+				}
+			).n
+		).toBe(0);
+		expect(
+			(db.prepare('SELECT COUNT(*) n FROM extraction_action_suggestions').get() as { n: number }).n
+		).toBe(0);
+	});
+
 	it('persists the claimed run as FAILED with zero suggestions when reading the attachment bytes throws', async () => {
 		const { itemId, attachmentId } = seedActiveItemWithAttachment();
 		appSettingsRepo.set(db, 'ai.enabled', '1');

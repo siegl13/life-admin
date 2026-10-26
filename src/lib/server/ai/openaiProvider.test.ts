@@ -129,6 +129,8 @@ describe('createOpenAiProvider', () => {
 			completionStatus: 'completed',
 			inputTokens: 100,
 			outputTokens: 20,
+			reasoningTokens: null,
+			providerIncompleteReason: null,
 			providerActionCount: 1,
 			maxOutputTokens: 2000
 		});
@@ -175,6 +177,29 @@ describe('createOpenAiProvider', () => {
 		const filePart = body.input[0].content.find((p: { type: string }) => p.type === 'input_file');
 		expect(filePart.filename).toBe('document.pdf');
 		expect(JSON.stringify(body)).not.toContain('original-filename');
+	});
+
+	it('sends a synthetic 38-page PDF once and uses the configured output budget', async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse(responsesApiEnvelope(JSON.stringify({ suggestions: [] })))
+		);
+		const pages = Array.from(
+			{ length: 38 },
+			(_, index) => `<< /Type /Page /Parent 2 0 R /Contents ${index + 3} 0 R >>`
+		).join('\n');
+		const pdf = Buffer.from(`%PDF-1.4\n${pages}\n%%EOF`);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await provider.extract(
+			baseRequest({ document: { mimeType: 'application/pdf', bytes: pdf }, maxOutputTokens: 8000 })
+		);
+
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const body = JSON.parse(init.body as string);
+		expect(body.max_output_tokens).toBe(8000);
+		expect(
+			body.input[0].content.filter((part: { type: string }) => part.type === 'input_file')
+		).toHaveLength(1);
+		expect(pages.match(/\/Type \/Page\b/g)).toHaveLength(38);
 	});
 
 	it('sends an input_image part (no filename) for an image MIME type', async () => {
@@ -440,9 +465,51 @@ describe('createOpenAiProvider', () => {
 				completionStatus: 'incomplete',
 				inputTokens: 18000,
 				outputTokens: 2000,
+				providerIncompleteReason: 'max_output_tokens',
 				providerActionCount: null
 			})
 		);
+	});
+
+	it('records only sanitized incomplete reason and token usage when output reaches its limit', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				status: 'incomplete',
+				incomplete_details: { reason: 'max_output_tokens' },
+				usage: {
+					input_tokens: 154046,
+					output_tokens: 8000,
+					output_tokens_details: { reasoning_tokens: 1200 }
+				},
+				output: []
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await expect(provider.extract(baseRequest({ maxOutputTokens: 8000 }))).rejects.toThrow(
+			ExtractionFailedError
+		);
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('max_output_tokens');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('8000');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('1200');
+		expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('CONTRACT TEXT');
+		warnSpy.mockRestore();
+	});
+
+	it('does not log arbitrary provider incomplete-reason text', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				status: 'incomplete',
+				incomplete_details: { reason: 'sensitive payload' },
+				output: []
+			})
+		);
+		const provider = createOpenAiProvider({ openaiApiKey: 'k', aiModel: 'gpt-5.6-terra' });
+		await expect(provider.extract(baseRequest())).rejects.toThrow(ExtractionFailedError);
+		expect(JSON.stringify(warnSpy.mock.calls)).not.toContain('sensitive payload');
+		expect(JSON.stringify(warnSpy.mock.calls)).toContain('other');
+		warnSpy.mockRestore();
 	});
 
 	it('maps an incomplete message status (top-level completed) to ExtractionFailedError', async () => {

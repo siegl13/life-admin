@@ -496,6 +496,7 @@ test('Document actions: explicit selection, dates, no duplicates, safe conflict 
 	for (const width of [375, 390, 430]) {
 		await page.setViewportSize({ width, height: 800 });
 		await expect(actionSuggestions).toBeVisible();
+		await expect(page.locator('.app-fab')).toHaveCount(0);
 		await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
 	}
 
