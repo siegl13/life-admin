@@ -8,6 +8,42 @@ Versioning follows `0.x.y-beta` until the product is stable enough for
 
 All notable changes to Life Admin will be documented in this file.
 
+## [0.2.0-beta.3] - 2026-10-27
+
+### Added
+
+- Organize Item fields into named groups. Rename and reorder groups, move
+  fields between them, and feature important groups. Group organization carries
+  over to the next cycle.
+- Confirm individual field values and withdraw confirmation. Changing a value
+  resets its confirmation; accepted document values can show a source excerpt.
+- Review suggested tasks alongside document field suggestions. Tasks are only
+  created when selected, and new details can be assigned to an Item group.
+- Choose the local time of day for notifications in Settings (default 08:00).
+
+### Changed
+
+- Item details show open workflow steps first, with completed and skipped steps
+  in an expandable section. Complete and skip controls stay with the next action
+  on desktop and mobile.
+- Document review distinguishes new, unchanged and conflicting values. Existing
+  values are kept unless a replacement is explicitly selected.
+- Improve document-to-Item matching and extraction of obligations and tasks.
+  Increase the default extraction output limit to 8,000 tokens, configurable
+  through `LIFEADMIN_AI_MAX_OUTPUT_TOKENS`.
+- File selection shows the filename, type and size before upload. Upload and
+  analysis controls show when a request is in progress.
+- Refresh README screenshots and add instructions for running a versioned GHCR
+  image without building from source.
+
+### Fixed
+
+- Allow direct HTTP access through different hostnames and ports without an
+  origin setting. Reverse-proxy deployments can set an explicit public origin
+  or use trusted forwarded headers; invalid origin settings fail at startup.
+- Improve login and account-setup error handling, backup archive validation,
+  notification settings validation, and local-calendar history dates.
+
 ## [0.2.0-beta.2] - 2026-10-13
 
 ### Added
