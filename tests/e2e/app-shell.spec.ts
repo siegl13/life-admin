@@ -151,8 +151,10 @@ test.describe('desktop sidebar', () => {
 		page
 	}) => {
 		await page.goto('/');
-		await expect(page.getByRole('link', { name: 'Life Admin' })).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Suchen' })).toBeVisible();
+		const sidebar = page.locator('.app-sidebar');
+		await expect(sidebar.getByRole('link', { name: 'Life Admin' })).toBeVisible();
+		await expect(sidebar.getByRole('link', { name: 'Suchen' })).toBeVisible();
+		await expect(page.locator('.app-mobile-header')).toBeHidden();
 
 		const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
 		await expect(nav.getByRole('link', { name: 'Was steht an' })).toHaveAttribute(

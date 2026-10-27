@@ -13,8 +13,8 @@ for non-commercial use ([details below](#license)). **Contributing:** see
 
 ![What's next showing overdue, ready now, and later actions for sample items](screenshots/whats-next.png)
 ![What's next in dark mode with the same overdue, ready now, and later actions](screenshots/whats-next-dark.png)
-![Item detail showing the next action, workflow steps, and field values](screenshots/item-detail.png)
-![Inbox with an AI suggestion for the selected document and a second document in the list](screenshots/inbox.png)
+![Item detail showing the next action, workflow progress, grouped fields, documents, and history](screenshots/item-detail.png)
+![Inbox with two sample documents and destination selection for the selected document](screenshots/inbox.png)
 ![New item form with a title and a Playbook selected](screenshots/new-item.png)
 <img src="screenshots/mobile.png" width="300" alt="What's next on mobile with the header, first action rows, and tab bar">
 
@@ -36,16 +36,52 @@ All data shown is fictional test data, not a real booking or contract.
 
 ## Quickstart
 
+Choose a published image or build from source. Both options need Docker;
+the source option also needs Docker Compose and a checkout of this repository.
+
+### Run a published release
+
+Download a specific version from GitHub Container Registry (GHCR), then start it:
+
+```bash
+VERSION=0.2.0-beta.2
+docker pull ghcr.io/siegl13/life-admin:$VERSION
+docker run -d --name lifeadmin --restart unless-stopped \
+  -p 3000:3000 \
+  -e ORIGIN=http://localhost:3000 \
+  -e TZ=Europe/Berlin \
+  -e LIFEADMIN_DATA_DIR=/data \
+  -e BODY_SIZE_LIMIT=280M \
+  -v lifeadmin-data:/data \
+  ghcr.io/siegl13/life-admin:$VERSION
+```
+
+Replace `VERSION` with the version from the [GitHub Releases](https://github.com/siegl13/life-admin/releases)
+page. Beta releases use explicit version tags, not `latest`. Images support
+`linux/amd64` and `linux/arm64`.
+
+For the published `0.2.0-beta.2` image, set `ORIGIN` to the exact URL you
+use in your browser, including the scheme and port. For example, use
+`-e ORIGIN=http://192.168.1.20:3000` for LAN access. Otherwise, form submissions
+may fail with "Cross-site POST form submissions are forbidden."
+
+### Build from source with Docker Compose
+
+From the repository directory:
+
 ```bash
 docker compose up -d
 ```
 
-Requires Docker and Docker Compose. One container, port 3000, all data in
-a named volume. Open `http://localhost:3000` and create the Owner
+### First login
+
+Either option runs one container on port 3000 and keeps all data in a named
+volume. Use only one option at a time; their default volume names differ.
+Open `http://localhost:3000` and create the Owner
 account: the first person to reach the service claims it, so don't leave
 it open on a public network before that.
 
-The sample Compose file publishes port 3000 on all host interfaces. Keep
+Both examples publish port 3000 on all host interfaces. Keep
 that port behind a firewall on a trusted LAN. For access from the internet,
 use HTTPS through a reverse proxy and block direct access to port 3000.
 
@@ -253,7 +289,8 @@ backups, so re-enter them after restoring elsewhere.
 Download a ZIP backup from Settings: all your private data, including
 attachments, capped at 256 MiB compressed. Restore validates the archive
 and takes a safety copy first. Afterward, run
-`docker compose restart lifeadmin`.
+`docker compose restart lifeadmin` for Compose, or `docker restart lifeadmin`
+for the published-image example above.
 
 For a full volume copy, stop the service, run
 `docker cp lifeadmin:/data ./backup`, then start it again. Pre-restore
