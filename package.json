@@ -21,8 +21,8 @@
 		"verify": "npm run lint && npm run check && npm run playbooks:validate && npm run test:unit && npm run build"
 	},
 	"dependencies": {
-		"@sveltejs/adapter-node": "6.0.0",
-		"better-sqlite3": "13.0.3",
+		"@sveltejs/adapter-node": "6.0.4",
+		"better-sqlite3": "13.2.0",
 		"busboy": "1.6.0",
 		"date-fns": "4.4.0",
 		"fflate": "0.8.3",
